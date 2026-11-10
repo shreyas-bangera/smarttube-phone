@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Software update screen (Settings > Check for updates) -->
+<resources>
+    <string name="phone_update_check">Semak kemas kini</string>
+    <string name="phone_update_check_available">Semak kemas kini  ·  binaan %1$d tersedia</string>
+    <string name="phone_update_screen_title">Kemas kini perisian</string>
+    <string name="phone_update_current">Binaan %1$d  ·  versi %2$s</string>
+    <string name="phone_update_build">Binaan %1$d</string>
+    <string name="phone_update_checking_title">Menyemak kemas kini</string>
+    <string name="phone_update_checking_subtitle">Mencari binaan yang lebih baharu di GitHub…</string>
+    <string name="phone_update_checking_button">Menyemak…</string>
+    <string name="phone_update_none_title">Anda sudah terkini</string>
+    <string name="phone_update_none_subtitle">Binaan %1$d ialah versi terkini.</string>
+    <string name="phone_update_check_again">Semak lagi</string>
+    <string name="phone_update_available_title">Kemas kini tersedia</string>
+    <string name="phone_update_install">Muat turun dan pasang</string>
+    <string name="phone_update_install_size">Muat turun dan pasang  ·  %1$s</string>
+    <string name="phone_update_later">Bukan sekarang</string>
+    <string name="phone_update_whats_new">Apa yang baharu</string>
+    <string name="phone_update_downloading_build">Memuat turun binaan %1$d</string>
+    <string name="phone_update_downloading_subtitle">Anda boleh terus menggunakan aplikasi. Pemasang akan dibuka apabila muat turun selesai.</string>
+    <string name="phone_update_progress">%1$s daripada %2$s</string>
+    <string name="phone_update_installing_title">Sedia untuk dipasang</string>
+    <string name="phone_update_installing_subtitle">Ketik Kemas kini dalam tetingkap yang dibuka. Anda kekal log masuk dan tetapan anda dikekalkan.</string>
+    <string name="phone_update_install_again">Buka pemasang lagi</string>
+    <string name="phone_update_permission_title">Benarkan SmartTube memasang kemas kini</string>
+    <string name="phone_update_permission">Android meminta ini sekali. Hidupkan \"Benarkan dari sumber ini\", kemudian kembali ke sini dan kemas kini diteruskan.</string>
+    <string name="phone_update_open_settings">Buka tetapan</string>
+    <string name="phone_update_error_title">Tidak dapat mengemas kini</string>
+    <string name="phone_update_error_network">Tidak dapat mencapai GitHub sekarang. Semak sambungan internet anda dan cuba lagi.</string>
+    <string name="phone_update_failed">Muat turun tidak selesai (%1$s). Cuba lagi.</string>
+    <string name="phone_update_cancelled">Kemas kini dibatalkan. Ketik Cuba lagi apabila anda sudah bersedia.</string>
+    <string name="phone_update_conflict">Salinan SmartTube ini ditandatangani dengan kunci lama, jadi ia tidak boleh dikemas kini di tempatnya. Nyahpasang sekali dan pasang APK terkini dari GitHub.</string>
+    <string name="phone_update_retry">Cuba lagi</string>
+    <string name="phone_update_notify">Maklumkan saya tentang binaan baharu</string>
+    <string name="phone_update_notify_hint">Menunjukkan kad kecil pada Laman Utama apabila kemas kini tersedia</string>
+    <string name="phone_update_banner">Binaan %1$d sedia untuk dipasang</string>
+    <string name="phone_update_banner_button">Kemas kini</string>
+</resources>
