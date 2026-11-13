@@ -36,6 +36,10 @@ final class PhoneVideoSurface {
         return sTexture;
     }
 
+    static boolean ownerIs(TextureView view) {
+        return sOwner.get() == view && view != null && view.getSurfaceTexture() == sTexture && sTexture != null;
+    }
+
     /** What the decoder draws into */
     static Surface surface() {
         return texture() != null ? sSurface : null;

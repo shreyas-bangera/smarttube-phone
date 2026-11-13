@@ -52,6 +52,17 @@ final class PhonePip {
     private static int sFrames;
     private static final android.os.Handler sHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
+    /** Frames the player's video decoder has put out so far */
+    static int rendered() {
+        com.google.android.exoplayer2.SimpleExoPlayer exo = PhonePlaybackActivity.currentExoPlayer();
+        com.google.android.exoplayer2.decoder.DecoderCounters counters = exo != null ? exo.getVideoDecoderCounters() : null;
+        if (counters == null) {
+            return 0;
+        }
+        counters.ensureUpdated();
+        return counters.renderedOutputBufferCount;
+    }
+
     /** A view showing the video drew a new frame */
     static void frameShown() {
         sFrames++;
@@ -63,7 +74,7 @@ final class PhonePip {
             return;
         }
         String who = activity.getClass().getSimpleName();
-        int[] last = {sFrames};
+        int[] last = {sFrames, rendered()};
         sHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -72,10 +83,14 @@ final class PhonePip {
                     return;
                 }
                 com.google.android.exoplayer2.SimpleExoPlayer exo = PhonePlaybackActivity.currentExoPlayer();
-                Log.d("PhonePip", who + " window: " + (sFrames - last[0]) + " new frames, "
+                int rendered = rendered();
+                // "decoded" = frames the player put out; "shown" = frames a view drew on screen
+                Log.d("PhonePip", who + " window: " + (rendered - last[1]) + " decoded, " + (sFrames - last[0]) + " shown, "
                         + (exo == null ? "no player" : "play " + exo.getPlayWhenReady() + ", state " + exo.getPlaybackState()
-                        + ", at " + exo.getCurrentPosition() / 1000 + "s, video " + (exo.getVideoFormat() != null)));
+                        + ", at " + exo.getCurrentPosition() / 1000 + "s, video " + (exo.getVideoFormat() != null))
+                        + ", " + PhoneMiniPlayer.debugState());
                 last[0] = sFrames;
+                last[1] = rendered;
                 sHandler.postDelayed(this, 2000);
             }
         }, 2000);

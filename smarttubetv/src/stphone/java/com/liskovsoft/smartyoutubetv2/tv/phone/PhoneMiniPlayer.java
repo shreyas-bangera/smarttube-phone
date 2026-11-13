@@ -122,6 +122,19 @@ final class PhoneMiniPlayer {
         return "none";
     }
 
+    /** The card's video state, for the debug log */
+    static String debugState() {
+        Card card = sCard.get();
+        if (card == null) {
+            return "no card";
+        }
+        PhonePlaybackActivity player = sPlayer.get();
+        return "card: shared " + card.mShared + ", frame " + card.mGotFrame + ", still " + (card.mStill.getVisibility() == View.VISIBLE)
+                + ", view " + (card.mVideo.getParent() != null) + ", available " + card.mVideo.isAvailable()
+                + ", owner " + PhoneVideoSurface.ownerIs(card.mVideo) + ", in window " + card.mVideo.isAttachedToWindow()
+                + ", player " + (player == null ? "gone" : player.isDestroyed() ? "destroyed" : player.isFinishing() ? "finishing" : "alive");
+    }
+
     /** This screen is in the floating window because it shows the mini player's video there */
     static boolean isFloating(PhoneActivity host) {
         Card card = sCard.get();
