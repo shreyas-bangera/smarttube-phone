@@ -1224,15 +1224,10 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_playback)));
         addEngineSetting(items, engine, R.string.settings_player);
-        if (PhonePlaybackActivity.pipOnLeave(this) && !PhonePip.systemAllows(this)) {
-            // Turned off for the app in Android's settings: nothing floats until it's allowed there
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !PhonePip.systemAllows(this)) {
+            // Picture in picture is always on in the app; only Android's own switch for the app can stop it
             items.add(PhoneSetting.value(getString(R.string.phone_pip), getString(R.string.phone_pip_blocked),
                     R.drawable.ic_phone_collapse, () -> PhonePip.openSystemSettings(this)));
-        } else {
-            items.add(PhoneSetting.toggle(getString(R.string.phone_pip), PhonePlaybackActivity.pipOnLeave(this), R.drawable.ic_phone_collapse, () -> {
-                PhonePlaybackActivity.setPipOnLeave(this, !PhonePlaybackActivity.pipOnLeave(this));
-                refreshSettingsRows();
-            }));
         }
         addEngineSetting(items, engine, R.string.subtitle_category_title);
         addEngineSetting(items, engine, R.string.content_block_provider);

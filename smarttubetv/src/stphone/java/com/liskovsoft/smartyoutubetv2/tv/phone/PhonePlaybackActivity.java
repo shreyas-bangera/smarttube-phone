@@ -565,13 +565,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private String mPipState;
     private android.content.BroadcastReceiver mPipReceiver;
 
-    /** Settings > Picture in picture (on by default). SmartTube's own background mode stays "sound only". */
+    /** Always on, like the YouTube app (SmartTube's own background mode stays "sound only") */
     static boolean pipOnLeave(android.content.Context context) {
-        return Build.VERSION.SDK_INT >= 26 && context.getSharedPreferences("phone_defaults", MODE_PRIVATE).getBoolean("pip_on_leave", true);
-    }
-
-    static void setPipOnLeave(android.content.Context context, boolean on) {
-        context.getSharedPreferences("phone_defaults", MODE_PRIVATE).edit().putBoolean("pip_on_leave", on).apply();
+        return Build.VERSION.SDK_INT >= 26;
     }
 
     /**
