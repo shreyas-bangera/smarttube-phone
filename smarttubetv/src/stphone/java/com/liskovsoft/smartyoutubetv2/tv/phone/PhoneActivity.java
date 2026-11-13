@@ -87,7 +87,7 @@ public abstract class PhoneActivity extends MotherActivity {
      * floating window's task (the whole app shrunk into the corner): it closes itself straight away.
      */
     private boolean leaveFloatingWindow() {
-        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode() && !isFinishing()) {
+        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode() && !isFinishing() && !PhoneMiniPlayer.isFloating(this)) {
             android.util.Log.d("PhonePip", getClass().getSimpleName() + " in the floating window: closed");
             finish();
             return true;
@@ -95,13 +95,95 @@ public abstract class PhoneActivity extends MotherActivity {
         return false;
     }
 
+    // region Leaving the app with the mini player on: the video goes on in Android's floating window
+
+    private String mPipState;
+
+    /**
+     * Set while this screen opens another one itself: Android reports that as the user leaving too, and the mini
+     * player's floating window must not open then.
+     */
+    private boolean mAppLeaving;
+
+    boolean isAppLeaving() {
+        return mAppLeaving;
+    }
+
+    @Override
+    public void startActivityForResult(android.content.Intent intent, int requestCode, Bundle options) {
+        mAppLeaving = true;
+        getWindow().getDecorView().postDelayed(() -> {
+            mAppLeaving = false;
+            updateMiniPlayerPip();
+        }, 1500);
+        updateMiniPlayerPip(); // disarmed before Android moves this screen back
+        if (intent != null) {
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION);
+        }
+        super.startActivityForResult(intent, requestCode, options);
+    }
+
+    /** The mini player calls this when it appears, moves, pauses or goes away: keeps Android's picture told */
+    void updateMiniPlayerPip() {
+        if (Build.VERSION.SDK_INT < 26 || !hostsMiniPlayer()) {
+            return;
+        }
+        boolean wanted = PhoneMiniPlayer.wantsPip(this);
+        android.graphics.Rect card = PhoneMiniPlayer.cardRect(this);
+        String state = wanted + " " + (card != null ? card.flattenToString() : "") + " " + PhoneMiniPlayer.pipAspect();
+        if (state.equals(mPipState)) {
+            return;
+        }
+        mPipState = state;
+        android.util.Log.d("PhonePip", getClass().getSimpleName() + " mini player window " + (wanted ? "armed" : "off"));
+        try {
+            setPictureInPictureParams(miniPlayerPipParams(wanted, card));
+        } catch (RuntimeException e) {
+            android.util.Log.d("PhoneMiniPlayer", "pip params: " + e); // no picture-in-picture on this device
+        }
+    }
+
+    @androidx.annotation.RequiresApi(26)
+    private android.app.PictureInPictureParams miniPlayerPipParams(boolean wanted, android.graphics.Rect card) {
+        android.app.PictureInPictureParams.Builder builder = new android.app.PictureInPictureParams.Builder()
+                .setAspectRatio(PhoneMiniPlayer.pipAspect());
+        if (card != null && !card.isEmpty()) {
+            builder.setSourceRectHint(card); // the floating window grows out of the card
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            builder.setAutoEnterEnabled(wanted); // Android 12+: on its own, smoothly, when the app is left
+            builder.setSeamlessResizeEnabled(false);
+        }
+        return builder.build();
+    }
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        // Android 8 to 11 (newer ones enter on their own, see above)
+        if (Build.VERSION.SDK_INT >= 26 && Build.VERSION.SDK_INT < 31 && hostsMiniPlayer()
+                && PhoneMiniPlayer.wantsPip(this) && !isInPictureInPictureMode()) {
+            try {
+                enterPictureInPictureMode(miniPlayerPipParams(true, PhoneMiniPlayer.cardRect(this)));
+            } catch (RuntimeException e) {
+                android.util.Log.d("PhoneMiniPlayer", "pip: " + e);
+            }
+        }
+    }
+
     @Override
     public void onPictureInPictureModeChanged(boolean inPip, android.content.res.Configuration newConfig) {
         super.onPictureInPictureModeChanged(inPip, newConfig);
+        // Out of the floating window while this screen isn't coming back to the front: the user closed it
+        boolean closed = !inPip && !getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
+        android.util.Log.d("PhoneMiniPlayer", "host pip " + inPip + (closed ? ", closed" : ""));
+        PhoneMiniPlayer.onHostPip(this, inPip, closed);
         if (inPip) {
-            leaveFloatingWindow();
+            leaveFloatingWindow(); // anything but the mini player's video doesn't belong there
         }
     }
+
+    // endregion
 
     /** Shows the mini player card while a video plays in it (not on full screen pages like sign in or updates) */
     protected boolean hostsMiniPlayer() {

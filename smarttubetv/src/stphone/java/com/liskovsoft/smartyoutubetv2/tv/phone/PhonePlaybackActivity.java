@@ -582,6 +582,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         return Build.VERSION.SDK_INT >= 26 && mResumed && !isFinishing() && !mAppLeaving && !mShortsMode
                 && !isShort(currentVideo()) && !mMinimized && !mMinimizing
                 && !mShrinkDragging && mPlayer != null && mPlayer.getPlayWhenReady() && pipOnLeave(this)
+                && PhonePip.systemAllows(this)
                 && !(Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode())
                 && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE);
     }
@@ -603,6 +604,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         mPipState = state;
+        android.util.Log.d("PhonePip", "player window " + (auto ? "armed" : "off") + " (resumed " + mResumed + ", shorts "
+                + mShortsMode + ", mini " + mMinimized + ", playing " + playing + ", setting " + pipOnLeave(this)
+                + ", android allows " + PhonePip.systemAllows(this) + ")");
         try {
             setPictureInPictureParams(pipParams(auto, video));
         } catch (RuntimeException e) {

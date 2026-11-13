@@ -126,6 +126,7 @@
     <string name="phone_you_liked">Liked videos</string>
     <string name="phone_quality_auto">Auto (recommended)</string>
     <string name="phone_pip">Picture in picture when leaving the app</string>
+    <string name="phone_pip_blocked">Off in Android settings</string>
     <string name="phone_quality_auto_short">Auto</string>
     <string name="phone_playback_speed">Playback speed</string>
     <string name="phone_more_settings">More settings</string>
