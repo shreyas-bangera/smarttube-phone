@@ -170,7 +170,9 @@ public class ViewManager {
             } else {
                 try {
                     Log.d(TAG, "Launching parent activity: " + parentActivity.getSimpleName());
-                    Intent intent = new Intent(activity, parentActivity);
+                    // Phone UI: the same launch flags as any start, so the screen underneath comes back as it was
+                    // (Home's singleTop + clear top) instead of a new copy on top (a fresh Home on its first tab)
+                    Intent intent = new Intent(activity, parentActivity).addFlags(launchFlags(parentActivity));
 
                     safeStartActivity(activity, intent);
                 } catch (ActivityNotFoundException e) {
