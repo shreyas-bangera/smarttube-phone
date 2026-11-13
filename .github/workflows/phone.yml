@@ -96,7 +96,8 @@ jobs:
           path: out/StreamTube-Phone-*.apk
           if-no-files-found: error
 
-      # "What's new" for the release (shown on the app's update screen): app changes since the previous build
+      # "What's new" for the release (shown on the app's update screen): app changes since the previous build. No other
+      # apps are named there: phrases like "as in <app>" are taken out of the commit titles.
       - name: Release notes
         run: |
           PREV=$(git describe --tags --abbrev=0 --match 'build-*' HEAD 2>/dev/null || true)
@@ -112,7 +113,9 @@ jobs:
             echo ""
             echo "What's new"
             if [ -n "$PREV" ]; then
-              git log --no-merges --format='- %s' "$PREV..HEAD" | grep -viE '^- (CI|README|Smoke|Emulator)' | head -n 30 || true
+              git log --no-merges --format='- %s' "$PREV..HEAD" | grep -viE '^- (CI|README|Smoke|Emulator)' \
+              | sed -E "s/[[:space:]]*(exactly[[:space:]]+)?(as|like)[[:space:]]+(in[[:space:]]+)?NewTube('s)?//Ig" \
+              | grep -vi 'newtube' | head -n 30 || true
             fi
           } > release_notes.md
           cat release_notes.md
