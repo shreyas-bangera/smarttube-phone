@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tela de atualização do software (Configurações > Verificar atualizações) -->
+<resources>
+    <string name="phone_update_check">Verificar atualizações</string>
+    <string name="phone_update_check_available">Verificar atualizações  ·  compilação %1$d disponível</string>
+    <string name="phone_update_screen_title">Atualização do software</string>
+    <string name="phone_update_current">Compilação %1$d  ·  versão %2$s</string>
+    <string name="phone_update_build">Compilação %1$d</string>
+
+    <string name="phone_update_checking_title">Verificando atualizações</string>
+    <string name="phone_update_checking_subtitle">Procurando uma versão mais recente no GitHub…</string>
+    <string name="phone_update_checking_button">Verificando…</string>
+
+    <string name="phone_update_none_title">Você está com a versão mais recente</string>
+    <string name="phone_update_none_subtitle">A compilação %1$d é a versão mais recente.</string>
+    <string name="phone_update_check_again">Verificar novamente</string>
+
+    <string name="phone_update_available_title">Atualização disponível</string>
+    <string name="phone_update_install">Baixar e instalar</string>
+    <string name="phone_update_install_size">Baixar e instalar  ·  %1$s</string>
+    <string name="phone_update_later">Agora não</string>
+    <string name="phone_update_whats_new">Novidades</string>
+
+    <string name="phone_update_downloading_build">Baixando a compilação %1$d</string>
+    <string name="phone_update_downloading_subtitle">Você pode continuar usando o app. O instalador será aberto quando o download terminar.</string>
+    <string name="phone_update_progress">%1$s de %2$s</string>
+
+    <string name="phone_update_installing_title">Pronto para instalar</string>
+    <string name="phone_update_installing_subtitle">Toque em Atualizar na janela que será aberta. Você continuará conectado e suas configurações serão mantidas.</string>
+    <string name="phone_update_install_again">Abrir o instalador novamente</string>
+
+    <string name="phone_update_permission_title">Permitir que o StreamTube instale atualizações</string>
+    <string name="phone_update_permission">O Android solicita isso apenas uma vez. Ative "Permitir desta fonte", volte aqui e a atualização continuará.</string>
+    <string name="phone_update_open_settings">Abrir configurações</string>
+
+    <string name="phone_update_error_title">Não foi possível atualizar</string>
+    <string name="phone_update_error_network">Não foi possível acessar o GitHub agora. Verifique sua conexão com a internet e tente novamente.</string>
+    <string name="phone_update_failed">O download não foi concluído (%1$s). Tente novamente.</string>
+    <string name="phone_update_cancelled">A atualização foi cancelada. Toque em Tentar novamente quando quiser.</string>
+    <string name="phone_update_conflict">Esta cópia do app foi assinada com uma chave antiga e não pode ser atualizada diretamente. Desinstale-a uma vez e instale o APK mais recente pelo GitHub.</string>
+    <string name="phone_update_retry">Tentar novamente</string>
+
+    <string name="phone_update_notify">Avisar sobre novas compilações</string>
+    <string name="phone_update_notify_hint">Exibe um pequeno cartão na tela inicial quando há uma atualização</string>
+    <string name="phone_update_banner">A compilação %1$d está pronta para instalar</string>
+    <string name="phone_update_banner_button">Atualizar</string>
+</resources>
