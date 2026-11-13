@@ -426,7 +426,14 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         }
         int bottom = mBottomBar.getHeight();
         if (mList.getPaddingTop() != top || mList.getPaddingBottom() != bottom + dp(8)) {
+            // At the top of the list: it stays at the top when the top bar grows or shrinks (e.g. the You page's
+            // account header filling in with the name and buttons). Otherwise the first row, the History shelf's
+            // title, ended up under the header.
+            boolean atTop = !mList.canScrollVertically(-1);
             mList.setPadding(mList.getPaddingLeft(), top, mList.getPaddingRight(), bottom + dp(8));
+            if (atTop) {
+                mList.scrollToPosition(0);
+            }
         }
         View progress = findViewById(R.id.phone_progress_bar);
         android.widget.FrameLayout.LayoutParams params = (android.widget.FrameLayout.LayoutParams) progress.getLayoutParams();
