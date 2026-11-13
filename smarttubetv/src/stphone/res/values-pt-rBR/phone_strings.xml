@@ -125,7 +125,7 @@
     <string name="phone_you_watch_later">Assistir mais tarde</string>
     <string name="phone_you_liked">Vídeos marcados com "Gostei"</string>
     <string name="phone_quality_auto">Automática (recomendada)</string>
-    <string name="phone_pip">Picture-in-picture ao sair do app</string>
+    <string name="phone_pip">Picture-in-picture</string>
     <string name="phone_quality_auto_short">Automática</string>
     <string name="phone_playback_speed">Velocidade de reprodução</string>
     <string name="phone_more_settings">Mais configurações</string>
@@ -172,4 +172,6 @@
     <string name="phone_downloads_delete_title">Excluir este download?</string>
     <string name="phone_downloads_deleted">Download excluído</string>
     <string name="phone_downloads_delete_failed">Não foi possível excluir. Exclua-o pelo app Arquivos (Download/StreamTube).</string>
+    <string name="phone_debug_log">Compartilhar log de depuração</string>
+    <string name="phone_pip_blocked">Desativado nas configurações do Android</string>
 </resources>

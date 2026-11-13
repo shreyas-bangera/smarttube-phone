@@ -163,14 +163,23 @@
                     android:textColor="@color/phone_text_2"
                     android:textSize="13sp" />
 
+                <!-- Scrolls sideways on narrow screens (as in the YouTube app) instead of squeezing the second button -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:overScrollMode="never"
+                    android:scrollbars="none">
+
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
                     android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/phone_account_primary"
+                        android:maxLines="1"
+                        android:singleLine="true"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
                         android:background="@drawable/phone_button_bg"
@@ -183,6 +192,8 @@
 
                     <TextView
                         android:id="@+id/phone_account_secondary"
+                        android:maxLines="1"
+                        android:singleLine="true"
                         android:layout_width="wrap_content"
                         android:layout_height="34dp"
                         android:layout_marginStart="8dp"
@@ -194,6 +205,7 @@
                         android:textColor="@color/phone_text"
                         android:textSize="14sp" />
                 </LinearLayout>
+                </HorizontalScrollView>
             </LinearLayout>
         </LinearLayout>
 
