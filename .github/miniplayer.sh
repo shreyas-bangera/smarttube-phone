@@ -162,11 +162,10 @@ if [ -n "$XY" ]; then
   shot 11_back_from_notifications
 fi
 
-# 9. Leave the app with the mini player playing: the mini player's video floats in Android's window.
+# 9. Leave the app with the mini player playing: like NewTube, the sound goes on in the background (no floating window).
 # Last, because the app is in the background afterwards. Videos don't play here (YouTube blocks the emulator), so
 # the card's play button is tapped to put the player into "playing" first.
-# The launcher is switched off during the test; a home screen started fresh by Home doesn't let an app float
-# (Android only allows it when switching to a task that already exists), so start it once now and come back.
+# The launcher is switched off during the test: start it once now and come back, so Home below is a real task switch.
 adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
 sleep 3
 adb shell input keyevent KEYCODE_HOME
@@ -207,23 +206,15 @@ echo "== pinned"
 adb shell dumpsys activity activities | grep -iE "pinned|PIP" | head -12
 echo "== pip log"
 adb logcat -d | grep -E "PhonePip|host pip" | tail -15
-# Back into the app from the floating window (as its expand button does): the video opens full screen, like YouTube
-# The floating window's expand button: a tap on the window shows its controls, the expand button is in the middle
-B=$(adb shell dumpsys activity activities | grep -A6 "mode=pinned" | grep -oE "mBounds=Rect\([0-9]+, [0-9]+ - [0-9]+, [0-9]+\)" | head -1 | grep -oE "[0-9]+" | tr '\n' ' ')
-echo "floating window bounds: $B"
-if [ -n "$B" ]; then
-  set -- $B
-  PX=$(( ($1 + $3) / 2 )); PY=$(( ($2 + $4) / 2 ))
-  adb shell input tap $PX $PY
-  sleep 2
-  shot 17b_window_controls
-  adb shell input tap $PX $PY
-fi
+# As in NewTube: no floating window from the mini player; the player stays alive behind the app (sound goes on)
+echo "pinned tasks (expect 0): $(adb shell dumpsys activity activities | grep -c "mode=pinned")"
+echo "player alive (expect 1): $(adb shell dumpsys activity activities | grep -c "ActivityRecord{.*PhonePlaybackActivity")"
+# Back into the app: the mini player card is still there
+adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
 sleep 6
 shot 18_back_in_app
 echo "top after coming back: $(top)"
-echo "player in front after coming back: $(top | grep -c PhonePlaybackActivity)"
-adb logcat -d | grep -E "PhonePip|PhoneMiniPlayer" | tail -14
+echo "card after coming back: $(center_of "Play or pause")"
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
 
