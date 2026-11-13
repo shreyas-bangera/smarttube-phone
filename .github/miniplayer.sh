@@ -257,15 +257,16 @@ shot 18b_player_sheet
 if [ -n "$ROW" ]; then adb shell input tap $ROW; fi
 sleep 5
 shot 19_in_app_pip
-echo "in app: pinned $(pinned) (expect 1), top: $(top)"
+echo "in app: pinned $(pinned) (expect >0), top: $(top)"
 adb shell input keyevent KEYCODE_HOME
 sleep 5
 shot 20_pip_outside
-echo "app left: pinned $(pinned) (expect 1)"
+echo "app left: pinned $(pinned) (expect >0)"
 adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
 sleep 6
 shot 21_reopened
 echo "app opened again: pinned $(pinned) (expect 0), top: $(top)"
+echo "players (expect 1): $(adb shell dumpsys activity activities | grep -cE "^ +\* ActivityRecord\{.*PhonePlaybackActivity")"
 adb logcat -d | grep -E "PhonePip" | tail -16
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40

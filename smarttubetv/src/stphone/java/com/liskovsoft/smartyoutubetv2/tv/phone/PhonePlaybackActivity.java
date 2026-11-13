@@ -421,7 +421,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             if (mPlayer != null) {
                 mPlayer.blockEngine(true); // the floating window plays on while the app is in the background
             }
-            getViewManager().blockTop(this); // back in the app: this player, not the screen under it
+            // Opening the app again must not start the player from the launcher screen (that makes a second player
+            // next to the floating one): the app comes back to its screen, whose focus expands this player (PhonePip)
+            getViewManager().blockTop(null);
             PhonePip.watch(this);
             mPipState = null;
             updatePipParams(); // its play/pause button
