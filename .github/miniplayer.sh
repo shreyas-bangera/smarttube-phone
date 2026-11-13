@@ -207,12 +207,12 @@ echo "== pinned"
 adb shell dumpsys activity activities | grep -iE "pinned|PIP" | head -12
 echo "== pip log"
 adb logcat -d | grep -E "PhonePip|host pip" | tail -15
-# Back into the app from the floating window (as its expand button does): the video goes on in the card
+# Back into the app from the floating window (as its expand button does): the video opens full screen, like YouTube
 adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
 sleep 6
 shot 18_back_in_app
 echo "top after coming back: $(top)"
-echo "card after coming back: $(center_of "Play or pause")"
+echo "player in front after coming back: $(top | grep -c PhonePlaybackActivity)"
 adb logcat -d | grep -E "PhonePip" | tail -8
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40

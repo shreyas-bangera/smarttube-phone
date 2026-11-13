@@ -231,6 +231,40 @@ final class PhoneMiniPlayer {
         return still;
     }
 
+    /**
+     * The floating window's expand button (or the app opened again while it floats): the video opens full screen, like
+     * the YouTube app, not just the app with the card.
+     */
+    static void openFromWindow(PhoneActivity host) {
+        Card card = sCard.get();
+        PhonePlaybackActivity player = sPlayer.get();
+        if (!isActive() || card == null || card.mHost != host || player == null) {
+            return;
+        }
+        android.util.Log.d("PhonePip", "floating window expanded: opening the player");
+        if (player.getTaskId() == host.getTaskId()) {
+            expand();
+            return;
+        }
+        // Android left this screen in a task of its own: bring the player's task to the front instead
+        card.keepStill();
+        card.letGoOfVideo();
+        android.app.ActivityManager manager = (android.app.ActivityManager) host.getSystemService(android.content.Context.ACTIVITY_SERVICE);
+        if (manager != null && android.os.Build.VERSION.SDK_INT >= 23) {
+            for (android.app.ActivityManager.AppTask task : manager.getAppTasks()) {
+                try {
+                    if (task.getTaskInfo().taskId == player.getTaskId()) {
+                        task.moveToFront();
+                        return;
+                    }
+                } catch (RuntimeException ignored) {
+                    // the task went away meanwhile
+                }
+            }
+        }
+        expand();
+    }
+
     private static void expand() {
         PhonePlaybackActivity player = sPlayer.get();
         Card card = sCard.get();
