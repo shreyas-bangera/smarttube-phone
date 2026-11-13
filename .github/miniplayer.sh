@@ -172,12 +172,12 @@ adb shell input tap 540 1000
 sleep 15
 adb shell input swipe 540 350 540 1400 450
 sleep 5
+adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
+sleep 6
 XY=$(center_of "Play or pause")
 echo "card play button at: $XY"
 if [ -n "$XY" ]; then adb shell input tap $XY; fi
-sleep 2
-adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
-sleep 6
+sleep 1
 adb shell input keyevent KEYCODE_HOME
 sleep 6
 shot 17_left_app

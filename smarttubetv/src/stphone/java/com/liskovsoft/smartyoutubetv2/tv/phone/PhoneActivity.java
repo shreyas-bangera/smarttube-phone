@@ -178,8 +178,9 @@ public abstract class PhoneActivity extends MotherActivity {
             } catch (RuntimeException e) {
                 android.util.Log.d("PhonePip", "mini player window: " + e);
             }
-        } else {
-            android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: no mini player window");
+        } else if (hostsMiniPlayer()) {
+            android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: no mini player window ("
+                    + PhoneMiniPlayer.pipBlocker(this) + ")");
         }
     }
 

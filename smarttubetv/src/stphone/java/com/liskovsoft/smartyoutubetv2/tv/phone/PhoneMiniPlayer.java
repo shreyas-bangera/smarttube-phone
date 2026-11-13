@@ -96,6 +96,32 @@ final class PhoneMiniPlayer {
         return exo != null && exo.getPlayWhenReady();
     }
 
+    /** Why the mini player wouldn't float now (for the log) */
+    static String pipBlocker(PhoneActivity host) {
+        Card card = sCard.get();
+        if (!sActive) {
+            return "no mini player session";
+        }
+        if (card == null || card.mHost != host || card.getParent() == null) {
+            return "no card on " + host.getClass().getSimpleName();
+        }
+        PhonePlaybackActivity player = sPlayer.get();
+        SimpleExoPlayer exo = player != null && !player.isFinishing() ? player.exoPlayer() : null;
+        if (exo == null) {
+            return "no player";
+        }
+        if (!exo.getPlayWhenReady()) {
+            return "paused (state " + exo.getPlaybackState() + ")";
+        }
+        if (!PhonePip.systemAllows(host)) {
+            return "blocked in Android settings";
+        }
+        if (host.isAppLeaving()) {
+            return "the app is opening a screen";
+        }
+        return "none";
+    }
+
     /** This screen is in the floating window because it shows the mini player's video there */
     static boolean isFloating(PhoneActivity host) {
         Card card = sCard.get();
