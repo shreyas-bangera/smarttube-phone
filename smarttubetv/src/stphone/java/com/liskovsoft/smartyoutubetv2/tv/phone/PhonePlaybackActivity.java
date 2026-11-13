@@ -2067,10 +2067,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             TextView label = new TextView(this);
             label.setText(labels[i]);
             label.setTextColor(Color.WHITE);
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
             label.setMaxLines(1);
-            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            label.setGravity(Gravity.CENTER);
+            label.setIncludeFontPadding(false);
+            // As on Home's bar: each label shrinks to fit its fifth instead of running into the next one
+            label.setAutoSizeTextTypeUniformWithConfiguration(7, 11, 1, TypedValue.COMPLEX_UNIT_SP);
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14, getResources().getDisplayMetrics()));
+            labelParams.leftMargin = dp(2);
+            labelParams.rightMargin = dp(2);
             labelParams.topMargin = dp(4);
             tab.addView(label, labelParams);
             String target = targets[i];
