@@ -162,6 +162,36 @@ if [ -n "$XY" ]; then
   shot 11_back_from_notifications
 fi
 
+# 9. Leave the app with the mini player playing: the mini player's video floats in Android's window.
+# Last, because the app is in the background afterwards. Videos don't play here (YouTube blocks the emulator), so
+# the card's play button is tapped to put the player into "playing" first.
+XY=$(center_of_text "Home")
+if [ -n "$XY" ]; then adb shell input tap $XY; fi
+sleep 3
+adb shell input tap 540 1000
+sleep 15
+adb shell input swipe 540 350 540 1400 450
+sleep 5
+adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
+sleep 6
+XY=$(center_of "Play or pause")
+echo "card play button at: $XY"
+if [ -n "$XY" ]; then adb shell input tap $XY; fi
+sleep 1
+echo "== browse record before leaving"
+adb shell dumpsys activity activities | grep -A60 "ActivityRecord{.*PhoneBrowseActivity" | grep -iE "ActivityRecord|state=|resizeMode|pictureInPicture|supportsEnterPip|pip|windowingMode|mActivityType|isPip" | head -30
+adb shell dumpsys package org.smarttube.phone | grep -iE "PhoneBrowseActivity|PhonePlaybackActivity" | head -6
+adb shell cmd appops get org.smarttube.phone PICTURE_IN_PICTURE
+adb shell input keyevent KEYCODE_HOME
+sleep 6
+shot 17_left_app
+echo "== pinned"
+adb shell dumpsys activity activities | grep -iE "pinned" | head -5
+echo "== pip log"
+adb logcat -d | grep -E "PhonePip|host pip" | tail -15
+echo "== system pip log"
+adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
+
 adb logcat -d -b crash > $OUT/crash.txt
 adb logcat -d | grep -E "ActivityTaskManager: (START|Displayed)|wm_finish|wm_destroy" | grep -i smarttube > $OUT/activity_log.txt
 adb logcat -d | grep -iE "PhoneShorts|PhoneMiniPlayer|exoplayer|MediaCodec.*(error|Exception)|surface.*abandon|PlaybackFragment|AndroidRuntime" | grep -v SabrStream | tail -120 > $OUT/player_log.txt

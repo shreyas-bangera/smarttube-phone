@@ -565,13 +565,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private String mPipState;
     private android.content.BroadcastReceiver mPipReceiver;
 
-    /** Settings > Picture in picture (on by default). SmartTube's own background mode stays "sound only". */
+    /** Always on, like the YouTube app (SmartTube's own background mode stays "sound only") */
     static boolean pipOnLeave(android.content.Context context) {
-        return Build.VERSION.SDK_INT >= 26 && context.getSharedPreferences("phone_defaults", MODE_PRIVATE).getBoolean("pip_on_leave", true);
-    }
-
-    static void setPipOnLeave(android.content.Context context, boolean on) {
-        context.getSharedPreferences("phone_defaults", MODE_PRIVATE).edit().putBoolean("pip_on_leave", on).apply();
+        return Build.VERSION.SDK_INT >= 26;
     }
 
     /**
@@ -582,6 +578,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         return Build.VERSION.SDK_INT >= 26 && mResumed && !isFinishing() && !mAppLeaving && !mShortsMode
                 && !isShort(currentVideo()) && !mMinimized && !mMinimizing
                 && !mShrinkDragging && mPlayer != null && mPlayer.getPlayWhenReady() && pipOnLeave(this)
+                && PhonePip.systemAllows(this)
                 && !(Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode())
                 && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE);
     }
@@ -603,6 +600,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         mPipState = state;
+        android.util.Log.d("PhonePip", "player window " + (auto ? "armed" : "off") + " (resumed " + mResumed + ", shorts "
+                + mShortsMode + ", mini " + mMinimized + ", playing " + playing + ", setting " + pipOnLeave(this)
+                + ", android allows " + PhonePip.systemAllows(this) + ")");
         try {
             setPictureInPictureParams(pipParams(auto, video));
         } catch (RuntimeException e) {
@@ -681,9 +681,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     /** Home pressed or the app switched away from: the floating window (regular videos only, never Shorts) */
     @Override
     public void onUserLeaveHint() {
-        // Android 12+ opens the window itself (automatic entry, armed in updatePipParams); older versions from here
-        if (Build.VERSION.SDK_INT < 31 && !mAppLeaving && !getViewManager().isNewViewPending() && canEnterPip()
-                && enterFloatingWindow()) {
+        // Asked for right away as well (as NewTube does), besides Android 12's automatic entry armed in updatePipParams
+        boolean can = !mAppLeaving && !getViewManager().isNewViewPending() && canEnterPip();
+        boolean entered = can && enterFloatingWindow();
+        android.util.Log.d("PhonePip", "player leaving: " + (entered ? "window opened" : can ? "window refused" : "no window"));
+        if (entered) {
             return;
         }
         super.onUserLeaveHint(); // as before: SmartTube's background mode (sound only)
