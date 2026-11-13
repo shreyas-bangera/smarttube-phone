@@ -185,6 +185,8 @@ echo "== pinned"
 adb shell dumpsys activity activities | grep -iE "pinned" | head -5
 echo "== pip log"
 adb logcat -d | grep -E "PhonePip|host pip" | tail -15
+echo "== system pip log"
+adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
 
 adb logcat -d -b crash > $OUT/crash.txt
 adb logcat -d | grep -E "ActivityTaskManager: (START|Displayed)|wm_finish|wm_destroy" | grep -i smarttube > $OUT/activity_log.txt

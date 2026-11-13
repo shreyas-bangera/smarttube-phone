@@ -681,9 +681,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     /** Home pressed or the app switched away from: the floating window (regular videos only, never Shorts) */
     @Override
     public void onUserLeaveHint() {
-        // Android 12+ opens the window itself (automatic entry, armed in updatePipParams); older versions from here
-        if (Build.VERSION.SDK_INT < 31 && !mAppLeaving && !getViewManager().isNewViewPending() && canEnterPip()
-                && enterFloatingWindow()) {
+        // Asked for right away as well (as NewTube does), besides Android 12's automatic entry armed in updatePipParams
+        boolean can = !mAppLeaving && !getViewManager().isNewViewPending() && canEnterPip();
+        boolean entered = can && enterFloatingWindow();
+        android.util.Log.d("PhonePip", "player leaving: " + (entered ? "window opened" : can ? "window refused" : "no window"));
+        if (entered) {
             return;
         }
         super.onUserLeaveHint(); // as before: SmartTube's background mode (sound only)

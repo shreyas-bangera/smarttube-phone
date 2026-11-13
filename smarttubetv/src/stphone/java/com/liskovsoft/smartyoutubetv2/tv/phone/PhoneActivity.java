@@ -170,14 +170,16 @@ public abstract class PhoneActivity extends MotherActivity {
     @Override
     public void onUserLeaveHint() {
         super.onUserLeaveHint();
-        // Android 8 to 11 (newer ones enter on their own, see above)
-        if (Build.VERSION.SDK_INT >= 26 && Build.VERSION.SDK_INT < 31 && hostsMiniPlayer()
-                && PhoneMiniPlayer.wantsPip(this) && !isInPictureInPictureMode()) {
+        // Asked for right away as well (as NewTube does): the automatic entry alone doesn't open the window everywhere
+        if (Build.VERSION.SDK_INT >= 26 && hostsMiniPlayer() && PhoneMiniPlayer.wantsPip(this) && !isInPictureInPictureMode()) {
             try {
-                enterPictureInPictureMode(miniPlayerPipParams(true, PhoneMiniPlayer.cardRect(this)));
+                boolean entered = enterPictureInPictureMode(miniPlayerPipParams(true, PhoneMiniPlayer.cardRect(this)));
+                android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: mini player window " + (entered ? "opened" : "refused"));
             } catch (RuntimeException e) {
-                android.util.Log.d("PhoneMiniPlayer", "pip: " + e);
+                android.util.Log.d("PhonePip", "mini player window: " + e);
             }
+        } else {
+            android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: no mini player window");
         }
     }
 
