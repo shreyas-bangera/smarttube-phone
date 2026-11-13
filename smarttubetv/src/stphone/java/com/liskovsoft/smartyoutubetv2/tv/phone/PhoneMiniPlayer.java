@@ -90,6 +90,12 @@ final class PhoneMiniPlayer {
         return new android.util.Rational(Math.round(aspect * 1000), 1000);
     }
 
+    static boolean isPlaying() {
+        PhonePlaybackActivity player = sPlayer.get();
+        SimpleExoPlayer exo = player != null ? player.exoPlayer() : null;
+        return exo != null && exo.getPlayWhenReady();
+    }
+
     /** This screen is in the floating window because it shows the mini player's video there */
     static boolean isFloating(PhoneActivity host) {
         Card card = sCard.get();

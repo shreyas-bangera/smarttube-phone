@@ -130,7 +130,8 @@ public abstract class PhoneActivity extends MotherActivity {
         }
         boolean wanted = PhoneMiniPlayer.wantsPip(this);
         android.graphics.Rect card = PhoneMiniPlayer.cardRect(this);
-        String state = wanted + " " + (card != null ? card.flattenToString() : "") + " " + PhoneMiniPlayer.pipAspect();
+        String state = wanted + " " + PhoneMiniPlayer.isPlaying() + " " + (card != null ? card.flattenToString() : "") + " "
+                + PhoneMiniPlayer.pipAspect();
         if (state.equals(mPipState)) {
             return;
         }
@@ -150,6 +151,15 @@ public abstract class PhoneActivity extends MotherActivity {
         if (card != null && !card.isEmpty()) {
             builder.setSourceRectHint(card); // the floating window grows out of the card
         }
+        // Play / pause in the window, like the player's own (handled by the player screen behind the app)
+        boolean playing = PhoneMiniPlayer.isPlaying();
+        android.app.PendingIntent toggle = android.app.PendingIntent.getBroadcast(this, 4721,
+                new android.content.Intent("org.smarttube.phone.PIP_TOGGLE").setPackage(getPackageName()),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+        String label = getString(R.string.phone_mini_play_pause);
+        builder.setActions(java.util.Collections.singletonList(new android.app.RemoteAction(
+                android.graphics.drawable.Icon.createWithResource(this, playing ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play),
+                label, label, toggle)));
         if (Build.VERSION.SDK_INT >= 31) {
             builder.setAutoEnterEnabled(wanted); // Android 12+: on its own, smoothly, when the app is left
             builder.setSeamlessResizeEnabled(false);
