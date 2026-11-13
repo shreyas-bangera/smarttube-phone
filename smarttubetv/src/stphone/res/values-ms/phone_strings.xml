@@ -52,9 +52,6 @@
     <string name="phone_signin_card_text">Video popular buat masa ini. Syor, langganan dan sejarah anda akan muncul selepas anda log masuk.</string>
     <string name="phone_zoom_fill">Dizum untuk memenuhi</string>
     <string name="phone_zoom_fit">Saiz asal</string>
-    <string name="phone_appearance_dark">Penampilan: Gelap</string>
-    <string name="phone_appearance_light">Penampilan: Cerah</string>
-    <string name="phone_appearance_system">Penampilan: Sama seperti peranti</string>
     <string name="phone_notification_channel">Main semula latar belakang</string>
     <string name="phone_autoplay">Autoplay</string>
     <string name="phone_autoplay_on">Autoplay dihidupkan</string>
