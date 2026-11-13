@@ -6,7 +6,7 @@ name: Build Phone Beta
 on:
   push:
     branches: [ "ccr-*" ]
-    paths-ignore: [ "README.md", "images/**" ]
+    paths-ignore: [ "README.md", "images/**", ".github/*.sh", ".github/workflows/pr-check.yml", ".github/workflows/smoke.yml" ]
   workflow_dispatch:
 
 # The newest push wins: an older beta still building is no longer worth finishing

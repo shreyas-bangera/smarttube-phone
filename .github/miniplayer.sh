@@ -244,10 +244,12 @@ if [ -n "$XY" ]; then
     # The controls hide while the screen is read: show them and tap the gear in one go
     adb shell "input tap 540 330; sleep 0.4; input tap $XY"
     sleep 2
+    shot 18a_gear_try$i
     ROW=$(center_of_text "Picture in picture")
     [ -n "$ROW" ] && break
-    adb shell input keyevent KEYCODE_BACK # a sheet without the row (or none): close it and try again
-    sleep 1
+    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    adb shell cat /sdcard/ui.xml | tr '>' '\n' | grep -oE ' text="[^"]+"' | head -20 | tr '\n' ' '; echo
+    sleep 3 # the controls hide again before the next try
   done
 fi
 echo "menu row at: $ROW"
