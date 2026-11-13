@@ -88,8 +88,43 @@ public abstract class PhoneActivity extends MotherActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        mHandler.removeCallbacks(mClosedCheck); // back on screen: the floating window was expanded, not closed
+        if (mClosedCheckPending) {
+            mClosedCheckPending = false;
+            mHandler.removeCallbacks(mClosedCheck); // back on screen: the floating window was expanded, not closed
+            openPlayerFromWindow();
+        }
     }
+
+    /** Out of the floating window onto the full screen: the video opens in the player, like the YouTube app */
+    private void openPlayerFromWindow() {
+        mHandler.removeCallbacks(mOpenPlayer);
+        mOpenAttempts = 0;
+        mHandler.postDelayed(mOpenPlayer, 200);
+    }
+
+    private int mOpenAttempts;
+
+    /**
+     * Only once Android has finished taking this screen out of the floating window: it is back in front with focus
+     * and in the player's task again. Opening the player earlier lets Android put this screen back over it (and the
+     * player then shrinks into a floating window of its own).
+     */
+    private final Runnable mOpenPlayer = new Runnable() {
+        @Override
+        public void run() {
+            boolean onScreen = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
+            if (!onScreen || isFinishing() || (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode())) {
+                return;
+            }
+            boolean settled = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+                    && hasWindowFocus() && PhoneMiniPlayer.inPlayerTask(PhoneActivity.this);
+            if (!settled && ++mOpenAttempts < 12) {
+                mHandler.postDelayed(this, 200);
+                return;
+            }
+            PhoneMiniPlayer.openFromWindow(PhoneActivity.this);
+        }
+    };
 
     private final android.os.Handler mHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
@@ -98,12 +133,17 @@ public abstract class PhoneActivity extends MotherActivity {
      * phones (ColorOS) stop the screen for a moment while expanding it too: the video only stops if the screen
      * doesn't come back.
      */
+    private boolean mClosedCheckPending;
+
     private final Runnable mClosedCheck = () -> {
+        mClosedCheckPending = false;
         boolean started = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
         boolean inPip = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
         android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (started || inPip ? "expanded" : "closed"));
         if (!started && !inPip && !isFinishing()) {
             PhoneMiniPlayer.onHostPip(this, false, true);
+        } else if (started && !inPip) {
+            openPlayerFromWindow();
         }
     };
 
@@ -219,9 +259,13 @@ public abstract class PhoneActivity extends MotherActivity {
         boolean stopped = !inPip && !getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
         android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (inPip ? "open" : "left") + (stopped ? " (stopped)" : ""));
         mHandler.removeCallbacks(mClosedCheck);
+        mClosedCheckPending = false;
         PhoneMiniPlayer.onHostPip(this, inPip, false);
         if (stopped) {
+            mClosedCheckPending = true;
             mHandler.postDelayed(mClosedCheck, 1200);
+        } else if (!inPip && !isFinishing()) {
+            openPlayerFromWindow(); // expanded
         }
         if (inPip) {
             PhonePip.watch(this);
