@@ -44,6 +44,7 @@
         <!-- Phone UI: portrait screens driven by SmartTube's existing presenters -->
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneBrowseActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:exported="true"
@@ -52,6 +53,7 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneSearchActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
@@ -90,12 +92,14 @@
             android:screenOrientation="portrait" />
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneChannelActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneChannelUploadsActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
@@ -137,6 +141,7 @@
         <!-- Notifications tab: new videos from subscribed channels -->
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneNotificationsActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
@@ -144,6 +149,7 @@
         <!-- You > Downloads, and the in-app player for downloaded files -->
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneDownloadsActivity"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
