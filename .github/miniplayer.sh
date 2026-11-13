@@ -218,7 +218,7 @@ echo "card after coming back: $(center_of "Play or pause")"
 
 # 10. As in NewTube: the player menu's Picture in picture floats the video over the app; it stays floating when the
 # app is left, and opening the app again brings it back full screen
-pinned() { adb shell dumpsys activity activities | grep -c "mode=pinned"; }
+pinned() { adb shell dumpsys activity activities | grep -E "^ +\* Task\{" | grep -c "mode=pinned"; }
 for i in 1 2 3 4; do
   top | grep -q PhoneBrowseActivity && break
   adb shell input keyevent KEYCODE_BACK; sleep 2
@@ -238,11 +238,21 @@ for i in 1 2 3; do
   sleep 2
 done
 echo "player gear at: $XY"
-if [ -n "$XY" ]; then adb shell input tap $XY; fi
-sleep 2
-XY=$(center_of_text "Picture in picture")
-echo "menu row at: $XY"
-if [ -n "$XY" ]; then adb shell input tap $XY; fi
+ROW=""
+if [ -n "$XY" ]; then
+  for i in 1 2 3; do
+    # The controls hide while the screen is read: show them and tap the gear in one go
+    adb shell "input tap 540 330; sleep 0.4; input tap $XY"
+    sleep 2
+    ROW=$(center_of_text "Picture in picture")
+    [ -n "$ROW" ] && break
+    adb shell input keyevent KEYCODE_BACK # a sheet without the row (or none): close it and try again
+    sleep 1
+  done
+fi
+echo "menu row at: $ROW"
+shot 18b_player_sheet
+if [ -n "$ROW" ]; then adb shell input tap $ROW; fi
 sleep 5
 shot 19_in_app_pip
 echo "in app: pinned $(pinned) (expect 1), top: $(top)"
