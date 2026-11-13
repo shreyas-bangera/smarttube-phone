@@ -178,6 +178,10 @@ XY=$(center_of "Play or pause")
 echo "card play button at: $XY"
 if [ -n "$XY" ]; then adb shell input tap $XY; fi
 sleep 1
+echo "== browse record before leaving"
+adb shell dumpsys activity activities | grep -A60 "ActivityRecord{.*PhoneBrowseActivity" | grep -iE "ActivityRecord|state=|resizeMode|pictureInPicture|supportsEnterPip|pip|windowingMode|mActivityType|isPip" | head -30
+adb shell dumpsys package org.smarttube.phone | grep -iE "PhoneBrowseActivity|PhonePlaybackActivity" | head -6
+adb shell cmd appops get org.smarttube.phone PICTURE_IN_PICTURE
 adb shell input keyevent KEYCODE_HOME
 sleep 6
 shot 17_left_app
