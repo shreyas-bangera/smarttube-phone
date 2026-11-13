@@ -188,6 +188,7 @@ public class PhonePlaybackFragment extends PlaybackFragment {
 
             @Override
             public void onSurfaceTextureUpdated(android.graphics.SurfaceTexture texture) {
+                PhonePip.frameShown();
                 Runnable onFrame = mOnVideoFrame;
                 if (onFrame != null) {
                     mOnVideoFrame = null;

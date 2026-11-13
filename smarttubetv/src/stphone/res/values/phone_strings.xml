@@ -86,6 +86,7 @@
     <string name="phone_rebrand_button">Got it</string>
     <string name="phone_rebrand_never">Don\'t show again</string>
     <string name="phone_about_title">About StreamTube</string>
+    <string name="phone_debug_log">Share debug log</string>
     <string name="phone_about_build">Build %1$d</string>
     <string name="phone_about_built_on">Built on SmartTube by Yuriy Liskov</string>
     <string name="phone_about_license">MIT License</string>

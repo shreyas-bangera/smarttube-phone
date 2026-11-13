@@ -169,7 +169,8 @@ final class PhoneMiniPlayer {
 
     static void onHostStopped(PhoneActivity host) {
         Card card = sCard.get();
-        if (card != null && card.mHost == host) {
+        if (card != null && card.mHost == host && !card.mInPip) {
+            // (In the floating window it stays: some phones stop a floating screen that is still showing the video)
             card.remove();
         }
     }
@@ -698,6 +699,7 @@ final class PhoneMiniPlayer {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+            PhonePip.frameShown();
             if (!mGotFrame && (!mShared || hasVideo())) {
                 mGotFrame = true;
                 android.util.Log.d(TAG, "first frame");

@@ -47,4 +47,39 @@ final class PhonePip {
             }
         }
     }
+    // region What the floating window shows (for the debug log)
+
+    private static int sFrames;
+    private static final android.os.Handler sHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** A view showing the video drew a new frame */
+    static void frameShown() {
+        sFrames++;
+    }
+
+    /** Logs every 2 seconds while the screen is in the floating window: new frames, and what the player is doing */
+    static void watch(Activity activity) {
+        if (Build.VERSION.SDK_INT < 24) {
+            return;
+        }
+        String who = activity.getClass().getSimpleName();
+        int[] last = {sFrames};
+        sHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (activity.isDestroyed() || !activity.isInPictureInPictureMode()) {
+                    Log.d("PhonePip", who + " window watch ended");
+                    return;
+                }
+                com.google.android.exoplayer2.SimpleExoPlayer exo = PhonePlaybackActivity.currentExoPlayer();
+                Log.d("PhonePip", who + " window: " + (sFrames - last[0]) + " new frames, "
+                        + (exo == null ? "no player" : "play " + exo.getPlayWhenReady() + ", state " + exo.getPlaybackState()
+                        + ", at " + exo.getCurrentPosition() / 1000 + "s, video " + (exo.getVideoFormat() != null)));
+                last[0] = sFrames;
+                sHandler.postDelayed(this, 2000);
+            }
+        }, 2000);
+    }
+
+    // endregion
 }

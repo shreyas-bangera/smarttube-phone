@@ -277,6 +277,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     protected void onStart() {
         super.onStart();
         mStopped = false;
+        mHandler.removeCallbacks(mClosedPipCheck); // back on screen: the floating window was expanded, not closed
         boolean keptForLock = mKeptForLock;
         mKeptForLock = false;
         if (isPip()) {
@@ -304,10 +305,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mStopped = true;
         mLeftPip = false;
         if (closedPip && mPlayer != null) {
-            // The floating window was swiped away (it left picture in picture and stopped, without coming back): the
-            // video stops, like the YouTube app
-            mPlayer.setPlayWhenReady(false);
-            closePlayer();
+            // The floating window left picture in picture and stopped: usually it was closed (the video stops, like
+            // the YouTube app), but some phones (ColorOS) stop the player for a moment while expanding it too. The
+            // video only stops if the player doesn't come back.
+            android.util.Log.d("PhonePip", "player stopped after the floating window");
+            mHandler.removeCallbacks(mClosedPipCheck);
+            mHandler.postDelayed(mClosedPipCheck, 1200);
             return;
         }
         if (mMinimized) {
@@ -419,6 +422,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 mPlayer.blockEngine(true); // the floating window plays on while the app is in the background
             }
             getViewManager().blockTop(this); // back in the app: this player, not the screen under it
+            PhonePip.watch(this);
             mPipState = null;
             updatePipParams(); // its play/pause button
             showPhoneControls(false);
@@ -534,6 +538,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // endregion
 
     private boolean mStopped;
+
+    private final Runnable mClosedPipCheck = () -> {
+        boolean closed = mStopped && !isPip() && !isFinishing() && mPlayer != null;
+        android.util.Log.d("PhonePip", "player floating window " + (closed ? "closed" : "expanded"));
+        if (closed) {
+            mPlayer.setPlayWhenReady(false);
+            closePlayer();
+        }
+    };
     private boolean mKeptForLock; // the player was kept alive only because the phone was locked
 
     /**
@@ -1341,6 +1354,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     com.google.android.exoplayer2.SimpleExoPlayer exoPlayer() {
         return mPlayer != null ? mPlayer.getExoPlayer() : null;
+    }
+
+    static com.google.android.exoplayer2.SimpleExoPlayer currentExoPlayer() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        return activity != null && !activity.isDestroyed() ? activity.exoPlayer() : null;
     }
 
     /** X on the mini player card */

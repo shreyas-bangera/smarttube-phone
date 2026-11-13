@@ -165,15 +165,33 @@ fi
 # 9. Leave the app with the mini player playing: the mini player's video floats in Android's window.
 # Last, because the app is in the background afterwards. Videos don't play here (YouTube blocks the emulator), so
 # the card's play button is tapped to put the player into "playing" first.
+# The launcher is switched off during the test; a home screen started fresh by Home doesn't let an app float
+# (Android only allows it when switching to a task that already exists), so start it once now and come back.
+adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
+sleep 3
+adb shell input keyevent KEYCODE_HOME
+sleep 8
+adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
+sleep 5
+top() { adb shell dumpsys activity activities | grep -m1 -E "topResumedActivity|mResumedActivity"; }
+for i in 1 2 3 4; do
+  top | grep -q PhoneBrowseActivity && break
+  adb shell input keyevent KEYCODE_BACK; sleep 2
+done
+echo "top before video: $(top)"
 XY=$(center_of_text "Home")
 if [ -n "$XY" ]; then adb shell input tap $XY; fi
 sleep 3
-adb shell input tap 540 1000
-sleep 15
+for Y in 1000 800 1200; do
+  adb shell input tap 540 $Y
+  sleep 15
+  top | grep -q PhonePlaybackActivity && break
+  adb shell input keyevent KEYCODE_BACK; sleep 3
+done
+echo "top with video: $(top)"
 adb shell input swipe 540 350 540 1400 450
-sleep 5
-adb shell pm enable com.google.android.apps.nexuslauncher > /dev/null 2>&1
 sleep 6
+echo "top with card: $(top)"
 XY=$(center_of "Play or pause")
 echo "card play button at: $XY"
 if [ -n "$XY" ]; then adb shell input tap $XY; fi
@@ -186,9 +204,16 @@ adb shell input keyevent KEYCODE_HOME
 sleep 6
 shot 17_left_app
 echo "== pinned"
-adb shell dumpsys activity activities | grep -iE "pinned" | head -5
+adb shell dumpsys activity activities | grep -iE "pinned|PIP" | head -12
 echo "== pip log"
 adb logcat -d | grep -E "PhonePip|host pip" | tail -15
+# Back into the app from the floating window (as its expand button does): the video goes on in the card
+adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
+sleep 6
+shot 18_back_in_app
+echo "top after coming back: $(top)"
+echo "card after coming back: $(center_of "Play or pause")"
+adb logcat -d | grep -E "PhonePip" | tail -8
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
 

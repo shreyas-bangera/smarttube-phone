@@ -1251,6 +1251,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_about)));
         items.add(PhoneSetting.row(getString(R.string.phone_about_title), R.drawable.ic_phone_info, () -> PhoneAbout.show(this)));
+        items.add(PhoneSetting.row(getString(R.string.phone_debug_log), R.drawable.ic_phone_info, () -> PhoneDebugLog.share(this)));
 
         if (!engine.isEmpty()) {
             items.add(PhoneSetting.header(getString(R.string.phone_settings_more)));
