@@ -79,8 +79,33 @@ public abstract class PhoneActivity extends MotherActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode()) {
+            android.util.Log.d("PhonePip", getClass().getSimpleName() + " stopped in the floating window");
+        }
         PhoneMiniPlayer.onHostStopped(this);
     }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mHandler.removeCallbacks(mClosedCheck); // back on screen: the floating window was expanded, not closed
+    }
+
+    private final android.os.Handler mHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /**
+     * The floating window left picture in picture while this screen was stopped. Usually the user closed it, but some
+     * phones (ColorOS) stop the screen for a moment while expanding it too: the video only stops if the screen
+     * doesn't come back.
+     */
+    private final Runnable mClosedCheck = () -> {
+        boolean started = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
+        boolean inPip = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
+        android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (started || inPip ? "expanded" : "closed"));
+        if (!started && !inPip && !isFinishing()) {
+            PhoneMiniPlayer.onHostPip(this, false, true);
+        }
+    };
 
     /**
      * Only the player belongs in Android's floating window. A screen started from a player that is in it lands in the
@@ -129,7 +154,10 @@ public abstract class PhoneActivity extends MotherActivity {
             return;
         }
         boolean wanted = PhoneMiniPlayer.wantsPip(this);
-        android.graphics.Rect card = PhoneMiniPlayer.cardRect(this);
+        boolean inPip = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
+        // In the floating window the card is the whole window: no source spot to report, and changing the window's
+        // settings there again and again makes Android re-lay it out (the video stutters)
+        android.graphics.Rect card = inPip ? null : PhoneMiniPlayer.cardRect(this);
         String state = wanted + " " + PhoneMiniPlayer.isPlaying() + " " + (card != null ? card.flattenToString() : "") + " "
                 + PhoneMiniPlayer.pipAspect();
         if (state.equals(mPipState)) {
@@ -188,10 +216,15 @@ public abstract class PhoneActivity extends MotherActivity {
     public void onPictureInPictureModeChanged(boolean inPip, android.content.res.Configuration newConfig) {
         super.onPictureInPictureModeChanged(inPip, newConfig);
         // Out of the floating window while this screen isn't coming back to the front: the user closed it
-        boolean closed = !inPip && !getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
-        android.util.Log.d("PhoneMiniPlayer", "host pip " + inPip + (closed ? ", closed" : ""));
-        PhoneMiniPlayer.onHostPip(this, inPip, closed);
+        boolean stopped = !inPip && !getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
+        android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (inPip ? "open" : "left") + (stopped ? " (stopped)" : ""));
+        mHandler.removeCallbacks(mClosedCheck);
+        PhoneMiniPlayer.onHostPip(this, inPip, false);
+        if (stopped) {
+            mHandler.postDelayed(mClosedCheck, 1200);
+        }
         if (inPip) {
+            PhonePip.watch(this);
             leaveFloatingWindow(); // anything but the mini player's video doesn't belong there
         }
     }
