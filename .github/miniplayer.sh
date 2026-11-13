@@ -208,12 +208,22 @@ adb shell dumpsys activity activities | grep -iE "pinned|PIP" | head -12
 echo "== pip log"
 adb logcat -d | grep -E "PhonePip|host pip" | tail -15
 # Back into the app from the floating window (as its expand button does): the video opens full screen, like YouTube
-adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
+# The floating window's expand button: a tap on the window shows its controls, the expand button is in the middle
+B=$(adb shell dumpsys activity activities | grep -A6 "mode=pinned" | grep -oE "mBounds=Rect\([0-9]+, [0-9]+ - [0-9]+, [0-9]+\)" | head -1 | grep -oE "[0-9]+" | tr '\n' ' ')
+echo "floating window bounds: $B"
+if [ -n "$B" ]; then
+  set -- $B
+  PX=$(( ($1 + $3) / 2 )); PY=$(( ($2 + $4) / 2 ))
+  adb shell input tap $PX $PY
+  sleep 2
+  shot 17b_window_controls
+  adb shell input tap $PX $PY
+fi
 sleep 6
 shot 18_back_in_app
 echo "top after coming back: $(top)"
 echo "player in front after coming back: $(top | grep -c PhonePlaybackActivity)"
-adb logcat -d | grep -E "PhonePip" | tail -8
+adb logcat -d | grep -E "PhonePip|PhoneMiniPlayer" | tail -14
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
 
