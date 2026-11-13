@@ -219,11 +219,24 @@ echo "card after coming back: $(center_of "Play or pause")"
 # 10. As in NewTube: the player menu's Picture in picture floats the video over the app; it stays floating when the
 # app is left, and opening the app again brings it back full screen
 pinned() { adb shell dumpsys activity activities | grep -c "mode=pinned"; }
-adb shell input tap 540 1000
-sleep 12
-adb shell input tap 540 330
-sleep 1
-XY=$(center_of "Quality")
+for i in 1 2 3 4; do
+  top | grep -q PhoneBrowseActivity && break
+  adb shell input keyevent KEYCODE_BACK; sleep 2
+done
+for Y in 1000 800 1200; do
+  adb shell input tap 540 $Y
+  sleep 12
+  top | grep -q PhonePlaybackActivity && break
+  adb shell input keyevent KEYCODE_BACK; sleep 3
+done
+echo "player for the menu: $(top)"
+XY=""
+for i in 1 2 3; do
+  adb shell input tap 540 330 # the controls show for a few seconds
+  XY=$(center_of "Quality")
+  [ -n "$XY" ] && break
+  sleep 2
+done
 echo "player gear at: $XY"
 if [ -n "$XY" ]; then adb shell input tap $XY; fi
 sleep 2

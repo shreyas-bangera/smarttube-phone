@@ -64,6 +64,11 @@ public abstract class PhoneActivity extends MotherActivity {
         // MotherActivity may switch to immersive mode (TV fullscreen setting). Phones keep their bars.
         setupSystemBars();
         getViewManager().addTop(this);
+        if (hostsMiniPlayer() && PhoneMiniPlayer.isActive()) {
+            // The video is in the mini player on this screen: opening the app again comes back here, with the card
+            // (not straight into the player, which SmartTube's background mode would otherwise reopen)
+            getViewManager().blockTop(null);
+        }
         PhoneMiniPlayer.onHostResumed(this);
         if (mAdapter != null) {
             mAdapter.refreshProgress(); // the red bars of videos watched meanwhile
