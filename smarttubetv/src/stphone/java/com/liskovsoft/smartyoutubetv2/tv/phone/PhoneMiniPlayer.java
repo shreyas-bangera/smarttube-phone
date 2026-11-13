@@ -59,87 +59,18 @@ final class PhoneMiniPlayer {
 
     // region Session
 
-    // region The host screen in Android's floating window (the app was left while the card played)
-
-    /** Leaving the app now should keep the video on screen: the card is up on this screen and playing */
-    static boolean wantsPip(PhoneActivity host) {
+    /** The card's video state, for the debug log */
+    static String debugState() {
         Card card = sCard.get();
-        if (!sActive || card == null || card.mHost != host || card.getParent() == null) {
-            return false;
+        if (card == null) {
+            return "no card";
         }
         PhonePlaybackActivity player = sPlayer.get();
-        SimpleExoPlayer exo = player != null && !player.isFinishing() ? player.exoPlayer() : null;
-        return exo != null && exo.getPlayWhenReady() && PhonePlaybackActivity.pipOnLeave(host) && PhonePip.systemAllows(host)
-                && !host.isAppLeaving();
+        return "card: shared " + card.mShared + ", frame " + card.mGotFrame + ", still " + (card.mStill.getVisibility() == View.VISIBLE)
+                + ", view " + (card.mVideo.getParent() != null) + ", available " + card.mVideo.isAvailable()
+                + ", owner " + PhoneVideoSurface.ownerIs(card.mVideo) + ", in window " + card.mVideo.isAttachedToWindow()
+                + ", player " + (player == null ? "gone" : player.isDestroyed() ? "destroyed" : player.isFinishing() ? "finishing" : "alive");
     }
-
-    /** Where the card is on screen, null without a card */
-    static Rect cardRect(PhoneActivity host) {
-        Card card = sCard.get();
-        if (card == null || card.mHost != host || card.getParent() == null || card.getWidth() == 0 || card.mInPip) {
-            return null;
-        }
-        int[] spot = new int[2];
-        card.getLocationOnScreen(spot);
-        return new Rect(spot[0], spot[1], spot[0] + card.getWidth(), spot[1] + card.getHeight());
-    }
-
-    /** The floating window's shape: the video's, within what Android accepts */
-    static android.util.Rational pipAspect() {
-        float aspect = Math.max(0.45f, Math.min(2.3f, sAspect));
-        return new android.util.Rational(Math.round(aspect * 1000), 1000);
-    }
-
-    static boolean isPlaying() {
-        PhonePlaybackActivity player = sPlayer.get();
-        SimpleExoPlayer exo = player != null ? player.exoPlayer() : null;
-        return exo != null && exo.getPlayWhenReady();
-    }
-
-    /** Why the mini player wouldn't float now (for the log) */
-    static String pipBlocker(PhoneActivity host) {
-        Card card = sCard.get();
-        if (!sActive) {
-            return "no mini player session";
-        }
-        if (card == null || card.mHost != host || card.getParent() == null) {
-            return "no card on " + host.getClass().getSimpleName();
-        }
-        PhonePlaybackActivity player = sPlayer.get();
-        SimpleExoPlayer exo = player != null && !player.isFinishing() ? player.exoPlayer() : null;
-        if (exo == null) {
-            return "no player";
-        }
-        if (!exo.getPlayWhenReady()) {
-            return "paused (state " + exo.getPlaybackState() + ")";
-        }
-        if (!PhonePip.systemAllows(host)) {
-            return "blocked in Android settings";
-        }
-        if (host.isAppLeaving()) {
-            return "the app is opening a screen";
-        }
-        return "none";
-    }
-
-    /** This screen is in the floating window because it shows the mini player's video there */
-    static boolean isFloating(PhoneActivity host) {
-        Card card = sCard.get();
-        return card != null && card.mHost == host && card.mInPip;
-    }
-
-    static void onHostPip(PhoneActivity host, boolean inPip, boolean closed) {
-        Card card = sCard.get();
-        if (card == null || card.mHost != host) {
-            return;
-        }
-        card.setInPip(inPip);
-        if (closed) {
-            close(); // the floating window was closed: the video stops
-        }
-    }
-
-    // endregion
 
     /** Something on the host screen changed the room at the bottom (the update banner came or went) */
     static void replace() {
@@ -169,8 +100,7 @@ final class PhoneMiniPlayer {
 
     static void onHostStopped(PhoneActivity host) {
         Card card = sCard.get();
-        if (card != null && card.mHost == host && !card.mInPip) {
-            // (In the floating window it stays: some phones stop a floating screen that is still showing the video)
+        if (card != null && card.mHost == host) {
             card.remove();
         }
     }
@@ -229,46 +159,6 @@ final class PhoneMiniPlayer {
         Bitmap still = sStill;
         sStill = null;
         return still;
-    }
-
-    /**
-     * The floating window's expand button (or the app opened again while it floats): the video opens full screen, like
-     * the YouTube app, not just the app with the card.
-     */
-    /** The host screen and the player are in the same task (the player can come to the front over it) */
-    static boolean inPlayerTask(PhoneActivity host) {
-        PhonePlaybackActivity player = sPlayer.get();
-        return player == null || player.getTaskId() == host.getTaskId();
-    }
-
-    static void openFromWindow(PhoneActivity host) {
-        Card card = sCard.get();
-        PhonePlaybackActivity player = sPlayer.get();
-        if (!isActive() || card == null || card.mHost != host || player == null) {
-            return;
-        }
-        android.util.Log.d("PhonePip", "floating window expanded: opening the player");
-        if (player.getTaskId() == host.getTaskId()) {
-            expand();
-            return;
-        }
-        // Android left this screen in a task of its own: bring the player's task to the front instead
-        card.keepStill();
-        card.letGoOfVideo();
-        android.app.ActivityManager manager = (android.app.ActivityManager) host.getSystemService(android.content.Context.ACTIVITY_SERVICE);
-        if (manager != null && android.os.Build.VERSION.SDK_INT >= 23) {
-            for (android.app.ActivityManager.AppTask task : manager.getAppTasks()) {
-                try {
-                    if (task.getTaskInfo().taskId == player.getTaskId()) {
-                        task.moveToFront();
-                        return;
-                    }
-                } catch (RuntimeException ignored) {
-                    // the task went away meanwhile
-                }
-            }
-        }
-        expand();
     }
 
     private static void expand() {
@@ -400,8 +290,6 @@ final class PhoneMiniPlayer {
         private boolean mDragging;
         /** Shows the video's own texture (see PhoneVideoSurface), not a surface of its own */
         private boolean mShared;
-        /** The host screen is Android's floating window: the card is all of it, without its buttons */
-        private boolean mInPip;
         private ImageView mClose;
         private ValueAnimator mMove;
         private VelocityTracker mVelocity;
@@ -417,7 +305,6 @@ final class PhoneMiniPlayer {
                 } else {
                     refresh();
                 }
-                mHost.updateMiniPlayerPip();
                 mHandler.postDelayed(this, 500);
             }
         };
@@ -505,36 +392,8 @@ final class PhoneMiniPlayer {
             return view;
         }
 
-        void setInPip(boolean inPip) {
-            if (mInPip == inPip) {
-                return;
-            }
-            mInPip = inPip;
-            if (mMove != null) {
-                mMove.cancel();
-            }
-            mDragging = false;
-            mClose.setVisibility(inPip ? View.GONE : View.VISIBLE);
-            mPlay.setVisibility(inPip ? View.GONE : View.VISIBLE);
-            setClipToOutline(!inPip);
-            setAlpha(1f);
-            if (inPip) {
-                ViewGroup.LayoutParams params = getLayoutParams();
-                params.width = ViewGroup.LayoutParams.MATCH_PARENT;
-                params.height = ViewGroup.LayoutParams.MATCH_PARENT;
-                setLayoutParams(params);
-                setTranslationX(0);
-                setTranslationY(0);
-            } else {
-                post(this::place); // the window is its full size again by then
-            }
-        }
-
         /** Size and spot: bottom right, or where the user moved it */
         void place() {
-            if (mInPip) {
-                return;
-            }
             View root = mHost.getWindow().getDecorView();
             if (root.getWidth() == 0) {
                 root.post(this::place);
@@ -677,7 +536,6 @@ final class PhoneMiniPlayer {
             if (sCard.get() == this) {
                 sCard = new WeakReference<>(null);
             }
-            mHost.updateMiniPlayerPip(); // leaving the app no longer opens the floating window
         }
 
         void animateAway() {

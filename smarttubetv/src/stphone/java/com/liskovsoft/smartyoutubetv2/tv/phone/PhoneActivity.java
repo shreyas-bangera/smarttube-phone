@@ -64,6 +64,11 @@ public abstract class PhoneActivity extends MotherActivity {
         // MotherActivity may switch to immersive mode (TV fullscreen setting). Phones keep their bars.
         setupSystemBars();
         getViewManager().addTop(this);
+        if (hostsMiniPlayer() && PhoneMiniPlayer.isActive()) {
+            // The video is in the mini player on this screen: opening the app again comes back here, with the card
+            // (not straight into the player, which SmartTube's background mode would otherwise reopen)
+            getViewManager().blockTop(null);
+        }
         PhoneMiniPlayer.onHostResumed(this);
         if (mAdapter != null) {
             mAdapter.refreshProgress(); // the red bars of videos watched meanwhile
@@ -79,80 +84,15 @@ public abstract class PhoneActivity extends MotherActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode()) {
-            android.util.Log.d("PhonePip", getClass().getSimpleName() + " stopped in the floating window");
-        }
         PhoneMiniPlayer.onHostStopped(this);
     }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        if (mClosedCheckPending) {
-            mClosedCheckPending = false;
-            mHandler.removeCallbacks(mClosedCheck); // back on screen: the floating window was expanded, not closed
-            openPlayerFromWindow();
-        }
-    }
-
-    /** Out of the floating window onto the full screen: the video opens in the player, like the YouTube app */
-    private void openPlayerFromWindow() {
-        mHandler.removeCallbacks(mOpenPlayer);
-        mOpenAttempts = 0;
-        mHandler.postDelayed(mOpenPlayer, 200);
-    }
-
-    private int mOpenAttempts;
-
-    /**
-     * Only once Android has finished taking this screen out of the floating window: it is back in front with focus
-     * and in the player's task again. Opening the player earlier lets Android put this screen back over it (and the
-     * player then shrinks into a floating window of its own).
-     */
-    private final Runnable mOpenPlayer = new Runnable() {
-        @Override
-        public void run() {
-            boolean onScreen = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
-            if (!onScreen || isFinishing() || (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode())) {
-                return;
-            }
-            boolean settled = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
-                    && hasWindowFocus() && PhoneMiniPlayer.inPlayerTask(PhoneActivity.this);
-            if (!settled && ++mOpenAttempts < 12) {
-                mHandler.postDelayed(this, 200);
-                return;
-            }
-            PhoneMiniPlayer.openFromWindow(PhoneActivity.this);
-        }
-    };
-
-    private final android.os.Handler mHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-
-    /**
-     * The floating window left picture in picture while this screen was stopped. Usually the user closed it, but some
-     * phones (ColorOS) stop the screen for a moment while expanding it too: the video only stops if the screen
-     * doesn't come back.
-     */
-    private boolean mClosedCheckPending;
-
-    private final Runnable mClosedCheck = () -> {
-        mClosedCheckPending = false;
-        boolean started = getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
-        boolean inPip = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
-        android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (started || inPip ? "expanded" : "closed"));
-        if (!started && !inPip && !isFinishing()) {
-            PhoneMiniPlayer.onHostPip(this, false, true);
-        } else if (started && !inPip) {
-            openPlayerFromWindow();
-        }
-    };
 
     /**
      * Only the player belongs in Android's floating window. A screen started from a player that is in it lands in the
      * floating window's task (the whole app shrunk into the corner): it closes itself straight away.
      */
     private boolean leaveFloatingWindow() {
-        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode() && !isFinishing() && !PhoneMiniPlayer.isFloating(this)) {
+        if (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode() && !isFinishing()) {
             android.util.Log.d("PhonePip", getClass().getSimpleName() + " in the floating window: closed");
             finish();
             return true;
@@ -160,120 +100,17 @@ public abstract class PhoneActivity extends MotherActivity {
         return false;
     }
 
-    // region Leaving the app with the mini player on: the video goes on in Android's floating window
-
-    private String mPipState;
-
     /**
-     * Set while this screen opens another one itself: Android reports that as the user leaving too, and the mini
-     * player's floating window must not open then.
+     * A screen opened by the app itself is not the user leaving: the player behind it must not take that for Home and
+     * float its video.
      */
-    private boolean mAppLeaving;
-
-    boolean isAppLeaving() {
-        return mAppLeaving;
-    }
-
     @Override
     public void startActivityForResult(android.content.Intent intent, int requestCode, Bundle options) {
-        mAppLeaving = true;
-        getWindow().getDecorView().postDelayed(() -> {
-            mAppLeaving = false;
-            updateMiniPlayerPip();
-        }, 1500);
-        updateMiniPlayerPip(); // disarmed before Android moves this screen back
         if (intent != null) {
             intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION);
         }
         super.startActivityForResult(intent, requestCode, options);
     }
-
-    /** The mini player calls this when it appears, moves, pauses or goes away: keeps Android's picture told */
-    void updateMiniPlayerPip() {
-        if (Build.VERSION.SDK_INT < 26 || !hostsMiniPlayer()) {
-            return;
-        }
-        boolean wanted = PhoneMiniPlayer.wantsPip(this);
-        boolean inPip = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
-        // In the floating window the card is the whole window: no source spot to report, and changing the window's
-        // settings there again and again makes Android re-lay it out (the video stutters)
-        android.graphics.Rect card = inPip ? null : PhoneMiniPlayer.cardRect(this);
-        String state = wanted + " " + PhoneMiniPlayer.isPlaying() + " " + (card != null ? card.flattenToString() : "") + " "
-                + PhoneMiniPlayer.pipAspect();
-        if (state.equals(mPipState)) {
-            return;
-        }
-        mPipState = state;
-        android.util.Log.d("PhonePip", getClass().getSimpleName() + " mini player window " + (wanted ? "armed" : "off"));
-        try {
-            setPictureInPictureParams(miniPlayerPipParams(wanted, card));
-        } catch (RuntimeException e) {
-            android.util.Log.d("PhoneMiniPlayer", "pip params: " + e); // no picture-in-picture on this device
-        }
-    }
-
-    @androidx.annotation.RequiresApi(26)
-    private android.app.PictureInPictureParams miniPlayerPipParams(boolean wanted, android.graphics.Rect card) {
-        android.app.PictureInPictureParams.Builder builder = new android.app.PictureInPictureParams.Builder()
-                .setAspectRatio(PhoneMiniPlayer.pipAspect());
-        if (card != null && !card.isEmpty()) {
-            builder.setSourceRectHint(card); // the floating window grows out of the card
-        }
-        // Play / pause in the window, like the player's own (handled by the player screen behind the app)
-        boolean playing = PhoneMiniPlayer.isPlaying();
-        android.app.PendingIntent toggle = android.app.PendingIntent.getBroadcast(this, 4721,
-                new android.content.Intent("org.smarttube.phone.PIP_TOGGLE").setPackage(getPackageName()),
-                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
-        String label = getString(R.string.phone_mini_play_pause);
-        builder.setActions(java.util.Collections.singletonList(new android.app.RemoteAction(
-                android.graphics.drawable.Icon.createWithResource(this, playing ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play),
-                label, label, toggle)));
-        if (Build.VERSION.SDK_INT >= 31) {
-            builder.setAutoEnterEnabled(wanted); // Android 12+: on its own, smoothly, when the app is left
-            builder.setSeamlessResizeEnabled(false);
-        }
-        return builder.build();
-    }
-
-    @Override
-    public void onUserLeaveHint() {
-        super.onUserLeaveHint();
-        // Asked for right away as well (as NewTube does): the automatic entry alone doesn't open the window everywhere
-        if (Build.VERSION.SDK_INT >= 26 && hostsMiniPlayer() && PhoneMiniPlayer.wantsPip(this) && !isInPictureInPictureMode()) {
-            try {
-                boolean entered = enterPictureInPictureMode(miniPlayerPipParams(true, PhoneMiniPlayer.cardRect(this)));
-                android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: mini player window " + (entered ? "opened" : "refused"));
-            } catch (RuntimeException e) {
-                android.util.Log.d("PhonePip", "mini player window: " + e);
-            }
-        } else if (hostsMiniPlayer()) {
-            android.util.Log.d("PhonePip", getClass().getSimpleName() + " leaving: no mini player window ("
-                    + PhoneMiniPlayer.pipBlocker(this) + ")");
-        }
-    }
-
-    @Override
-    public void onPictureInPictureModeChanged(boolean inPip, android.content.res.Configuration newConfig) {
-        super.onPictureInPictureModeChanged(inPip, newConfig);
-        // Out of the floating window while this screen isn't coming back to the front: the user closed it
-        boolean stopped = !inPip && !getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED);
-        android.util.Log.d("PhonePip", getClass().getSimpleName() + " floating window " + (inPip ? "open" : "left") + (stopped ? " (stopped)" : ""));
-        mHandler.removeCallbacks(mClosedCheck);
-        mClosedCheckPending = false;
-        PhoneMiniPlayer.onHostPip(this, inPip, false);
-        if (stopped) {
-            mClosedCheckPending = true;
-            mHandler.postDelayed(mClosedCheck, 1200);
-        } else if (!inPip && !isFinishing()) {
-            openPlayerFromWindow(); // expanded
-        }
-        if (inPip) {
-            PhonePip.watch(this);
-            leaveFloatingWindow(); // anything but the mini player's video doesn't belong there
-        }
-    }
-
-    // endregion
 
     /** Shows the mini player card while a video plays in it (not on full screen pages like sign in or updates) */
     protected boolean hostsMiniPlayer() {
@@ -289,6 +126,7 @@ public abstract class PhoneActivity extends MotherActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
+            PhonePip.onScreenFocused(); // the app opened again while the player floats: back to full screen
             setupSystemBars();
         }
     }

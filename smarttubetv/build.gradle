@@ -177,7 +177,11 @@ android {
         }
         // Phone build: same app, landscape-locked with touch seeking. Installs next to the TV builds.
         stphone {
-            applicationId "org.smarttube.phone"
+            // StreamTube Beta (PHONE_BETA=true, the beta workflow): its own app next to the stable one, updating from
+            // the "beta" pre-release
+            def phoneBeta = System.getenv("PHONE_BETA") == "true"
+            applicationId phoneBeta ? "org.smarttube.phone.beta" : "org.smarttube.phone"
+            buildConfigField "boolean", "PHONE_BETA", phoneBeta ? "true" : "false"
             // Rises with every CI build so each new APK installs as an update over the previous one
             versionCode 2462 + ((System.getenv("GITHUB_RUN_NUMBER") ?: "0") as int)
             minSdkVersion 26 // Android 8.0+, keeps the phone UI free of legacy code paths

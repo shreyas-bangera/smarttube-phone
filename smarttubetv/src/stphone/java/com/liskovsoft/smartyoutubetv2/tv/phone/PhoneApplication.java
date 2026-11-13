@@ -180,6 +180,7 @@ public class PhoneApplication extends MainApplication {
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityResumed(android.app.Activity activity) {
+                lifecycle(activity, "resumed");
                 if (android.os.Build.VERSION.SDK_INT < 24 || !activity.isInPictureInPictureMode()) {
                     viewManager.setCallerActivity(activity);
                 }
@@ -187,6 +188,7 @@ public class PhoneApplication extends MainApplication {
 
             @Override
             public void onActivityDestroyed(android.app.Activity activity) {
+                lifecycle(activity, "destroyed");
                 viewManager.clearCallerActivity(activity);
             }
 
@@ -196,19 +198,34 @@ public class PhoneApplication extends MainApplication {
 
             @Override
             public void onActivityStarted(android.app.Activity activity) {
+                lifecycle(activity, "started");
+                if (!(activity instanceof PhonePlaybackActivity)) {
+                    PhonePip.onScreenStarted();
+                }
             }
 
             @Override
             public void onActivityPaused(android.app.Activity activity) {
+                lifecycle(activity, "paused");
             }
 
             @Override
             public void onActivityStopped(android.app.Activity activity) {
+                lifecycle(activity, "stopped");
+                if (!(activity instanceof PhonePlaybackActivity)) {
+                    PhonePip.onScreenStopped(activity);
+                }
             }
 
             @Override
             public void onActivitySaveInstanceState(android.app.Activity activity, android.os.Bundle state) {
             }
         });
+    }
+    /** Every screen's lifecycle, for the debug log (where the floating window and the mini player go wrong) */
+    private static void lifecycle(android.app.Activity activity, String event) {
+        boolean pip = android.os.Build.VERSION.SDK_INT >= 24 && activity.isInPictureInPictureMode();
+        android.util.Log.d("PhonePip", activity.getClass().getSimpleName() + " " + event + " (task " + activity.getTaskId()
+                + (pip ? ", floating" : "") + ")");
     }
 }

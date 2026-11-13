@@ -70,6 +70,11 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     private PhoneSubscriptionsHeader mSubsHeader; // channels row and filter chips above the Subscriptions feed
     private PhoneYouDashboard mYou; // the You tab's front page: places, then History and Playlists as rows of cards
     private boolean mYouDashboard; // the You tab shows its front page, not one of its sections
+    /**
+     * A page was opened from the You page (a playlist, Watch later, Liked videos, Downloads, a video): coming back
+     * shows the You page again, whatever the presenter re-selects meanwhile (it would put Home back)
+     */
+    private boolean mBackToYou;
     private VideoGroup mSubsChannelGroup; // the selected channel's videos, shown instead of the feed of all channels
     private Object mSubsAllContent; // the feed of all channels, put back when the channel is unselected
     private io.reactivex.disposables.Disposable mSubsChannelAction;
@@ -177,6 +182,12 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (!mIsFirstResume) {
             mPresenter.onViewResumed();
         }
+        if (mBackToYou) {
+            if (!mYouDashboard || mCurrentTab != TAB_YOU) {
+                showYouDashboard();
+            }
+            mList.postDelayed(() -> mBackToYou = false, 2000);
+        }
         mIsFirstResume = false;
         updateAccountViews(); // also the tabs: the bell's dot for new videos
         refreshSettingsRows(); // back from Android's notification settings
@@ -243,6 +254,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     @Override
     protected void onPause() {
         super.onPause();
+        if (mCurrentTab == TAB_YOU && mYouDashboard) {
+            mBackToYou = true;
+        }
         mPresenter.onViewPaused();
     }
 
@@ -456,6 +470,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
             @Override
             public void openDownloads() {
+                mBackToYou = true;
                 PhoneDownloadsActivity.open(PhoneBrowseActivity.this);
             }
 
@@ -536,16 +551,23 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
             TextView label = new TextView(this);
             label.setText(labels[i]);
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f); // five tabs: "Subscriptions" and "Notifications" fit
             label.setMaxLines(1);
-            label.setEllipsize(TextUtils.TruncateAt.END);
+            label.setGravity(Gravity.CENTER);
+            label.setIncludeFontPadding(false);
+            // Each label stays inside its own fifth of the bar: on narrow phones or with a bigger font size, "Subscriptions"
+            // and "Notifications" shrink to fit instead of running into each other
+            label.setAutoSizeTextTypeUniformWithConfiguration(7, 11, 1, TypedValue.COMPLEX_UNIT_SP);
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                    LinearLayout.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14,
+                    getResources().getDisplayMetrics()));
+            labelParams.leftMargin = dp(2);
+            labelParams.rightMargin = dp(2);
             labelParams.topMargin = dp(4);
             tab.addView(label, labelParams);
 
             final int index = i;
             tab.setOnClickListener(v -> {
+                mBackToYou = false; // the user picks the tab now
                 if (index == TAB_SHORTS) {
                     playShorts();
                 } else if (index == TAB_NOTIFICATIONS) {
@@ -1106,6 +1128,11 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (mSections.isEmpty() || index < 0) {
             return;
         }
+        if (mBackToYou) {
+            // A page opened from the You page, or just back from it: the You page stays (SmartTube's presenter
+            // re-selects its last section, Home, when a playlist opens and again when the app comes back)
+            return;
+        }
         BrowseSection target = mSections.get(Math.min(index, mSections.size() - 1));
 
         if (mIsInitialSelection) {
@@ -1366,6 +1393,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
     @Override
     public void onVideoClicked(Video video) {
+        if (mCurrentTab == TAB_YOU && mYouDashboard) {
+            mBackToYou = true; // before the presenter acts on the click (it re-selects Home right away)
+        }
         PhoneUi.prepareExpandLaunch(video);
         mPresenter.onVideoItemSelected(video);
         mPresenter.onVideoItemClicked(video);

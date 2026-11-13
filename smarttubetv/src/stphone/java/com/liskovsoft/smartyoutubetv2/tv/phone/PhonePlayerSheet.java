@@ -44,6 +44,12 @@ final class PhonePlayerSheet {
         void openCaptions();
 
         void openMoreSettings();
+
+        /** The video can float in Android's picture in picture window now (a regular video, allowed by Android) */
+        boolean canFloat();
+
+        /** Float the video over the app (it stays floating when the app is left), as in NewTube's menu */
+        void floatVideo();
     }
 
     private PhonePlayerSheet() {
@@ -66,6 +72,12 @@ final class PhonePlayerSheet {
             sheet.dismiss();
             host.openCaptions();
         });
+        if (host.canFloat()) {
+            sheet.addRow(R.drawable.ic_phone_pip, activity.getString(R.string.phone_pip), null, false, () -> {
+                sheet.dismiss();
+                host.floatVideo();
+            });
+        }
         sheet.addRow(R.drawable.ic_phone_settings, activity.getString(R.string.phone_more_settings), null, false, () -> {
             sheet.dismiss();
             host.openMoreSettings();

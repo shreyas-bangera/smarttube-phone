@@ -54,7 +54,12 @@ final class PhoneDebugLog {
         int size = 0;
         Process process = null;
         try {
-            process = Runtime.getRuntime().exec(new String[] {"logcat", "-d", "-v", "time", "-t", "6000"});
+            // Only the app's own lines (phones like ColorOS write thousands of system lines a second): the whole buffer,
+            // so earlier runs of the app (before a restart) are in it too
+            process = Runtime.getRuntime().exec(new String[] {"logcat", "-d", "-v", "time",
+                    "PhonePip:V", "PhoneMiniPlayer:V", "PhoneShorts:V", "PhoneNewVideos:V", "PhoneUpdater:V", "ViewManager:V",
+                    "PlaybackActivity:V", "PlaybackFragment:V", "PlaybackPresenter:V", "ExoPlayerImpl:V",
+                    "ExoPlayerImplInternal:V", "MediaCodecVideoRenderer:V", "AndroidRuntime:E", "*:S"});
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -82,8 +87,6 @@ final class PhoneDebugLog {
     }
 
     private static boolean wanted(String line) {
-        return line.contains("Phone") || line.contains("AndroidRuntime") || line.contains("ExoPlayer")
-                || line.contains("PlaybackActivity") || line.contains("PlaybackFragment") || line.contains("MediaCodec")
-                || line.contains("ViewManager") || line.contains("Exception");
+        return !line.startsWith("--------- beginning of");
     }
 }

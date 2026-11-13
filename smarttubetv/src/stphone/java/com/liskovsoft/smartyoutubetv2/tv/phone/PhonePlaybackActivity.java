@@ -421,7 +421,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             if (mPlayer != null) {
                 mPlayer.blockEngine(true); // the floating window plays on while the app is in the background
             }
-            getViewManager().blockTop(this); // back in the app: this player, not the screen under it
+            // Opening the app again must not start the player from the launcher screen (that makes a second player
+            // next to the floating one): the app comes back to its screen, whose focus expands this player (PhonePip)
+            getViewManager().blockTop(null);
             PhonePip.watch(this);
             mPipState = null;
             updatePipParams(); // its play/pause button
@@ -436,6 +438,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 }
             });
         } else {
+            PhonePip.onPipEnded();
             mLeftPip = true; // expanded (onResume follows) or closed (onStop follows)
             setSeeThrough(false); // opaque again for the full player (stayed translucent in the floating window)
             resetShrink();
@@ -1618,6 +1621,38 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * from the video as it is on screen, the layout tidied up only once the window has its small size (see
      * onPictureInPictureModeChanged). Plus a play/pause button in the window.
      */
+    /**
+     * The menu's Picture in picture row (as in NewTube): the video floats over the app's own screens, which stay usable
+     * under it, and it keeps floating when the app is left.
+     */
+    private void enterPipFromMenu() {
+        // Read before: once accepted, the player sits in a pinned task of its own (always its root)
+        boolean screenUnderPlayer = !isTaskRoot();
+        mHandler.postDelayed(() -> { // the sheet's dismissal first: Android takes the window as it looks then
+            if (isFinishing() || isPip()) {
+                return;
+            }
+            boolean entered = enterFloatingWindow();
+            android.util.Log.d("PhonePip", "player window from the menu: " + (entered ? "opened" : "refused"));
+            if (entered) {
+                PhonePip.onMenuPipEntered(screenUnderPlayer);
+            }
+        }, 150);
+    }
+
+    /** The floating player, if any, as far as tapping the app's icon is concerned */
+    static PhonePlaybackActivity floatingPlayer() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        return activity != null && !activity.isFinishing() && !activity.isDestroyed() && activity.isPip() ? activity : null;
+    }
+
+    /** Back to full screen from the floating window: a launch from the player itself expands exactly its task */
+    void restoreFromWindow() {
+        android.util.Log.d("PhonePip", "player window: back to full screen (app opened)");
+        startActivity(new android.content.Intent(this, PhonePlaybackActivity.class)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP | android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+    }
+
     private boolean enterFloatingWindow() {
         if (Build.VERSION.SDK_INT < 26) {
             return false;
@@ -2032,10 +2067,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             TextView label = new TextView(this);
             label.setText(labels[i]);
             label.setTextColor(Color.WHITE);
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
             label.setMaxLines(1);
-            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            label.setGravity(Gravity.CENTER);
+            label.setIncludeFontPadding(false);
+            // As on Home's bar: each label shrinks to fit its fifth instead of running into the next one
+            label.setAutoSizeTextTypeUniformWithConfiguration(7, 11, 1, TypedValue.COMPLEX_UNIT_SP);
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14, getResources().getDisplayMetrics()));
+            labelParams.leftMargin = dp(2);
+            labelParams.rightMargin = dp(2);
             labelParams.topMargin = dp(4);
             tab.addView(label, labelParams);
             String target = targets[i];
@@ -2853,6 +2893,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             @Override
             public void openMoreSettings() {
                 clickButton(R.id.lb_control_high_quality);
+            }
+
+            @Override
+            public boolean canFloat() {
+                return Build.VERSION.SDK_INT >= 26 && !mShortsMode && !isShort(currentVideo()) && mPlayer != null
+                        && PhonePip.systemAllows(PhonePlaybackActivity.this)
+                        && getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE);
+            }
+
+            @Override
+            public void floatVideo() {
+                enterPipFromMenu();
             }
         });
     }
