@@ -162,6 +162,18 @@ if [ -n "$XY" ]; then
   shot 11_back_from_notifications
 fi
 
+# 8c. A page opened from the You page (Downloads here: no account on the emulator) and Back: the You page again,
+# not Home
+XY=$(center_of_text "You")
+if [ -n "$XY" ]; then adb shell input tap $XY; sleep 4; fi
+XY=$(center_of_text "Downloads")
+echo "You page Downloads row at: $XY"
+if [ -n "$XY" ]; then adb shell input tap $XY; sleep 4; adb shell input keyevent KEYCODE_BACK; sleep 4; fi
+shot 8c_back_to_you
+echo "back on the You page (expect 1): $(adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -c 'text="Downloads"')"
+XY=$(center_of_text "Home")
+if [ -n "$XY" ]; then adb shell input tap $XY; sleep 3; fi
+
 # 9. Leave the app with the mini player playing: like NewTube, the sound goes on in the background (no floating window).
 # Last, because the app is in the background afterwards. Videos don't play here (YouTube blocks the emulator), so
 # the card's play button is tapped to put the player into "playing" first.
