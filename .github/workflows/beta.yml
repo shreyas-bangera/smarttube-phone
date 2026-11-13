@@ -1,0 +1,117 @@
+name: Build Phone Beta
+
+# StreamTube Beta: every push to a development branch replaces the one "beta" pre-release. The Beta app
+# (org.smarttube.phone.beta) installs next to the stable StreamTube and updates from it; stable builds (build-N)
+# still come only from main.
+on:
+  push:
+    branches: [ "ccr-*" ]
+    paths-ignore: [ "README.md", "images/**" ]
+  workflow_dispatch:
+
+# The newest push wins: an older beta still building is no longer worth finishing
+concurrency:
+  group: phone-beta
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.PHONE_SIGNING_KEY != '' }}
+      PHONE_BETA: "true"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # main, for the release notes
+
+      - name: Apply submodule patches
+        run: git -C MediaServiceCore apply --ignore-whitespace --whitespace=nowarn ../.github/patches/mediaservicecore.patch
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # 32.72-beta-12. The version code is 2462 + this workflow's run number (see smarttubetv/build.gradle): it rises
+      # with every beta, so each one installs as an update over the previous one.
+      - name: Version name
+        id: get_version
+        run: |
+          sed -i "s/versionName \"\(.*\)\"/versionName \"\1-beta-${{ github.run_number }}\"/" smarttubetv/build.gradle
+          echo "VERSION_NAME=$(grep "versionName" smarttubetv/build.gradle | head -n 1 | awk -F'"' '{print $2}')" >> $GITHUB_OUTPUT
+
+      # Its own name on the home screen, and app shortcuts that open the Beta app (not the stable one)
+      - name: Beta name and shortcuts
+        run: |
+          sed -i 's/<!\[CDATA\[StreamTube\]\]>/<![CDATA[StreamTube Beta]]>/' smarttubetv/src/stphone/res/values/strings.xml
+          sed -i 's/android:targetPackage="org.smarttube.phone"/android:targetPackage="org.smarttube.phone.beta"/' smarttubetv/src/stphone/res/xml/phone_shortcuts.xml
+          grep -n "app_name" smarttubetv/src/stphone/res/values/strings.xml
+          grep -c "org.smarttube.phone.beta" smarttubetv/src/stphone/res/xml/phone_shortcuts.xml
+
+      - name: Configure signing
+        if: ${{ env.HAS_SIGNING_KEY == 'true' }}
+        run: |
+          echo "${{ secrets.PHONE_SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/phone.p12
+          echo "storePassword=${{ secrets.PHONE_KEY_PASSWORD }}" > keystore.properties
+          echo "keyAlias=smarttubephone" >> keystore.properties
+          echo "keyPassword=${{ secrets.PHONE_KEY_PASSWORD }}" >> keystore.properties
+          echo "storeFile=${{ github.workspace }}/phone.p12" >> keystore.properties
+
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleStphoneRelease
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          SRC=./smarttubetv/build/outputs/apk/stphone/release
+          for PAIR in arm64:arm64-v8a arm32:armeabi-v7a universal:universal; do
+            cp $SRC/*_${PAIR#*:}.apk "out/StreamTube-Beta-${PAIR%%:*}.apk"
+          done
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          $BT/aapt dump badging out/StreamTube-Beta-arm64.apk | grep -E "^package|application-label:"
+          ls -l out
+
+      # What this beta has that the stable app doesn't (yet)
+      - name: Release notes
+        run: |
+          {
+            echo "StreamTube Beta ${{ steps.get_version.outputs.VERSION_NAME }}: for testing, installs next to StreamTube."
+            echo ""
+            echo "| APK | For |"
+            echo "|---|---|"
+            echo "| StreamTube-Beta-arm64.apk | Almost every phone (64-bit ARM) |"
+            echo "| StreamTube-Beta-arm32.apk | Older or budget phones with a 32-bit processor |"
+            echo "| StreamTube-Beta-universal.apk | Any device, also x86 emulators and Chromebooks |"
+            echo ""
+            echo "What's new"
+            git log --no-merges --format='- %s' origin/main..HEAD | grep -viE '^- (CI|README|Smoke|Emulator)' | head -n 30 || true
+          } > release_notes.md
+          cat release_notes.md
+
+      # One beta at a time, always at the same links: releases/download/beta/StreamTube-Beta-<arch>.apk
+      - name: Remove the previous beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete beta --cleanup-tag --yes --repo "${{ github.repository }}" || true
+
+      - name: Publish beta
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta
+          target_commitish: ${{ github.sha }}
+          name: StreamTube Beta ${{ steps.get_version.outputs.VERSION_NAME }}
+          body_path: release_notes.md
+          prerelease: true
+          make_latest: false
+          files: out/StreamTube-Beta-*.apk

@@ -44,12 +44,18 @@ import java.util.regex.Pattern;
 final class PhoneUpdater {
     static final String REPO = "shreyas-bangera/smarttube-phone";
     private static final String TAG = "PhoneUpdater";
-    private static final String LATEST_URL = "https://api.github.com/repos/" + REPO + "/releases/latest";
+    /**
+     * StreamTube Beta (its own app, org.smarttube.phone.beta): follows the one "beta" pre-release, which every push to
+     * the development branch replaces, instead of the latest stable build-N
+     */
+    static final boolean BETA = com.liskovsoft.smartyoutubetv2.tv.BuildConfig.PHONE_BETA;
+    private static final String LATEST_URL = "https://api.github.com/repos/" + REPO
+            + (BETA ? "/releases/tags/beta" : "/releases/latest");
     // Each release carries one APK per processor (arm64, arm32, universal), each as the versioned file
     // (StreamTube-Phone-<version>-arm64.apk) and under a fixed name (StreamTube-arm64.apk, the direct download link).
     // The arm64 APK also goes out as SmartTube-Phone-arm64.apk for old builds.
     private static final String APK_ARCH = deviceArch();
-    private static final String APK_NAME = "StreamTube-" + APK_ARCH + ".apk";
+    private static final String APK_NAME = (BETA ? "StreamTube-Beta-" : "StreamTube-") + APK_ARCH + ".apk";
     private static final int BASE_VERSION_CODE = 2462;
     private static final String ACTION_INSTALL_STATUS = "org.smarttube.phone.INSTALL_STATUS";
 
@@ -391,6 +397,9 @@ final class PhoneUpdater {
      * No API (and no API rate limit): github.com/.../releases/latest redirects to .../releases/tag/build-N
      */
     private static Release fetchLatestFromRedirect() throws Exception {
+        if (BETA) {
+            return null; // the beta release is never "latest": the API only
+        }
         HttpURLConnection connection = (HttpURLConnection) new URL("https://github.com/" + REPO + "/releases/latest").openConnection();
         connection.setConnectTimeout(15000);
         connection.setReadTimeout(30000);
@@ -429,11 +438,20 @@ final class PhoneUpdater {
 
         JSONObject json = new JSONObject(body);
         String tag = json.optString("tag_name", "");
-        if (!tag.startsWith("build-")) {
-            return null;
-        }
         Release release = new Release();
-        release.build = Integer.parseInt(tag.substring("build-".length()));
+        if (BETA) {
+            // "StreamTube Beta 32.72-beta-12": the beta build's number (its version code is BASE_VERSION_CODE + it)
+            Matcher matcher = Pattern.compile("beta-(\\d+)").matcher(json.optString("name", ""));
+            if (!"beta".equals(tag) || !matcher.find()) {
+                return null;
+            }
+            release.build = Integer.parseInt(matcher.group(1));
+        } else {
+            if (!tag.startsWith("build-")) {
+                return null;
+            }
+            release.build = Integer.parseInt(tag.substring("build-".length()));
+        }
         JSONArray assets = json.optJSONArray("assets");
         if (assets != null) {
             for (int i = 0; i < assets.length(); i++) {
