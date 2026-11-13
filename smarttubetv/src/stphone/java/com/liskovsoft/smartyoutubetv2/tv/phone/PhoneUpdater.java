@@ -465,6 +465,9 @@ final class PhoneUpdater {
                 }
             }
         }
+        if (TextUtils.isEmpty(release.apkUrl) && BETA) {
+            return null; // a beta whose APK isn't up yet: no update to offer (its link would give HTTP 404)
+        }
         if (TextUtils.isEmpty(release.apkUrl)) {
             release.apkUrl = "https://github.com/" + REPO + "/releases/download/" + tag + "/" + APK_NAME;
         }

@@ -99,19 +99,16 @@ jobs:
           } > release_notes.md
           cat release_notes.md
 
-      # One beta at a time, always at the same links: releases/download/beta/StreamTube-Beta-<arch>.apk
-      - name: Remove the previous beta
+      # One beta at a time, always at the same links: releases/download/beta/StreamTube-Beta-<arch>.apk. The new one is
+      # made as a draft with all its APKs first and only then published: an app checking meanwhile never sees a beta
+      # whose APK is still uploading (that gave "HTTP 404" on the update screen).
+      - name: Publish beta
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release delete beta --cleanup-tag --yes --repo "${{ github.repository }}" || true
-
-      - name: Publish beta
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: beta
-          target_commitish: ${{ github.sha }}
-          name: StreamTube Beta ${{ steps.get_version.outputs.VERSION_NAME }}
-          body_path: release_notes.md
-          prerelease: true
-          make_latest: false
-          files: out/StreamTube-Beta-*.apk
+        run: |
+          gh release delete beta --cleanup-tag --yes --repo "${{ github.repository }}" || true
+          gh release create beta out/StreamTube-Beta-*.apk --repo "${{ github.repository }}" --draft --prerelease \
+            --target "${{ github.sha }}" --title "StreamTube Beta ${{ steps.get_version.outputs.VERSION_NAME }}" \
+            --notes-file release_notes.md
+          gh release edit beta --repo "${{ github.repository }}" --draft=false --prerelease --latest=false
+          gh release view beta --repo "${{ github.repository }}" --json name,isDraft,isPrerelease,assets --jq '.name, .isDraft, .isPrerelease, (.assets | length)'
