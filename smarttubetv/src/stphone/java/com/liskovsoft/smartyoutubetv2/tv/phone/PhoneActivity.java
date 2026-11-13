@@ -121,6 +121,7 @@ public abstract class PhoneActivity extends MotherActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
+            PhonePip.onScreenFocused(); // the app opened again while the player floats: back to full screen
             setupSystemBars();
         }
     }

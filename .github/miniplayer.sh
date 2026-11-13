@@ -215,6 +215,33 @@ sleep 6
 shot 18_back_in_app
 echo "top after coming back: $(top)"
 echo "card after coming back: $(center_of "Play or pause")"
+
+# 10. As in NewTube: the player menu's Picture in picture floats the video over the app; it stays floating when the
+# app is left, and opening the app again brings it back full screen
+pinned() { adb shell dumpsys activity activities | grep -c "mode=pinned"; }
+adb shell input tap 540 1000
+sleep 12
+adb shell input tap 540 330
+sleep 1
+XY=$(center_of "Quality")
+echo "player gear at: $XY"
+if [ -n "$XY" ]; then adb shell input tap $XY; fi
+sleep 2
+XY=$(center_of_text "Picture in picture")
+echo "menu row at: $XY"
+if [ -n "$XY" ]; then adb shell input tap $XY; fi
+sleep 5
+shot 19_in_app_pip
+echo "in app: pinned $(pinned) (expect 1), top: $(top)"
+adb shell input keyevent KEYCODE_HOME
+sleep 5
+shot 20_pip_outside
+echo "app left: pinned $(pinned) (expect 1)"
+adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f 0x10200000 -n "$PKG/$SPLASH"
+sleep 6
+shot 21_reopened
+echo "app opened again: pinned $(pinned) (expect 0), top: $(top)"
+adb logcat -d | grep -E "PhonePip" | tail -16
 echo "== system pip log"
 adb logcat -d | grep -iE "pip|picture|autoenter|pinned" | grep -v PhonePip | tail -40
 

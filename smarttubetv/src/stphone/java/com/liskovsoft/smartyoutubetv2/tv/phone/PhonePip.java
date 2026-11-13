@@ -47,6 +47,51 @@ final class PhonePip {
             }
         }
     }
+    // region Picture in picture opened inside the app (the player menu's row, as in NewTube)
+
+    /** Screens of ours on screen (started), other than the player */
+    private static int sStartedScreens;
+    /**
+     * The player floats over our own screens because the user asked from its menu: one of our screens getting focus then
+     * is not the app being opened again (which expands the floating player). Ends when the app is left.
+     */
+    private static boolean sInAppPip;
+
+    static void onMenuPipEntered(boolean screenUnderPlayer) {
+        sInAppPip = screenUnderPlayer;
+    }
+
+    static void onPipEnded() {
+        sInAppPip = false;
+    }
+
+    /** Called for every screen but the player, from the app's lifecycle callbacks */
+    static void onScreenStarted() {
+        sStartedScreens++;
+    }
+
+    static void onScreenStopped(Activity activity) {
+        sStartedScreens = Math.max(0, sStartedScreens - 1);
+        if (sStartedScreens == 0 && !activity.isChangingConfigurations() && sInAppPip) {
+            sInAppPip = false; // the app was left: opening it again expands the floating player
+            Log.d("PhonePip", "app left with the player floating");
+        }
+    }
+
+    /**
+     * One of our screens got focus. If the player floats over another app or the home screen and the app was opened
+     * again (its icon, recents), the video comes back full screen, as in NewTube. Focus, not resume: it only lands on our
+     * screen when the user really comes back.
+     */
+    static void onScreenFocused() {
+        PhonePlaybackActivity player = PhonePlaybackActivity.floatingPlayer();
+        if (player != null && !sInAppPip) {
+            player.restoreFromWindow();
+        }
+    }
+
+    // endregion
+
     // region What the floating window shows (for the debug log)
 
     private static int sFrames;
