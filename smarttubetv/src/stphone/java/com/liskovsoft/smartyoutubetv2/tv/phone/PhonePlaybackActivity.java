@@ -1609,6 +1609,14 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                     mFirstFrameListener = null;
                 }
                 uncoverVideo();
+                if (mShortsMode) {
+                    if (mShortOpenedAt > 0) {
+                        android.util.Log.d("PhoneShorts", "picture after " + (android.os.SystemClock.elapsedRealtime() - mShortOpenedAt) + " ms");
+                        mShortOpenedAt = 0;
+                    }
+                    // Playing: the next Shorts' stream info is fetched now, so the next swipes start at once
+                    PhoneShortsQueue.prefetchAhead(PhonePlaybackActivity.this, currentVideo());
+                }
             }
         };
         exo.addVideoListener(mFirstFrameListener);
@@ -2523,11 +2531,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPageAnimating = false;
     }
 
+    /** When the Short on screen was swiped to (its first frame is timed from here, for the debug log) */
+    private long mShortOpenedAt;
+
     private void openShort(Video video) {
         if (video == null) {
             return;
         }
         android.util.Log.d("PhoneShorts", "open " + video.videoId);
+        mShortOpenedAt = android.os.SystemClock.elapsedRealtime();
         presenter().openVideo(video);
         if (PhoneShortsQueue.hasOwnFeed()) {
             PhoneShortsQueue.markPlayed(video); // also loads the next page near the end

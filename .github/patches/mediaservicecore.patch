@@ -682,18 +682,20 @@ index c470585..493dc71 100644
              return null;
          }
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
-index e3be953..1152cca 100644
+index e3be953..38642f1 100644
 --- a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
-@@ -13,6 +13,7 @@ import com.liskovsoft.youtubeapi.videoinfo.V2.VideoInfoService
+@@ -13,6 +13,9 @@ import com.liskovsoft.youtubeapi.videoinfo.V2.VideoInfoService
  
  internal object FormatInfoWrapper {
      private var mCachedFormatInfo: MediaItemFormatInfo? = null
-+    private var mPreloadedFormatInfo: MediaItemFormatInfo? = null
++    /** Phone: infos fetched ahead of time (the next Shorts), newest last; at most PRELOAD_SLOTS */
++    private val mPreloaded = LinkedHashMap<String, MediaItemFormatInfo>()
++    private const val PRELOAD_SLOTS = 4
      private var mTryInnertubeFirst: Boolean = false
      private val mInnertubeResult = object { var isUnplayable: Boolean = false; var client: AppClient? = null }
      private val mInnertubeProvider: (String, String?) -> MediaItemFormatInfo? =
-@@ -34,6 +35,13 @@ internal object FormatInfoWrapper {
+@@ -34,6 +37,13 @@ internal object FormatInfoWrapper {
  
          try {
              synchronized(lock) {
@@ -707,7 +709,7 @@ index e3be953..1152cca 100644
                  return selectPlaybackFormatInfo(videoId, clickTrackingParams)
              }
          } finally {
-@@ -41,6 +49,44 @@ internal object FormatInfoWrapper {
+@@ -41,6 +51,44 @@ internal object FormatInfoWrapper {
          }
      }
  
@@ -721,16 +723,21 @@ index e3be953..1152cca 100644
 +            return
 +
 +        synchronized(lock) {
-+            if (getCachedFormatInfo(videoId) != null || mPreloadedFormatInfo?.getVideoId() == videoId)
++            if (getCachedFormatInfo(videoId) != null || mPreloaded[videoId]?.isCacheActual() == true)
 +                return
 +
 +            val playing = mCachedFormatInfo
 +            AppService.instance().setKeepClientPlaybackNonce(true)
 +            try {
 +                mCachedFormatInfo = null
-+                mPreloadedFormatInfo = selectPlaybackFormatInfo(videoId, null)?.takeIf { !it.isUnplayable() }
++                selectPlaybackFormatInfo(videoId, null)?.takeIf { !it.isUnplayable() }?.let {
++                    mPreloaded.remove(videoId)
++                    mPreloaded[videoId] = it
++                    while (mPreloaded.size > PRELOAD_SLOTS)
++                        mPreloaded.remove(mPreloaded.keys.first())
++                }
 +            } catch (e: Exception) {
-+                mPreloadedFormatInfo = null // best effort: opened the usual way later
++                // best effort: opened the usual way later
 +            } finally {
 +                AppService.instance().setKeepClientPlaybackNonce(false)
 +                mCachedFormatInfo = playing
@@ -739,12 +746,7 @@ index e3be953..1152cca 100644
 +    }
 +
 +    private fun takePreloadedFormatInfo(videoId: String): MediaItemFormatInfo? {
-+        val preloaded = mPreloadedFormatInfo ?: return null
-+
-+        if (preloaded.getVideoId() != videoId)
-+            return null
-+
-+        mPreloadedFormatInfo = null
++        val preloaded = mPreloaded.remove(videoId) ?: return null
 +
 +        return preloaded.takeIf { it.isCacheActual() }
 +    }
@@ -752,11 +754,11 @@ index e3be953..1152cca 100644
      @JvmStatic
      fun switchNextClient(force: Boolean) {
          if (mTryInnertubeFirst && !mInnertubeResult.isUnplayable) {
-@@ -63,6 +109,7 @@ internal object FormatInfoWrapper {
+@@ -63,6 +111,7 @@ internal object FormatInfoWrapper {
      @JvmStatic
      fun invalidateCache() {
          mCachedFormatInfo = null
-+        mPreloadedFormatInfo = null
++        mPreloaded.clear()
      }
  
      @JvmStatic

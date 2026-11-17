@@ -185,6 +185,41 @@ final class PhoneShortsQueue {
         return indexOf(videos(), video) >= 0;
     }
 
+    private static final java.util.concurrent.ExecutorService AHEAD = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private static final java.util.Set<String> sAsked = java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+
+    /**
+     * While a Short plays: the next two get their stream info now (as MeeTube does), so a swipe starts them without
+     * waiting for YouTube. One at a time, after the playing Short's own request; each asked for once.
+     */
+    static void prefetchAhead(android.content.Context context, Video current) {
+        android.content.Context app = context.getApplicationContext();
+        Video next = next(current);
+        Video afterNext = next != null ? next(next) : null;
+        for (Video video : new Video[] {next, afterNext}) {
+            if (video == null || video.videoId == null || !sAsked.add(video.videoId)) {
+                continue;
+            }
+            if (sAsked.size() > 40) {
+                java.util.Iterator<String> oldest = sAsked.iterator();
+                oldest.next();
+                oldest.remove();
+            }
+            PhoneUi.prefetchThumb(app, video, true);
+            String videoId = video.videoId;
+            AHEAD.execute(() -> {
+                long start = android.os.SystemClock.elapsedRealtime();
+                try {
+                    com.liskovsoft.youtubeapi.service.YouTubeMediaItemService.preloadFormatInfo(videoId);
+                    android.util.Log.d("PhoneShorts", "ahead " + videoId + " ready in "
+                            + (android.os.SystemClock.elapsedRealtime() - start) + " ms");
+                } catch (Throwable e) {
+                    android.util.Log.d("PhoneShorts", "ahead " + videoId + ": " + e);
+                }
+            });
+        }
+    }
+
     static Video next(Video current) {
         List<Video> list = videos();
         int index = indexOf(list, current);
