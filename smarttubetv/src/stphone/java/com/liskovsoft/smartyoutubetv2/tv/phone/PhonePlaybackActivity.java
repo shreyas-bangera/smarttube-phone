@@ -119,6 +119,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         public void run() {
             updateProgress();
             syncPlaybackService();
+            logShortTiming();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
             boolean waitingForShort = mShortsMode && mPoster != null && mPoster.getVisibility() == View.VISIBLE;
             mHandler.postDelayed(this, waitingForShort ? SHORT_TICK_MS : TICK_MS);
@@ -1296,8 +1297,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPoster.setTranslationY(0);
         mPoster.setVisibility(View.VISIBLE);
         mPosterSince = android.os.SystemClock.uptimeMillis();
-        mPosterUntilFrame = false; // a new video: black with the spinner until it plays
-        com.bumptech.glide.Glide.with(this).clear(mPoster); // no thumbnail, only the loading spinner
+        mPosterUntilFrame = false;
+        if (mShortsMode || isShort(video)) {
+            PhoneUi.loadThumb(mPoster, video, true); // a Short: its picture until it plays, never a black screen
+        } else {
+            com.bumptech.glide.Glide.with(this).clear(mPoster); // a new video: black with the spinner until it plays
+        }
         mPoster.setImageDrawable(null);
         updateLoading();
     }
@@ -1609,19 +1614,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                     mFirstFrameListener = null;
                 }
                 uncoverVideo();
-                if (mShortsMode) {
-                    if (mShortOpenedAt > 0) {
-                        android.util.Log.d("PhoneShorts", "picture after " + (android.os.SystemClock.elapsedRealtime() - mShortOpenedAt) + " ms");
-                        mShortOpenedAt = 0;
-                    }
-                    // Playing: the formats it plays are what the next Shorts' first seconds are downloaded in
-                    com.google.android.exoplayer2.SimpleExoPlayer exo = currentExoPlayer();
-                    if (exo != null) {
-                        PhoneShortsQueue.rememberFormats(exo.getVideoFormat(), exo.getAudioFormat());
-                    }
-                    // and the next Shorts' stream info and first seconds are fetched now, so the next swipes start at once
-                    PhoneShortsQueue.prefetchAhead(PhonePlaybackActivity.this, currentVideo());
-                }
             }
         };
         exo.addVideoListener(mFirstFrameListener);
@@ -2387,6 +2379,29 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * Right after a swipe the player can still report the previous Short's position for a moment. Only uncover the
      * video once its position fits the time since the new Short arrived, i.e. its own frames are really playing.
      */
+   private boolean mShortReadyLogged;
+
+    /** Debug log: how long a Short took from the swipe to being ready to play, and to its picture showing */
+    private void logShortTiming() {
+        if (!mShortsMode || mShortOpenedAt <= 0) {
+            return;
+        }
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        long since = android.os.SystemClock.elapsedRealtime() - mShortOpenedAt;
+        if (exo != null && !mShortReadyLogged && !mAwaitingNewVideo
+                && exo.getPlaybackState() == com.google.android.exoplayer2.Player.STATE_READY) {
+            mShortReadyLogged = true;
+            android.util.Log.d("PhoneShorts", "ready after " + since + " ms");
+            PhoneShortsQueue.rememberFormats(exo.getVideoFormat(), exo.getAudioFormat());
+        }
+        if (mShortReadyLogged && (mPoster == null || mPoster.getVisibility() != View.VISIBLE)) {
+            android.util.Log.d("PhoneShorts", "picture after " + since + " ms");
+            mShortOpenedAt = 0;
+        } else if (since > 15_000) {
+            mShortOpenedAt = 0;
+        }
+    }
+
     private boolean newShortIsPlaying(long position) {
         long shownFor = android.os.SystemClock.uptimeMillis() - mPosterSince;
         return shownFor > 200 && position <= shownFor + 1500;
@@ -2545,6 +2560,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         android.util.Log.d("PhoneShorts", "open " + video.videoId);
         mShortOpenedAt = android.os.SystemClock.elapsedRealtime();
+        mShortReadyLogged = false;
         presenter().openVideo(video);
         if (PhoneShortsQueue.hasOwnFeed()) {
             PhoneShortsQueue.markPlayed(video); // also loads the next page near the end
@@ -3243,6 +3259,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         refreshDetails();
         if (mShortsMode) {
             preloadNextShorts();
+            // The next two Shorts: stream info and, where possible, their first seconds or a ready connection
+            PhoneShortsQueue.prefetchAhead(this, video);
         }
         if (mDetails != null) {
             mDetails.scrollToPosition(0);
