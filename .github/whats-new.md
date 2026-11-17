@@ -1,4 +1,5 @@
 - Settings › Customize: all the ways to change how StreamTube looks and works, on one page, each explained
 - Your profile (You) can sit at the top next to search, or in the bottom bar, never both
 - Settings › What's new: the latest features in plain words, with a dot until you've read them. After an update, a short summary shows once when you open the app
-- Shorts start faster: the next ones get ready while you watch, so swiping doesn't keep you waiting
+- Shorts start instantly: the next one is already loaded while you watch, so it plays the moment you swipe, in its original language
+- Shorts no longer show a black screen while loading: you see the Short's picture until it plays

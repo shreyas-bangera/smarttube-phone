@@ -56,8 +56,8 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(5, "This update",
-                    new Feature(R.drawable.ic_phone_shorts, "Faster Shorts",
-                            "The next Shorts get ready while you watch, so swiping starts them sooner."),
+                    new Feature(R.drawable.ic_phone_shorts, "Instant Shorts",
+                            "The next Short is already loaded while you watch, so it plays the moment you swipe. Made for endless scrolling."),
                     new Feature(R.drawable.ic_phone_tune, "Customize, all in one place",
                             "Settings › Customize gathers every way to change how StreamTube looks and works, each with a short explanation."),
                     new Feature(R.drawable.ic_phone_account, "Your profile at the top or bottom",
