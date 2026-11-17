@@ -121,6 +121,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             syncPlaybackService();
             logShortTiming();
             peekTick();
+            shortsAutoAdvance();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
             boolean waitingForShort = mShortsMode && mPoster != null && mPoster.getVisibility() == View.VISIBLE;
             mHandler.postDelayed(this, waitingForShort ? SHORT_TICK_MS : TICK_MS);
@@ -2420,6 +2421,50 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 mPeek.prepare(next.videoId);
             }
         }
+    }
+
+    private String mAutoAdvancedFor;
+
+    /**
+     * A Short that has played to the end moves on to the next Short, like a swipe (the player's own "autoplay" would
+     * open the next suggested video, a regular one, and leave the Shorts)
+     */
+    private void shortsAutoAdvance() {
+        if (!mShortsMode || mPaging || mPageAnimating || mAwaitingNewVideo || isPip() || mMinimized || mStopped) {
+            return;
+        }
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        Video video = currentVideo();
+        if (exo == null || video == null || video.videoId == null || !exo.getPlayWhenReady()
+                || (mPeek != null && mPeek.isActive()) || video.videoId.equals(mAutoAdvancedFor)) {
+            return;
+        }
+        long duration = exo.getDuration();
+        if (duration <= 0 || duration == com.google.android.exoplayer2.C.TIME_UNSET) {
+            return;
+        }
+        long left = duration - exo.getCurrentPosition();
+        if (left > 1_100) {
+            return;
+        }
+        String videoId = video.videoId;
+        mAutoAdvancedFor = videoId;
+        mHandler.postDelayed(() -> {
+            Video now = currentVideo();
+            if (!mShortsMode || mPaging || mPageAnimating || mAwaitingNewVideo || mStopped || isPip() || mMinimized
+                    || now == null || !videoId.equals(now.videoId)) {
+                return;
+            }
+            Video next = nextShort();
+            if (next == null) {
+                return; // no next Short: the player does what it does at the end
+            }
+            android.util.Log.d("PhoneShorts", "ended: on to " + next.videoId);
+            mPageDirection = 1;
+            mIncoming = next;
+            preparePage(next);
+            commitPage(0);
+        }, Math.max(0, left - 150));
     }
 
     /** The main player has the Short now and draws it: its picture is no longer needed */
