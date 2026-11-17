@@ -199,6 +199,7 @@ final class PhoneShortsPeek {
         // The main player waits, paused, a moment ahead of the hidden one (its frame already drawn behind it); the
         // instant the hidden player gets there, the main one starts and the hidden one goes: no jump back, no gap
         mMainPausedByUs = true;
+        mMainStarted = false;
         main.setPlayWhenReady(false);
         long target = mPlayer.getCurrentPosition() + HAND_OFF_LEAD_MS;
         main.seekTo(target);
@@ -210,18 +211,34 @@ final class PhoneShortsPeek {
     private boolean mMainPausedByUs;
     private int mHandOffGeneration;
 
+    /** How early the main player is started: it takes a moment before its picture and sound really move */
+    private static final long START_EARLY_MS = 120;
+    private boolean mMainStarted;
+
     private void meet(SimpleExoPlayer main, int generation, long target, long since) {
         if (!mActive || generation != mHandOffGeneration) {
             return;
         }
         long position = mPlayer.getCurrentPosition();
         boolean mainReady = main.getPlaybackState() == Player.STATE_READY;
-        if (mainReady && position >= target - 15) {
-            main.setVolume(mMainVolume);
-            mMainMuted = false;
-            main.setPlayWhenReady(true);
+        if (mMainStarted) {
+            // Both play now (the main one still silent, under the hidden one): the switch happens once the main
+            // player's picture really moves, so there's no frozen frame and no gap in the sound
+            if (main.getCurrentPosition() >= target + 30 || SystemClock.elapsedRealtime() - since > 5_000) {
+                Log.d(TAG, "peek switch: main at " + main.getCurrentPosition() + " ms, hidden at " + position + " ms");
+                main.setVolume(mMainVolume);
+                mMainMuted = false;
+                end(main, null);
+                return;
+            }
+            mHandler.postDelayed(() -> meet(main, generation, target, since), 10);
+            return;
+        }
+        if (mainReady && position >= target - START_EARLY_MS) {
+            mMainStarted = true;
             mMainPausedByUs = false;
-            end(main, null);
+            main.setPlayWhenReady(true); // silent until the switch
+            mHandler.postDelayed(() -> meet(main, generation, target, since), 10);
             return;
         }
         if (SystemClock.elapsedRealtime() - since > 4_000) {
