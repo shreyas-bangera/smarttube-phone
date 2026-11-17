@@ -1982,7 +1982,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean playing = mPlayer.getPlayWhenReady();
         mPlayButton.setImageResource(playing ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play);
         if (mShortsPaused != null) {
-            mShortsPaused.setVisibility(mShortsMode && !playing ? View.VISIBLE : View.GONE);
+            // (not while the hidden player hands over: the main one waits paused for a moment then)
+            boolean handingOver = mPeek != null && mPeek.isActive();
+            mShortsPaused.setVisibility(mShortsMode && !playing && !handingOver ? View.VISIBLE : View.GONE);
         }
     }
 

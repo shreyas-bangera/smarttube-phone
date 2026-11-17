@@ -195,40 +195,47 @@ final class PhoneShortsPeek {
             return;
         }
         mHandingOff = true;
-        int generationAtHandOff = ++mHandOffGeneration;
-        long position = mPlayer.getCurrentPosition();
-        Log.d(TAG, "peek hands over at " + position + " ms, after " + activeFor + " ms");
-        main.addVideoListener(new VideoListener() {
-            @Override
-            public void onRenderedFirstFrame() {
-                main.removeVideoListener(this);
-                endWhenPlaying(main, generationAtHandOff);
-            }
-        });
-        main.seekTo(Math.max(0, position + 80)); // a moment ahead: where the hidden player is when the main one draws
-        // Safety net: the main player may not report a new frame (paused, or the same frame)
-        mHandler.postDelayed(() -> {
-            if (mActive && mHandingOff) {
-                end(main, null);
-            }
-        }, 2500);
+        int generation = ++mHandOffGeneration;
+        // The main player waits, paused, a moment ahead of the hidden one (its frame already drawn behind it); the
+        // instant the hidden player gets there, the main one starts and the hidden one goes: no jump back, no gap
+        mMainPausedByUs = true;
+        main.setPlayWhenReady(false);
+        long target = mPlayer.getCurrentPosition() + HAND_OFF_LEAD_MS;
+        main.seekTo(target);
+        Log.d(TAG, "peek hands over at " + target + " ms, after " + activeFor + " ms");
+        mHandler.post(() -> meet(main, generation, target, SystemClock.elapsedRealtime()));
     }
 
+    private static final long HAND_OFF_LEAD_MS = 600;
+    private boolean mMainPausedByUs;
     private int mHandOffGeneration;
 
-    /**
-     * After its jump the main player can draw a frame before it has enough to play on (it would show the loading
-     * circle): the hidden player stays until the main one really plays
-     */
-    private void endWhenPlaying(SimpleExoPlayer main, int generation) {
+    private void meet(SimpleExoPlayer main, int generation, long target, long since) {
         if (!mActive || generation != mHandOffGeneration) {
             return;
         }
-        if (main.getPlaybackState() == Player.STATE_READY) {
+        long position = mPlayer.getCurrentPosition();
+        boolean mainReady = main.getPlaybackState() == Player.STATE_READY;
+        if (mainReady && position >= target - 15) {
+            main.setVolume(mMainVolume);
+            mMainMuted = false;
+            main.setPlayWhenReady(true);
+            mMainPausedByUs = false;
             end(main, null);
-        } else {
-            mHandler.postDelayed(() -> endWhenPlaying(main, generation), 40);
+            return;
         }
+        if (SystemClock.elapsedRealtime() - since > 4_000) {
+            end(main, "hand-off timeout");
+            return;
+        }
+        if (!mainReady && position > target - 100) {
+            // The main player isn't there yet: a new meeting point a bit further on
+            long next = position + HAND_OFF_LEAD_MS;
+            main.seekTo(next);
+            mHandler.postDelayed(() -> meet(main, generation, next, since), 16);
+            return;
+        }
+        mHandler.postDelayed(() -> meet(main, generation, target, since), 16);
     }
 
     /** Back to the main player only (the hand-off is done, or the swipe went elsewhere) */
@@ -241,10 +248,19 @@ final class PhoneShortsPeek {
         if (reason != null) {
             Log.d(TAG, "peek ends: " + reason);
         }
+        mHandOffGeneration++; // a pending meeting is off
         if (main != null && mMainMuted) {
             main.setVolume(mMainVolume);
         }
         mMainMuted = false;
+        if (main != null && mMainPausedByUs) {
+            // Cut short mid hand-off: the main player plays on (not when the Shorts were left: then it stays quiet)
+            boolean left = reason != null && (reason.startsWith("left") || reason.startsWith("released"));
+            if (!left) {
+                main.setPlayWhenReady(true);
+            }
+        }
+        mMainPausedByUs = false;
         if (mPlayer != null) {
             mPlayer.setPlayWhenReady(false);
             mPlayer.setVolume(0f);
@@ -317,6 +333,18 @@ final class PhoneShortsPeek {
         mTrackSelector = new DefaultTrackSelector();
         mPlayer = ExoPlayerFactory.newSimpleInstance(mContext, new DefaultRenderersFactory(mContext), mTrackSelector, loadControl);
         mPlayer.setVideoTextureView(mTexture);
+        // The same loudness boost as the main player (Settings: volume above 100%, auto volume): otherwise the sound
+        // gets louder at the hand-off
+        try {
+            com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData data = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(mContext);
+            com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData tweaks = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData.instance(mContext);
+            float volume = tweaks.isPlayerAutoVolumeEnabled() ? data.getPlayerVolume() * 2.0f : data.getPlayerVolume();
+            if (volume > 1f) {
+                mPlayer.addAudioListener(new com.liskovsoft.smartyoutubetv2.common.exoplayer.other.VolumeBooster(true, volume, mPlayer));
+            }
+        } catch (Throwable e) {
+            Log.d(TAG, "peek: no loudness boost: " + e);
+        }
         mPlayer.setRepeatMode(Player.REPEAT_MODE_OFF);
         mPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
         mPlayer.addVideoListener(new VideoListener() {
