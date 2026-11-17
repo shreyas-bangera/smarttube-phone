@@ -1614,7 +1614,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                         android.util.Log.d("PhoneShorts", "picture after " + (android.os.SystemClock.elapsedRealtime() - mShortOpenedAt) + " ms");
                         mShortOpenedAt = 0;
                     }
-                    // Playing: the next Shorts' stream info is fetched now, so the next swipes start at once
+                    // Playing: the formats it plays are what the next Shorts' first seconds are downloaded in
+                    com.google.android.exoplayer2.SimpleExoPlayer exo = currentExoPlayer();
+                    if (exo != null) {
+                        PhoneShortsQueue.rememberFormats(exo.getVideoFormat(), exo.getAudioFormat());
+                    }
+                    // and the next Shorts' stream info and first seconds are fetched now, so the next swipes start at once
                     PhoneShortsQueue.prefetchAhead(PhonePlaybackActivity.this, currentVideo());
                 }
             }

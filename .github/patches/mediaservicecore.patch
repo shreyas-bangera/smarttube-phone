@@ -637,7 +637,7 @@ index 0000000..fa503c1
 +    }
 +}
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
-index 69c0a61..b11e397 100644
+index 69c0a61..9c51dfb 100644
 --- a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java
 @@ -74,6 +74,11 @@ public class YouTubeMediaItemService implements MediaItemService {
@@ -645,8 +645,8 @@ index 69c0a61..b11e397 100644
      }
  
 +    /** Fetches a video's info ahead of time, see {@link FormatInfoWrapper#preloadFormatInfo} (blocking: not for the UI thread) */
-+    public static void preloadFormatInfo(String videoId) {
-+        FormatInfoWrapper.preloadFormatInfo(videoId);
++    public static MediaItemFormatInfo preloadFormatInfo(String videoId) {
++        return FormatInfoWrapper.preloadFormatInfo(videoId);
 +    }
 +
      @Override
@@ -682,7 +682,7 @@ index c470585..493dc71 100644
              return null;
          }
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
-index e3be953..38642f1 100644
+index e3be953..41f4f25 100644
 --- a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt
 @@ -13,6 +13,9 @@ import com.liskovsoft.youtubeapi.videoinfo.V2.VideoInfoService
@@ -709,7 +709,7 @@ index e3be953..38642f1 100644
                  return selectPlaybackFormatInfo(videoId, clickTrackingParams)
              }
          } finally {
-@@ -41,6 +51,44 @@ internal object FormatInfoWrapper {
+@@ -41,6 +51,45 @@ internal object FormatInfoWrapper {
          }
      }
  
@@ -718,19 +718,19 @@ index e3be953..38642f1 100644
 +     * The playing video isn't disturbed: its cached info and its playback nonce (watch history) stay as they are.
 +     */
 +    @JvmStatic
-+    fun preloadFormatInfo(videoId: String?) {
++    fun preloadFormatInfo(videoId: String?): MediaItemFormatInfo? {
 +        if (videoId == null)
-+            return
++            return null
 +
 +        synchronized(lock) {
-+            if (getCachedFormatInfo(videoId) != null || mPreloaded[videoId]?.isCacheActual() == true)
-+                return
++            getCachedFormatInfo(videoId)?.let { return it }
++            mPreloaded[videoId]?.takeIf { it.isCacheActual() }?.let { return it }
 +
 +            val playing = mCachedFormatInfo
 +            AppService.instance().setKeepClientPlaybackNonce(true)
 +            try {
 +                mCachedFormatInfo = null
-+                selectPlaybackFormatInfo(videoId, null)?.takeIf { !it.isUnplayable() }?.let {
++                return selectPlaybackFormatInfo(videoId, null)?.takeIf { !it.isUnplayable() }?.also {
 +                    mPreloaded.remove(videoId)
 +                    mPreloaded[videoId] = it
 +                    while (mPreloaded.size > PRELOAD_SLOTS)
@@ -738,6 +738,7 @@ index e3be953..38642f1 100644
 +                }
 +            } catch (e: Exception) {
 +                // best effort: opened the usual way later
++                return null
 +            } finally {
 +                AppService.instance().setKeepClientPlaybackNonce(false)
 +                mCachedFormatInfo = playing
@@ -754,7 +755,7 @@ index e3be953..38642f1 100644
      @JvmStatic
      fun switchNextClient(force: Boolean) {
          if (mTryInnertubeFirst && !mInnertubeResult.isUnplayable) {
-@@ -63,6 +111,7 @@ internal object FormatInfoWrapper {
+@@ -63,6 +112,7 @@ internal object FormatInfoWrapper {
      @JvmStatic
      fun invalidateCache() {
          mCachedFormatInfo = null

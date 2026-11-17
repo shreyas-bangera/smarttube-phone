@@ -399,9 +399,113 @@ public class ExoMediaSourceFactory {
     private DataSource.Factory getMediaDataSourceFactory() {
         if (mMediaDataSourceFactory == null) {
             mMediaDataSourceFactory = buildDataSourceFactory(USE_BANDWIDTH_METER);
+            com.google.android.exoplayer2.upstream.cache.Cache cache = prefetchCache(mContext);
+            if (cache != null) {
+                // Phones: the first seconds of the next Shorts, downloaded ahead (see prefetchStart), are read from
+                // disk; everything else comes from the network as before and isn't written to disk.
+                mMediaDataSourceFactory = new com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory(cache,
+                        mMediaDataSourceFactory, new com.google.android.exoplayer2.upstream.FileDataSourceFactory(), null,
+                        com.google.android.exoplayer2.upstream.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR, null);
+            }
         }
 
         return mMediaDataSourceFactory;
+    }
+
+    private static com.google.android.exoplayer2.upstream.cache.SimpleCache sPrefetchCache;
+    private static boolean sPrefetchCacheFailed;
+    private static final long PREFETCH_CACHE_BYTES = 80L * 1024 * 1024;
+
+    /** Phones only (FastStart): the small disk cache the next Shorts' first seconds are downloaded into */
+    private static synchronized com.google.android.exoplayer2.upstream.cache.Cache prefetchCache(Context context) {
+        if (!com.liskovsoft.smartyoutubetv2.common.misc.FastStart.isEnabled() || sPrefetchCacheFailed || context == null) {
+            return null;
+        }
+        if (sPrefetchCache == null) {
+            try {
+                java.io.File dir = new java.io.File(context.getApplicationContext().getCacheDir(), "media_ahead");
+                sPrefetchCache = new com.google.android.exoplayer2.upstream.cache.SimpleCache(dir,
+                        new com.google.android.exoplayer2.upstream.cache.LeastRecentlyUsedCacheEvictor(PREFETCH_CACHE_BYTES),
+                        new com.google.android.exoplayer2.database.ExoDatabaseProvider(context.getApplicationContext()));
+            } catch (Throwable e) {
+                sPrefetchCacheFailed = true;
+                Log.e(TAG, "Prefetch cache unavailable: %s", e.getMessage());
+                return null;
+            }
+        }
+        return sPrefetchCache;
+    }
+
+    /**
+     * Phones: downloads the first {@code seconds} of the given formats (their header and index included) into the
+     * prefetch cache, so the video starts from disk. Blocking: call it off the main thread. Returns the bytes fetched.
+     */
+    public long prefetchStart(MediaItemFormatInfo formatInfo, List<com.liskovsoft.mediaserviceinterfaces.data.MediaFormat> formats, int seconds) {
+        com.google.android.exoplayer2.upstream.cache.Cache cache = prefetchCache(mContext);
+        if (cache == null || formatInfo == null || formats == null || !formatInfo.containsDashFormats()) {
+            return 0;
+        }
+        long total = 0;
+        DataSource upstream = buildDataSourceFactory(false).createDataSource();
+        for (com.liskovsoft.mediaserviceinterfaces.data.MediaFormat format : formats) {
+            if (format == null || format.getUrl() == null) {
+                continue;
+            }
+            long headerEnd = rangeEnd(format.getIndex());
+            long bitrate = parseLong(format.getBitrate());
+            long length = headerEnd + 1 + (bitrate > 0 ? bitrate / 8 * seconds : 400_000);
+            long clen = parseLong(format.getClen());
+            if (clen > 0) {
+                length = Math.min(length, clen);
+            }
+            try {
+                com.google.android.exoplayer2.upstream.cache.CacheUtil.cache(
+                        new com.google.android.exoplayer2.upstream.DataSpec(Uri.parse(format.getUrl()), 0, length, null),
+                        cache, null, upstream, null, null);
+                total += length;
+            } catch (Throwable e) {
+                Log.e(TAG, "Prefetch of %s failed: %s", format.getITag(), e.getMessage());
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Phones: opens a connection to the server a video streams from, so its first request doesn't wait for the
+     * connection to be set up (DNS, TLS). Blocking: call it off the main thread.
+     */
+    public void warmUp(String url) {
+        if (url == null) {
+            return;
+        }
+        DataSource source = buildDataSourceFactory(false, 3_000).createDataSource();
+        try {
+            source.open(new com.google.android.exoplayer2.upstream.DataSpec(Uri.parse(url), 0, 1, null));
+        } catch (Throwable e) {
+            // An error answer is fine: the connection is open now
+        } finally {
+            try {
+                source.close();
+            } catch (Throwable e) {
+                // ignore
+            }
+        }
+    }
+
+    private static long rangeEnd(String range) {
+        if (range == null) {
+            return 0;
+        }
+        int dash = range.indexOf('-');
+        return dash > 0 ? parseLong(range.substring(dash + 1)) : 0;
+    }
+
+    private static long parseLong(String value) {
+        try {
+            return value != null ? Long.parseLong(value.trim()) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     // EXO: 2.10 - 2.12

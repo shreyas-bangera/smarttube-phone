@@ -289,6 +289,12 @@ public class VideoLoaderController extends BasePlayerController {
 
         String bgImageUrl = null;
 
+        if (com.liskovsoft.smartyoutubetv2.common.misc.FastStart.isEnabled()) {
+            // Phones: which way the video streams, in the shared debug log (Shorts start times)
+            android.util.Log.d("PhoneShorts", "info " + getVideo().videoId + ": " + (formatInfo.containsDashFormats() ? "dash"
+                    : formatInfo.containsSabrFormats() ? "sabr" : formatInfo.isLive() ? "live" : "other"));
+        }
+
         getVideo().sync(formatInfo);
 
         // Fix stretched video for a couple milliseconds (before the onVideoSizeChanged gets called)

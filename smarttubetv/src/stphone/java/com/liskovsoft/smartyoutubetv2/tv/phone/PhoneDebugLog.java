@@ -27,7 +27,7 @@ final class PhoneDebugLog {
     private static final String[] TAGS = {
             "PhonePip:V", "PhonePlayback:V", "PhoneMiniPlayer:V", "PhoneShorts:V", "PhoneNewVideos:V", "PhoneUpdater:V", "ViewManager:V",
             "PlaybackActivity:V", "PlaybackFragment:V", "PlaybackPresenter:V", "ExoPlayerImpl:V",
-            "ExoPlayerImplInternal:V", "MediaCodecVideoRenderer:V", "AndroidRuntime:E", "*:S"};
+            "ExoPlayerImplInternal:W", "MediaCodecVideoRenderer:V", "AndroidRuntime:E", "*:S"};
     private static final long FILE_LIMIT = 300_000;
     private static java.io.File sFile;
     private static java.io.File sOlder;
