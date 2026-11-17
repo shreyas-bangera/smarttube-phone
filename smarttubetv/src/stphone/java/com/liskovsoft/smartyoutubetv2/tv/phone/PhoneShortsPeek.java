@@ -41,6 +41,7 @@ final class PhoneShortsPeek {
     private final AspectRatioFrameLayout mFrame;
     private final TextureView mTexture;
     private SimpleExoPlayer mPlayer;
+    private DefaultTrackSelector mTrackSelector;
     /** The Short the hidden player holds, or is loading */
     private String mVideoId;
     private boolean mFirstFrame;
@@ -126,6 +127,7 @@ final class PhoneShortsPeek {
                 SimpleExoPlayer player = player();
                 player.setVolume(0f);
                 player.setPlayWhenReady(false);
+                mTrackSelector.setParameters(mTrackSelector.buildUponParameters().clearSelectionOverrides());
                 player.prepare(source, true, true);
                 Log.d(TAG, "peek " + videoId + " loading (info in " + (SystemClock.elapsedRealtime() - start) + " ms)");
             });
@@ -193,13 +195,14 @@ final class PhoneShortsPeek {
             return;
         }
         mHandingOff = true;
+        int generationAtHandOff = ++mHandOffGeneration;
         long position = mPlayer.getCurrentPosition();
         Log.d(TAG, "peek hands over at " + position + " ms, after " + activeFor + " ms");
         main.addVideoListener(new VideoListener() {
             @Override
             public void onRenderedFirstFrame() {
                 main.removeVideoListener(this);
-                mHandler.post(() -> end(main, null));
+                endWhenPlaying(main, generationAtHandOff);
             }
         });
         main.seekTo(Math.max(0, position + 80)); // a moment ahead: where the hidden player is when the main one draws
@@ -208,7 +211,24 @@ final class PhoneShortsPeek {
             if (mActive && mHandingOff) {
                 end(main, null);
             }
-        }, 1500);
+        }, 2500);
+    }
+
+    private int mHandOffGeneration;
+
+    /**
+     * After its jump the main player can draw a frame before it has enough to play on (it would show the loading
+     * circle): the hidden player stays until the main one really plays
+     */
+    private void endWhenPlaying(SimpleExoPlayer main, int generation) {
+        if (!mActive || generation != mHandOffGeneration) {
+            return;
+        }
+        if (main.getPlaybackState() == Player.STATE_READY) {
+            end(main, null);
+        } else {
+            mHandler.postDelayed(() -> endWhenPlaying(main, generation), 40);
+        }
     }
 
     /** Back to the main player only (the hand-off is done, or the swipe went elsewhere) */
@@ -249,6 +269,44 @@ final class PhoneShortsPeek {
         }
     }
 
+    /**
+     * Shorts often come with dubbed sound tracks in other languages: like the main player, take the original one
+     * (otherwise the first second could be in another language until the main player takes over)
+     */
+    private void selectOriginalAudio() {
+        com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo info =
+                mTrackSelector != null ? mTrackSelector.getCurrentMappedTrackInfo() : null;
+        if (info == null) {
+            return;
+        }
+        for (int renderer = 0; renderer < info.getRendererCount(); renderer++) {
+            if (info.getRendererType(renderer) != C.TRACK_TYPE_AUDIO) {
+                continue;
+            }
+            com.google.android.exoplayer2.source.TrackGroupArray groups = info.getTrackGroups(renderer);
+            if (groups.length < 2 && (groups.length == 0 || groups.get(0).length < 2)) {
+                return; // one sound track: nothing to choose
+            }
+            DefaultTrackSelector.SelectionOverride current = mTrackSelector.getParameters().getSelectionOverride(renderer, groups);
+            for (int g = 0; g < groups.length; g++) {
+                com.google.android.exoplayer2.source.TrackGroup group = groups.get(g);
+                for (int t = 0; t < group.length; t++) {
+                    String language = group.getFormat(t).language;
+                    if (language != null && language.toLowerCase().contains("original")) {
+                        if (current != null && current.groupIndex == g) {
+                            return; // already on it
+                        }
+                        Log.d(TAG, "peek " + mVideoId + ": original sound " + language);
+                        mTrackSelector.setParameters(mTrackSelector.buildUponParameters()
+                                .setSelectionOverride(renderer, groups, new DefaultTrackSelector.SelectionOverride(g, t)));
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+    }
+
     private SimpleExoPlayer player() {
         if (mPlayer != null) {
             return mPlayer;
@@ -256,8 +314,8 @@ final class PhoneShortsPeek {
         DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
                 .setBufferDurationsMs(4_000, 8_000, 500, 1_000) // the start of a Short, not all of it
                 .createDefaultLoadControl();
-        mPlayer = ExoPlayerFactory.newSimpleInstance(mContext, new DefaultRenderersFactory(mContext),
-                new DefaultTrackSelector(), loadControl);
+        mTrackSelector = new DefaultTrackSelector();
+        mPlayer = ExoPlayerFactory.newSimpleInstance(mContext, new DefaultRenderersFactory(mContext), mTrackSelector, loadControl);
         mPlayer.setVideoTextureView(mTexture);
         mPlayer.setRepeatMode(Player.REPEAT_MODE_OFF);
         mPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
@@ -281,6 +339,12 @@ final class PhoneShortsPeek {
             }
         });
         mPlayer.addListener(new Player.EventListener() {
+            @Override
+            public void onTracksChanged(com.google.android.exoplayer2.source.TrackGroupArray trackGroups,
+                                        com.google.android.exoplayer2.trackselection.TrackSelectionArray trackSelections) {
+                selectOriginalAudio();
+            }
+
             @Override
             public void onPlayerError(ExoPlaybackException error) {
                 Log.d(TAG, "peek " + mVideoId + " error: " + error.getMessage());
