@@ -201,18 +201,24 @@ final class PhoneShortsPeek {
         mMainPausedByUs = true;
         mMainStarted = false;
         main.setPlayWhenReady(false);
-        long target = mPlayer.getCurrentPosition() + HAND_OFF_LEAD_MS;
+        long target = mPlayer.getCurrentPosition() + leadMs();
         main.seekTo(target);
         Log.d(TAG, "peek hands over at " + target + " ms, after " + activeFor + " ms");
         mHandler.post(() -> meet(main, generation, target, SystemClock.elapsedRealtime()));
     }
 
-    private static final long HAND_OFF_LEAD_MS = 600;
+    /** The meeting point is this far ahead: enough for the main player to get there and still be started early */
+    private static long leadMs() {
+        return Math.max(600, sStartEarlyMs + 400);
+    }
     private boolean mMainPausedByUs;
     private int mHandOffGeneration;
 
-    /** How early the main player is started: it takes a moment before its picture and sound really move */
-    private static final long START_EARLY_MS = 120;
+    /**
+     * How early the main player is started: it takes a while before its picture and sound really move (about 0.4 s
+     * on a OnePlus). Learned from each hand-off, so the two players meet at the same moment on any phone.
+     */
+    private static long sStartEarlyMs = 430;
     private boolean mMainStarted;
 
     private void meet(SimpleExoPlayer main, int generation, long target, long since) {
@@ -225,7 +231,13 @@ final class PhoneShortsPeek {
             // Both play now (the main one still silent, under the hidden one): the switch happens once the main
             // player's picture really moves, so there's no frozen frame and no gap in the sound
             if (main.getCurrentPosition() >= target + 30 || SystemClock.elapsedRealtime() - since > 5_000) {
-                Log.d(TAG, "peek switch: main at " + main.getCurrentPosition() + " ms, hidden at " + position + " ms");
+                long mainPosition = main.getCurrentPosition();
+                long drift = position - mainPosition; // > 0: the main player is behind (it would repeat a moment)
+                Log.d(TAG, "peek switch: main at " + mainPosition + " ms, hidden at " + position + " ms, start "
+                        + sStartEarlyMs + " ms early");
+                if (Math.abs(drift) < 1_000) {
+                    sStartEarlyMs = Math.max(50, Math.min(1_200, sStartEarlyMs + drift * 3 / 4));
+                }
                 main.setVolume(mMainVolume);
                 mMainMuted = false;
                 end(main, null);
@@ -234,7 +246,7 @@ final class PhoneShortsPeek {
             mHandler.postDelayed(() -> meet(main, generation, target, since), 10);
             return;
         }
-        if (mainReady && position >= target - START_EARLY_MS) {
+        if (mainReady && position >= target - sStartEarlyMs) {
             mMainStarted = true;
             mMainPausedByUs = false;
             main.setPlayWhenReady(true); // silent until the switch
@@ -247,7 +259,7 @@ final class PhoneShortsPeek {
         }
         if (!mainReady && position > target - 100) {
             // The main player isn't there yet: a new meeting point a bit further on
-            long next = position + HAND_OFF_LEAD_MS;
+            long next = position + leadMs();
             main.seekTo(next);
             mHandler.postDelayed(() -> meet(main, generation, next, since), 16);
             return;
