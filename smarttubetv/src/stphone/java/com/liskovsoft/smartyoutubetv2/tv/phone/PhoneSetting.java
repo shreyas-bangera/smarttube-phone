@@ -16,6 +16,13 @@ final class PhoneSetting extends SettingsItem {
     OnPick onPick;
     /** A short line under the title saying what the setting does; null for none */
     String summary;
+    /** A dot before the arrow: something new to see behind this row */
+    boolean badge;
+
+    PhoneSetting badge(boolean show) {
+        badge = show;
+        return this;
+    }
 
     /** Adds the line under the title */
     PhoneSetting summary(String text) {

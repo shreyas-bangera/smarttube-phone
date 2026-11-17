@@ -46,6 +46,15 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <!-- Something new behind this row (What's new not read yet) -->
+    <View
+        android:id="@+id/phone_setting_dot"
+        android:layout_width="10dp"
+        android:layout_height="10dp"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/phone_new_dot"
+        android:visibility="gone" />
+
     <!-- The current value ("Dark"), for rows that have one -->
     <TextView
         android:id="@+id/phone_setting_value"

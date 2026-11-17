@@ -181,4 +181,15 @@
     <string name="phone_tweak_you_top">Top, next to search</string>
     <string name="phone_tweak_prev_next">Previous and next buttons</string>
     <string name="phone_tweak_prev_next_summary">Shown in the player. Turn off so you don\'t tap them by accident while skipping</string>
+    <string name="phone_customize_intro">Make StreamTube work the way you like. Changes apply right away.</string>
+    <string name="phone_customize_layout">Layout</string>
+    <string name="phone_customize_player">Player</string>
+    <string name="phone_customize_summary">You tab, player buttons and more</string>
+    <string name="phone_whats_new">What\'s new</string>
+    <string name="phone_whats_new_summary">The latest features, explained</string>
+    <string name="phone_whats_new_title">What\'s new in StreamTube</string>
+    <string name="phone_whats_new_updated">StreamTube was updated. Here\'s what changed:</string>
+    <string name="phone_whats_new_see_all">See all</string>
+    <string name="phone_whats_new_got_it">Got it</string>
+    <string name="phone_whats_new_badge">New</string>
 </resources>

@@ -174,4 +174,15 @@
     <string name="phone_tweak_you_top">Atas, di sebelah carian</string>
     <string name="phone_tweak_prev_next">Butang sebelumnya dan seterusnya</string>
     <string name="phone_tweak_prev_next_summary">Dipaparkan dalam pemain. Matikan supaya anda tidak tersentuhnya semasa melangkau</string>
+    <string name="phone_customize_intro">Jadikan StreamTube berfungsi mengikut cara anda. Perubahan berkuat kuasa serta-merta.</string>
+    <string name="phone_customize_layout">Susun atur</string>
+    <string name="phone_customize_player">Pemain</string>
+    <string name="phone_customize_summary">Tab Anda, butang pemain dan banyak lagi</string>
+    <string name="phone_whats_new">Apa yang baharu</string>
+    <string name="phone_whats_new_summary">Ciri terkini, diterangkan</string>
+    <string name="phone_whats_new_title">Apa yang baharu dalam StreamTube</string>
+    <string name="phone_whats_new_updated">StreamTube telah dikemas kini. Ini perubahannya:</string>
+    <string name="phone_whats_new_see_all">Lihat semua</string>
+    <string name="phone_whats_new_got_it">Faham</string>
+    <string name="phone_whats_new_badge">Baharu</string>
 </resources>

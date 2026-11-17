@@ -138,6 +138,17 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
+        <!-- Settings > Customize and Settings > What's new -->
+        <activity
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneCustomizeActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneWhatsNewActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait" />
         <!-- You > Downloads, and the in-app player for downloaded files -->
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneDownloadsActivity"

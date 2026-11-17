@@ -111,6 +111,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         CrashReport.showIfAny(this);
         mList.postDelayed(() -> PhoneRebrandBanner.showIfPending(this), 900); // once, after the rename to StreamTube
         mList.postDelayed(this::askNotificationPermission, 1500);
+        mList.postDelayed(() -> PhoneWhatsNew.showAfterUpdate(this), 1200); // once after an update
         handleShortcut(getIntent(), 0);
     }
 
@@ -190,7 +191,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         }
         mIsFirstResume = false;
         updateAccountViews(); // also the tabs: the bell's dot for new videos
-        refreshSettingsRows(); // back from Android's notification settings
+        refreshSettingsRows(); // back from Android's notification settings (and What's new read: its dot goes)
+        updateTabs(); // Customize > You may have moved
         refreshIncognito();
         PhoneNewVideos.schedule(this); // the background look at the Subscriptions feed (kept if already planned)
         if (sectionById(MediaGroup.TYPE_SHORTS) != null) {
@@ -614,7 +616,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
                 continue;
             }
             // Notifications is the app's own list of new videos (PhoneNewVideos), not a SmartTube section
-            boolean visible = (i == TAB_YOU && !PhoneTweaks.youOnTop(this)) || i == TAB_NOTIFICATIONS || hasTab(i);
+            boolean visible = i == TAB_YOU ? !PhoneTweaks.youOnTop(this) // Customize > You: at the top or here, never both
+                    : i == TAB_NOTIFICATIONS || hasTab(i);
             tab.setVisibility(visible ? View.VISIBLE : View.GONE);
             boolean selected = i == mCurrentTab;
             int color = getResources().getColor(R.color.phone_text);
@@ -1245,6 +1248,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         // Always first: the app updates itself from here
         items.add(PhoneSetting.row(PhoneUpdater.settingsTitle(this), R.drawable.ic_phone_update, () -> PhoneUpdater.open(this)));
+        items.add(PhoneSetting.row(getString(R.string.phone_whats_new), R.drawable.ic_phone_info, () -> PhoneWhatsNewActivity.open(this))
+                .summary(getString(R.string.phone_whats_new_summary)).badge(PhoneWhatsNew.hasUnread(this)));
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_account)));
         addEngineSetting(items, engine, R.string.settings_accounts);
@@ -1260,17 +1265,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         addEngineSetting(items, engine, R.string.settings_main_ui);
         addEngineSetting(items, engine, R.string.settings_language_country);
 
-        // Customize: the app's own tweaks, one row each with a line saying what it does (new ones go here)
-        items.add(PhoneSetting.header(getString(R.string.phone_settings_customize)));
-        boolean youOnTop = PhoneTweaks.youOnTop(this);
-        items.add(PhoneSetting.dropDown(getString(R.string.phone_tweak_you), getString(youOnTop
-                ? R.string.phone_tweak_you_top : R.string.phone_tweak_you_bottom), R.drawable.ic_phone_account, this::pickYouPlace)
-                .summary(getString(R.string.phone_tweak_you_summary)));
-        boolean prevNext = PhoneTweaks.prevNextButtons(this);
-        items.add(PhoneSetting.toggle(getString(R.string.phone_tweak_prev_next), prevNext, R.drawable.ic_phone_next, () -> {
-            PhoneTweaks.setPrevNextButtons(this, !PhoneTweaks.prevNextButtons(this));
-            refreshSettingsRows();
-        }).summary(getString(R.string.phone_tweak_prev_next_summary)));
+        // Customize: every tweak of the app on its own page (PhoneCustomizeActivity)
+        items.add(PhoneSetting.row(getString(R.string.phone_settings_customize), R.drawable.ic_phone_tune,
+                () -> PhoneCustomizeActivity.open(this)).summary(getString(R.string.phone_customize_summary)));
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_playback)));
         addEngineSetting(items, engine, R.string.settings_player);
@@ -1321,25 +1318,6 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     }
 
     /** Theme: a drop-down under the row with the three choices, the current one ticked */
-    /** Customize > You: in the bottom bar, or the account picture at the top next to search */
-    private void pickYouPlace(View anchor) {
-        boolean onTop = PhoneTweaks.youOnTop(this);
-        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor, Gravity.END);
-        menu.getMenu().add(0, 0, 0, R.string.phone_tweak_you_bottom).setCheckable(true).setChecked(!onTop);
-        menu.getMenu().add(0, 1, 1, R.string.phone_tweak_you_top).setCheckable(true).setChecked(onTop);
-        menu.getMenu().setGroupCheckable(0, true, true);
-        menu.setOnMenuItemClickListener(item -> {
-            boolean top = item.getItemId() == 1;
-            if (top != onTop) {
-                PhoneTweaks.setYouOnTop(this, top);
-                updateTabs();
-                refreshSettingsRows();
-            }
-            return true;
-        });
-        menu.show();
-    }
-
     private void pickTheme(View anchor) {
         int current = PhoneTheme.get(this);
         int[] modes = {PhoneTheme.DARK, PhoneTheme.LIGHT, PhoneTheme.SYSTEM};
