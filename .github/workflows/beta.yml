@@ -95,9 +95,9 @@ jobs:
             echo "| StreamTube-Beta-universal.apk | Any device, also x86 emulators and Chromebooks |"
             echo ""
             echo "What's new"
-            git log --no-merges --format='- %s' origin/main..HEAD | grep -viE '^- (CI|README|Smoke|Emulator)' \
-              | sed -E "s/[[:space:]]*(exactly[[:space:]]+)?(as|like)[[:space:]]+(in[[:space:]]+)?NewTube('s)?//Ig" \
-              | grep -vi 'newtube' | head -n 30 || true
+            # What people testing the beta get: the new features and fixes in plain words (.github/whats-new.md), never
+            # the technical change list (tests, build fixes)
+            grep -E '^- ' .github/whats-new.md || true
           } > release_notes.md
           cat release_notes.md
 

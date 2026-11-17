@@ -185,4 +185,5 @@
     <string name="phone_whats_new_see_all">Lihat semua</string>
     <string name="phone_whats_new_got_it">Faham</string>
     <string name="phone_whats_new_badge">Baharu</string>
+    <string name="phone_whats_new_version">Versi %1$s</string>
 </resources>

@@ -192,4 +192,5 @@
     <string name="phone_whats_new_see_all">See all</string>
     <string name="phone_whats_new_got_it">Got it</string>
     <string name="phone_whats_new_badge">New</string>
+    <string name="phone_whats_new_version">Version %1$s</string>
 </resources>

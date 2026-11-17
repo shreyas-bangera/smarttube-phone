@@ -17,10 +17,10 @@ import android.widget.TextView;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
 /**
- * Settings > What's new: the app's new features, newest first, in plain words. A dot on the Settings row until the
+ * Settings > What's new: what this version brings, in plain words (only this version, not older ones). A dot on the Settings row until the
  * page is read; once after an update, a card on Home with the newest ones.
  *
- * A new release: add it at the top of {@link #RELEASES} and raise {@link #VERSION} (to its number in the list).
+ * A new release: replace the release in {@link #RELEASES} with its own features and raise {@link #VERSION}.
  */
 final class PhoneWhatsNew {
     /** The newest release below: raise it with each new one */
@@ -61,29 +61,7 @@ final class PhoneWhatsNew {
                     new Feature(R.drawable.ic_phone_account, "Your profile at the top or bottom",
                             "Open You from the bottom bar, or move it to the top next to search. Pick one in Customize."),
                     new Feature(R.drawable.ic_phone_info, "What's new",
-                            "This page. A dot in Settings tells you when there's something new to read.")),
-            new Release(4, "Build 107",
-                    new Feature(R.drawable.ic_phone_bell, "Notifications while the app is closed",
-                            "New videos from channels you subscribe to now reach you even when StreamTube isn't open."),
-                    new Feature(R.drawable.ic_phone_next, "Hide previous and next",
-                            "Turn off the previous and next buttons in the player so you don't hit them while skipping ahead."),
-                    new Feature(R.drawable.ic_phone_home, "Looks like YouTube",
-                            "The same font and text sizes as the YouTube app, a lighter Home screen and a see-through bottom bar.")),
-            new Release(3, "Build 106",
-                    new Feature(R.drawable.ic_phone_headphones, "Background play that keeps going",
-                            "Videos keep playing with the screen off or in another app, without stopping halfway."),
-                    new Feature(R.drawable.ic_phone_volume, "Saves data in the background",
-                            "When StreamTube isn't on screen it plays the sound only. The picture comes back when you return.")),
-            new Release(2, "Build 105",
-                    new Feature(R.drawable.ic_phone_account, "Tidier You page",
-                            "Your history and account buttons fit properly on smaller phones."),
-                    new Feature(R.drawable.ic_phone_link, "Malay and Brazilian Portuguese",
-                            "StreamTube now speaks Bahasa Melayu and Português (Brasil).")),
-            new Release(1, "Build 102",
-                    new Feature(R.drawable.ic_phone_pip, "Picture in picture",
-                            "Float a video from the player's settings and keep browsing. It keeps playing when you leave the app."),
-                    new Feature(R.drawable.ic_phone_back, "Back goes where you expect",
-                            "Back from a playlist, Watch later or Liked videos returns to your You page."))
+                            "This page. A dot in Settings tells you when there's something new to read."))
     };
 
     private PhoneWhatsNew() {
