@@ -167,5 +167,11 @@
     <string name="phone_downloads_delete_title">Padam muat turun ini?</string>
     <string name="phone_downloads_deleted">Muat turun dipadam</string>
     <string name="phone_downloads_delete_failed">Tidak dapat memadamnya. Padamkannya daripada aplikasi Fail (Download/StreamTube).</string>
-    <string name="phone_prev_next_buttons">Butang sebelumnya / seterusnya dalam pemain</string>
+    <string name="phone_settings_customize">Suaikan</string>
+    <string name="phone_tweak_you">Anda</string>
+    <string name="phone_tweak_you_summary">Tempat akaun dan pustaka anda dibuka</string>
+    <string name="phone_tweak_you_bottom">Bar bawah</string>
+    <string name="phone_tweak_you_top">Atas, di sebelah carian</string>
+    <string name="phone_tweak_prev_next">Butang sebelumnya dan seterusnya</string>
+    <string name="phone_tweak_prev_next_summary">Dipaparkan dalam pemain. Matikan supaya anda tidak tersentuhnya semasa melangkau</string>
 </resources>

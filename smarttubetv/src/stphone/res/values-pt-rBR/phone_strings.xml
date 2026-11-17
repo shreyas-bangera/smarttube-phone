@@ -174,5 +174,11 @@
     <string name="phone_downloads_delete_failed">Não foi possível excluir. Exclua-o pelo app Arquivos (Download/StreamTube).</string>
     <string name="phone_debug_log">Compartilhar log de depuração</string>
     <string name="phone_pip_blocked">Desativado nas configurações do Android</string>
-    <string name="phone_prev_next_buttons">Botões anterior / próximo no player</string>
+    <string name="phone_settings_customize">Personalizar</string>
+    <string name="phone_tweak_you">Você</string>
+    <string name="phone_tweak_you_summary">Onde sua conta e biblioteca são abertas</string>
+    <string name="phone_tweak_you_bottom">Barra inferior</string>
+    <string name="phone_tweak_you_top">Em cima, ao lado da pesquisa</string>
+    <string name="phone_tweak_prev_next">Botões anterior e próximo</string>
+    <string name="phone_tweak_prev_next_summary">Mostrados no player. Desative para não tocá-los sem querer ao avançar</string>
 </resources>

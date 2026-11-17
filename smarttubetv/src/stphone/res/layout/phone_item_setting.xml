@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="56dp"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
     android:background="@drawable/phone_ripple"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="20dp"
-    android:paddingEnd="16dp">
+    android:paddingTop="10dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="10dp">
 
     <ImageView
         android:id="@+id/phone_thumb"
@@ -15,16 +18,33 @@
         android:importantForAccessibility="no"
         android:tint="@color/phone_text" />
 
-    <TextView
-        android:id="@+id/phone_title"
+    <!-- Title, and for tweaks a short line under it saying what the setting does (wraps, never cut off) -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/phone_text"
-        android:textSize="15sp" />
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/phone_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@color/phone_text"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/phone_setting_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:lineSpacingExtra="1dp"
+            android:textColor="@color/phone_text_2"
+            android:textSize="13sp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <!-- The current value ("Dark"), for rows that have one -->
     <TextView

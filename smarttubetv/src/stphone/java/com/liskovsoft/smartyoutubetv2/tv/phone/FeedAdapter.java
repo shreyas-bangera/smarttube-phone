@@ -784,6 +784,12 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         // Phone rows: the current value or a switch on the right; an arrow only for rows that open something
         PhoneSetting setting = item instanceof PhoneSetting ? (PhoneSetting) item : null;
+        TextView summary = view.findViewById(R.id.phone_setting_summary);
+        if (summary != null) {
+            boolean hasSummary = setting != null && setting.summary != null;
+            summary.setVisibility(hasSummary ? View.VISIBLE : View.GONE);
+            summary.setText(hasSummary ? setting.summary : null);
+        }
         TextView value = view.findViewById(R.id.phone_setting_value);
         android.widget.Switch toggle = view.findViewById(R.id.phone_setting_switch);
         boolean hasValue = setting != null && setting.value != null;

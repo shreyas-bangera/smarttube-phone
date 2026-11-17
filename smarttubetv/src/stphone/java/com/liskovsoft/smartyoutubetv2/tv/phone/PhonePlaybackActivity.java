@@ -2088,6 +2088,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 R.string.phone_tab_notifications, R.string.phone_tab_you};
         String[] targets = {"tab_home", null, "subscriptions", "tab_notifications", "tab_you"};
         for (int i = 0; i < icons.length; i++) {
+            if ("tab_you".equals(targets[i]) && PhoneTweaks.youOnTop(this)) {
+                continue; // Customize > You: it's at the top of Home, not in the bottom bar
+            }
             LinearLayout tab = new LinearLayout(this);
             tab.setOrientation(LinearLayout.VERTICAL);
             tab.setGravity(Gravity.CENTER);

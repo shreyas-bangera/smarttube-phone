@@ -604,13 +604,17 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     }
 
     private void updateTabs() {
+        if (mTopAvatar != null) {
+            // Customize > You: the account picture next to search opens the You page
+            mTopAvatar.setVisibility(PhoneTweaks.youOnTop(this) ? View.VISIBLE : View.GONE);
+        }
         for (int i = 0; i < TAB_COUNT; i++) {
             View tab = mTabViews[i];
             if (tab == null) {
                 continue;
             }
             // Notifications is the app's own list of new videos (PhoneNewVideos), not a SmartTube section
-            boolean visible = i == TAB_YOU || i == TAB_NOTIFICATIONS || hasTab(i);
+            boolean visible = (i == TAB_YOU && !PhoneTweaks.youOnTop(this)) || i == TAB_NOTIFICATIONS || hasTab(i);
             tab.setVisibility(visible ? View.VISIBLE : View.GONE);
             boolean selected = i == mCurrentTab;
             int color = getResources().getColor(R.color.phone_text);
@@ -1256,6 +1260,18 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         addEngineSetting(items, engine, R.string.settings_main_ui);
         addEngineSetting(items, engine, R.string.settings_language_country);
 
+        // Customize: the app's own tweaks, one row each with a line saying what it does (new ones go here)
+        items.add(PhoneSetting.header(getString(R.string.phone_settings_customize)));
+        boolean youOnTop = PhoneTweaks.youOnTop(this);
+        items.add(PhoneSetting.dropDown(getString(R.string.phone_tweak_you), getString(youOnTop
+                ? R.string.phone_tweak_you_top : R.string.phone_tweak_you_bottom), R.drawable.ic_phone_account, this::pickYouPlace)
+                .summary(getString(R.string.phone_tweak_you_summary)));
+        boolean prevNext = PhoneTweaks.prevNextButtons(this);
+        items.add(PhoneSetting.toggle(getString(R.string.phone_tweak_prev_next), prevNext, R.drawable.ic_phone_next, () -> {
+            PhoneTweaks.setPrevNextButtons(this, !PhoneTweaks.prevNextButtons(this));
+            refreshSettingsRows();
+        }).summary(getString(R.string.phone_tweak_prev_next_summary)));
+
         items.add(PhoneSetting.header(getString(R.string.phone_settings_playback)));
         addEngineSetting(items, engine, R.string.settings_player);
         if (android.os.Build.VERSION.SDK_INT >= 26 && !PhonePip.systemAllows(this)) {
@@ -1263,11 +1279,6 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             items.add(PhoneSetting.value(getString(R.string.phone_pip), getString(R.string.phone_pip_blocked),
                     R.drawable.ic_phone_collapse, () -> PhonePip.openSystemSettings(this)));
         }
-        items.add(PhoneSetting.toggle(getString(R.string.phone_prev_next_buttons), PhonePlaybackActivity.showPrevNext(this),
-                R.drawable.ic_phone_next, () -> {
-                    PhonePlaybackActivity.setShowPrevNext(this, !PhonePlaybackActivity.showPrevNext(this));
-                    refreshSettingsRows();
-                }));
         addEngineSetting(items, engine, R.string.subtitle_category_title);
         addEngineSetting(items, engine, R.string.content_block_provider);
         addEngineSetting(items, engine, R.string.dearrow_provider);
@@ -1310,6 +1321,25 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     }
 
     /** Theme: a drop-down under the row with the three choices, the current one ticked */
+    /** Customize > You: in the bottom bar, or the account picture at the top next to search */
+    private void pickYouPlace(View anchor) {
+        boolean onTop = PhoneTweaks.youOnTop(this);
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor, Gravity.END);
+        menu.getMenu().add(0, 0, 0, R.string.phone_tweak_you_bottom).setCheckable(true).setChecked(!onTop);
+        menu.getMenu().add(0, 1, 1, R.string.phone_tweak_you_top).setCheckable(true).setChecked(onTop);
+        menu.getMenu().setGroupCheckable(0, true, true);
+        menu.setOnMenuItemClickListener(item -> {
+            boolean top = item.getItemId() == 1;
+            if (top != onTop) {
+                PhoneTweaks.setYouOnTop(this, top);
+                updateTabs();
+                refreshSettingsRows();
+            }
+            return true;
+        });
+        menu.show();
+    }
+
     private void pickTheme(View anchor) {
         int current = PhoneTheme.get(this);
         int[] modes = {PhoneTheme.DARK, PhoneTheme.LIGHT, PhoneTheme.SYSTEM};
