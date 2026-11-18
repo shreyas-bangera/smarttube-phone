@@ -61,7 +61,8 @@ final class PhoneMusicPill extends FrameLayout {
     private final TextView mTitle;
     private final TextView mArtist;
     private final Ring mPlay;
-    private final View mTint;
+    /** The row: its background is the artwork's colour glowing in from the left */
+    private final LinearLayout mRow;
     private String mVideoId;
 
     private final Runnable mTick = new Runnable() {
@@ -91,11 +92,9 @@ final class PhoneMusicPill extends FrameLayout {
         background.setStroke(dp(1), 0x26FFFFFF);
         setBackground(background);
 
-        // The artwork's colour, glowing in from the left
-        mTint = new View(context);
-        addView(mTint, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
+        // (No full size view in here: in a pill that wraps its content it would take the whole screen's height)
         LinearLayout row = new LinearLayout(context);
+        mRow = row;
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(8), dp(8), dp(10), dp(8));
         addView(row, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -243,7 +242,7 @@ final class PhoneMusicPill extends FrameLayout {
                             return;
                         }
                         int color = PhoneMusicPlayer.vibrant(bitmap);
-                        mTint.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                        mRow.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
                                 new int[] {(color & 0x00FFFFFF) | 0x59000000, (color & 0x00FFFFFF) | 0x14000000, 0x00000000}));
                         mPlay.setColor(PhoneMusicPlayer.lighten(color));
                     }
