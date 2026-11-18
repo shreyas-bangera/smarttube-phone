@@ -1,3 +1,5 @@
 - New Music page, second on Home: big featured music videos you can swipe through, Play and Shuffle buttons, playlists with their artwork and number of tracks, and the top charts
-- New music player for songs you open from Music: big artwork, a background that glows in the song's colours as it plays, shuffle, repeat, like, and the lyrics shown in time with the song (tap them to see all, tap a line to jump there). Tap "Video" to watch the video instead
+- New music player for songs you open from Music: big artwork you swipe for the next song, a background that glows in the song's colours as it plays, shuffle, repeat and like. Tap "Video" to watch the video instead
+- Lyrics as you listen: the line being sung shows under the song's name; tap it to see all the lyrics in place of the artwork, tap a line to jump there
+- Go small from the music player and it becomes a music bar at the bottom of the app, with play, next and the song's progress around the play button
 - Playlists look like YouTube's now: big artwork, title and description at the top, with Play all, Shuffle and Share
