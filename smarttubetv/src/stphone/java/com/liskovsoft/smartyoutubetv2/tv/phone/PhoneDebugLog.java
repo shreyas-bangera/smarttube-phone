@@ -25,7 +25,7 @@ final class PhoneDebugLog {
     }
 
     private static final String[] TAGS = {
-            "PhonePip:V", "PhonePlayback:V", "PhoneMiniPlayer:V", "PhoneShorts:V", "PhoneNewVideos:V", "PhoneUpdater:V", "ViewManager:V",
+            "PhonePip:V", "PhonePlayback:V", "PhoneMiniPlayer:V", "PhoneShorts:V", "PhoneLyrics:V", "PhoneNewVideos:V", "PhoneUpdater:V", "ViewManager:V",
             "PlaybackActivity:V", "PlaybackFragment:V", "PlaybackPresenter:V", "ExoPlayerImpl:V",
             "ExoPlayerImplInternal:W", "MediaCodecVideoRenderer:V", "AndroidRuntime:E", "*:S"};
     private static final long FILE_LIMIT = 300_000;

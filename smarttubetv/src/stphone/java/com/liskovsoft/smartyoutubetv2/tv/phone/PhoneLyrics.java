@@ -113,7 +113,10 @@ final class PhoneLyrics {
         LOADER.execute(() -> {
             Lyrics lyrics = NONE;
             try {
-                lyrics = find(videoId, title, author, durationMs);
+                lyrics = oneScript(find(videoId, title, author, durationMs));
+                Log.d(TAG, "lyrics of " + videoId + ": " + (lyrics.isEmpty() ? "none" : lyrics.source + ", "
+                        + lyrics.lines.size() + " lines, " + (!lyrics.synced ? "words only" : lyrics.trusted ? "timed"
+                        : "timed, not to this video") + (PhoneMusic.playingRecordingOf(videoId) != null ? ", playing the recording" : "")));
             } catch (Throwable e) {
                 Log.d(TAG, "lyrics of " + videoId + ": " + e);
             }
@@ -222,6 +225,66 @@ final class PhoneLyrics {
         Log.d(TAG, "timing not this video's: off by " + diff + " ms");
         lyrics.trusted = false;
         return lyrics;
+    }
+
+    /**
+     * Hindi film songs come with lines in two scripts: Devanagari, and Gurmukhi where the words are Punjabi. Read as
+     * one song, they're all put in Devanagari (the two scripts map letter for letter). Lyrics wholly in Gurmukhi (a
+     * Punjabi song) stay as they are.
+     */
+    static Lyrics oneScript(Lyrics lyrics) {
+        int devanagari = 0;
+        int gurmukhi = 0;
+        for (Line line : lyrics.lines) {
+            for (int i = 0; i < line.text.length(); i++) {
+                char c = line.text.charAt(i);
+                if (c >= 0x0900 && c <= 0x097F) {
+                    devanagari++;
+                } else if (c >= 0x0A00 && c <= 0x0A7F) {
+                    gurmukhi++;
+                }
+            }
+        }
+        int both = devanagari + gurmukhi;
+        if (gurmukhi == 0 || devanagari < both * 0.1) {
+            return lyrics;
+        }
+        List<Line> lines = new ArrayList<>();
+        for (Line line : lyrics.lines) {
+            lines.add(new Line(line.timeMs, gurmukhiToDevanagari(line.text)));
+        }
+        Lyrics converted = new Lyrics(lines, lyrics.synced, lyrics.source);
+        converted.lengthMs = lyrics.lengthMs;
+        converted.trusted = lyrics.trusted;
+        return converted;
+    }
+
+    /** Gurmukhi letters as Devanagari: the same letters, 0x100 apart, but for a few signs of Gurmukhi's own */
+    static String gurmukhiToDevanagari(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < 0x0A00 || c > 0x0A7F) {
+                out.append(c);
+            } else if (c == 0x0A70) {
+                out.append('\u0902'); // tippi: anusvara
+            } else if (c == 0x0A71) {
+                // addak: the next consonant doubled (consonant + virama, then the consonant itself)
+                char next = i + 1 < text.length() ? text.charAt(i + 1) : 0;
+                if (next >= 0x0A15 && next <= 0x0A5E) {
+                    out.append((char) (next - 0x100)).append('\u094D');
+                }
+            } else if (c == 0x0A72) {
+                out.append('\u0907'); // iri
+            } else if (c == 0x0A73) {
+                out.append('\u0909'); // ura
+            } else if (c == 0x0A75) {
+                out.append('\u094D').append('\u092F'); // yakash
+            } else {
+                out.append((char) (c - 0x100));
+            }
+        }
+        return out.toString();
     }
 
     /** The song's title (a word of it) is in its words: these lyrics are this song's */
