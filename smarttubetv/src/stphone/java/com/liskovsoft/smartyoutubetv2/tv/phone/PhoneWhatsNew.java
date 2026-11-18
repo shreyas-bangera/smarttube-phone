@@ -18,7 +18,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 
 /**
  * Settings > What's new: what this version brings, in plain words (only this version, not older ones). A dot on the Settings row until the
- * page is read; once after an update, a card on Home with the newest ones.
+ * page is read; once after every update of the app, a card on Home with the newest ones.
  *
  * A new release: replace the release in {@link #RELEASES} with its own features and raise {@link #VERSION}.
  */
@@ -29,6 +29,8 @@ final class PhoneWhatsNew {
     private static final String PREFS = "phone_whats_new";
     private static final String KEY_READ = "read";
     private static final String KEY_SHOWN = "shown";
+    /** The app build the card was last shown for: it shows once after each update */
+    private static final String KEY_SHOWN_BUILD = "shown_build";
 
     static final class Feature {
         final int icon;
@@ -62,10 +64,16 @@ final class PhoneWhatsNew {
                             "Songs from Music open in a player made for listening: big artwork that you swipe for the next song, a background that glows in the song's colours, shuffle, repeat and like. Go small and it becomes a music bar at the bottom of the app."),
                     new Feature(R.drawable.ic_phone_cc, "Lyrics as you listen",
                             "The line being sung shows under the song's name, in the song's own language. Songs play as the song itself (no music video intro), so the lyrics stay in time. Tap the line for all the lyrics."),
+                    new Feature(R.drawable.ic_phone_brightness, "A background that feels the song",
+                            "A quiet animation behind the music player follows the song's mood: hearts for love songs, soft rain for sad ones, sparkles for party songs, aurora for calm ones. It pauses with the song."),
                     new Feature(R.drawable.ic_phone_search, "Search for music",
                             "Turn on the music note next to the search box (or search from the Music page): songs and playlists you find open in the music player. Any video can switch to it too: tap Listen under the video."),
                     new Feature(R.drawable.ic_phone_library, "Better playlists",
-                            "Playlists show their artwork, title and description at the top, with Play all, Shuffle and Share."))
+                            "Playlists show their artwork, title and description at the top, with Play all, Shuffle and Share."),
+                    new Feature(R.drawable.ic_phone_volume, "Song names in your car",
+                            "Car and Bluetooth screens show the title and artist of what's playing, with its artwork, instead of \"Unavailable\"."),
+                    new Feature(R.drawable.ic_phone_history, "A tidier You tab",
+                            "History, Settings and the rest of You open as their own pages, and History's cards are smaller."))
     };
 
     private PhoneWhatsNew() {
@@ -83,16 +91,26 @@ final class PhoneWhatsNew {
         prefs(context).edit().putInt(KEY_READ, VERSION).putInt(KEY_SHOWN, VERSION).apply();
     }
 
+    private static long buildNumber(Context context) {
+        try {
+            return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).getLongVersionCode();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     /**
-     * Once after an update: a card with the newest features (not on a fresh install: everything is new then, and
-     * the page is there to read).
+     * Once after every update of the app (each new build, once): a card with the newest features. Not on a fresh
+     * install: everything is new then, and the page is there to read.
      */
     static void showAfterUpdate(Activity activity) {
         SharedPreferences prefs = prefs(activity);
-        if (prefs.getInt(KEY_SHOWN, 0) >= VERSION || activity.isFinishing()) {
+        long build = buildNumber(activity);
+        long shownFor = prefs.getLong(KEY_SHOWN_BUILD, 0);
+        if (build <= 0 || shownFor >= build || activity.isFinishing()) {
             return;
         }
-        prefs.edit().putInt(KEY_SHOWN, VERSION).apply();
+        prefs.edit().putLong(KEY_SHOWN_BUILD, build).putInt(KEY_SHOWN, VERSION).apply();
         if (isFreshInstall(activity)) {
             prefs.edit().putInt(KEY_READ, VERSION).apply();
             return;
@@ -136,8 +154,9 @@ final class PhoneWhatsNew {
         sub.setPadding(0, px(d, 6), 0, px(d, 10));
         card.addView(sub);
 
-        for (Feature feature : newest.features) {
-            card.addView(featureRow(activity, feature, d, text, text2));
+        // The first four (the card fits any screen); See all has the rest
+        for (int i = 0; i < Math.min(4, newest.features.length); i++) {
+            card.addView(featureRow(activity, newest.features[i], d, text, text2));
         }
 
         LinearLayout buttons = new LinearLayout(activity);

@@ -80,11 +80,6 @@
     <string name="phone_download_done">Salvo em Download/StreamTube</string>
     <string name="phone_download_failed">Falha no download</string>
     <string name="phone_download_channel">Downloads</string>
-    <string name="phone_rebrand_title">Conheça o StreamTube</string>
-    <string name="phone_rebrand_message">O SmartTube para celulares agora tem um novo nome, para deixar claro que é um app próprio, separado do SmartTube para TV.</string>
-    <string name="phone_rebrand_details">O mesmo app, com os mesmos recursos e sem precisar configurar nada. Sua conta, seu histórico, suas configurações e seus downloads continuam no mesmo lugar.</string>
-    <string name="phone_rebrand_button">Entendi</string>
-    <string name="phone_rebrand_never">Não mostrar novamente</string>
     <string name="phone_about_title">Sobre o StreamTube</string>
     <string name="phone_about_build">Compilação %1$d</string>
     <string name="phone_about_built_on">Baseado no SmartTube de Yuriy Liskov</string>

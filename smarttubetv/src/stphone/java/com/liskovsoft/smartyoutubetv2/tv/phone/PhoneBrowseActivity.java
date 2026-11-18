@@ -109,7 +109,6 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         mPresenter.onViewInitialized();
 
         CrashReport.showIfAny(this);
-        mList.postDelayed(() -> PhoneRebrandBanner.showIfPending(this), 900); // once, after the rename to StreamTube
         mList.postDelayed(this::askNotificationPermission, 1500);
         mList.postDelayed(() -> PhoneWhatsNew.showAfterUpdate(this), 1200); // once after an update
         handleShortcut(getIntent(), 0);
@@ -176,7 +175,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         sTaskId = getTaskId();
         // New build waiting? A small Update card (can be turned off on the update screen)
         getWindow().getDecorView().postDelayed(() -> {
-            if (!isFinishing() && !isDestroyed() && !PhoneRebrandBanner.isShowing()) {
+            if (!isFinishing() && !isDestroyed()) {
                 PhoneUpdater.checkInBackground(this);
             }
         }, 2500);

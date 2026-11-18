@@ -81,11 +81,6 @@
     <string name="phone_download_done">Disimpan ke Download/StreamTube</string>
     <string name="phone_download_failed">Muat turun gagal</string>
     <string name="phone_download_channel">Muat turun</string>
-    <string name="phone_rebrand_title">Kenali StreamTube</string>
-    <string name="phone_rebrand_message">SmartTube untuk telefon kini mempunyai nama baharu, untuk menjelaskan bahawa ia aplikasi tersendiri, berasingan daripada SmartTube untuk TV.</string>
-    <string name="phone_rebrand_details">Aplikasi yang sama, ciri yang sama, tiada apa yang perlu ditetapkan. Akaun, sejarah, tetapan dan muat turun anda kekal seperti sedia ada.</string>
-    <string name="phone_rebrand_button">Faham</string>
-    <string name="phone_rebrand_never">Jangan tunjukkan lagi</string>
     <string name="phone_about_title">Perihal StreamTube</string>
     <string name="phone_debug_log">Kongsi log nyahpepijat</string>
     <string name="phone_about_build">Binaan %1$d</string>
