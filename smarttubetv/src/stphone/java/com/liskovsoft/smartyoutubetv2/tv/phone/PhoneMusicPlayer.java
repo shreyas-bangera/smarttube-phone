@@ -461,7 +461,9 @@ final class PhoneMusicPlayer {
             Glide.with(mActivity)
                     .load("https://i.ytimg.com/vi/" + id + "/maxresdefault.jpg")
                     .centerCrop()
-                    .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg").centerCrop())
+                    // No full size picture: the 16:9 one (the 4:3 one last, it has black bars)
+                    .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hq720.jpg").centerCrop()
+                            .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg").centerCrop()))
                     .transition(DrawableTransitionOptions.withCrossFade(250))
                     .into(mArt);
             Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").centerCrop().into(mBackToArt);

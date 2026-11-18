@@ -297,6 +297,13 @@ Rotate back to portrait, or press Back, to leave full screen.
 
 **Listen to any video.** Playing a video from anywhere else (Home, Subscriptions, a link)? Tap **Listen** under it to switch to the music player; the songs after it play there too.
 
+<p align="center">
+  <img src="images/phone/18_music_search.jpg" width="200" alt="Search with the music switch on">
+  <img src="images/phone/19_music_search_player.jpg" width="200" alt="A song from the search, in the music player">
+  <img src="images/phone/20_listen.jpg" width="200" alt="Listen under a video">
+  <img src="images/phone/21_music_page_search.jpg" width="200" alt="The search button on the Music page">
+</p>
+
 **The music bar.** Tap the **down arrow** at the top of the music player: it slides down into a bar at the bottom of the app with the artwork, title and artist, **Play/Pause** circled by the song's progress, and **Next**. Keep browsing while the music plays; tap the bar to open the player again, or swipe it away to stop.
 
 ### Channels
