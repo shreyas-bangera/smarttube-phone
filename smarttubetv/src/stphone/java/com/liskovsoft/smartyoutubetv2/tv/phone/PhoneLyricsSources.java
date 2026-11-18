@@ -57,6 +57,7 @@ final class PhoneLyricsSources {
         /** An art track: the recording itself, so the recording's timing is this video's */
         boolean audioTrack;
         String lyricsId;
+        String lyricsParams;
     }
 
     /** A recording lrc.red knows */
@@ -96,6 +97,7 @@ final class PhoneLyricsSources {
                 // "unselectable": YouTube Music has no lyrics for this song
                 if (browse != null && !tab.optBoolean("unselectable") && browse.toString().contains("MUSIC_PAGE_TYPE_TRACK_LYRICS")) {
                     track.lyricsId = browse.optString("browseId", null);
+                    track.lyricsParams = browse.optString("params", null);
                 }
             }
             return track;
@@ -386,6 +388,205 @@ final class PhoneLyricsSources {
 
     // endregion
 
+    // region As Flow asks them (github.com/Flow-Tube/Flow, data/lyrics): by video id first, then by name
+
+    private static final String ANDROID_MUSIC_VERSION = "7.21.50";
+    private static final String ANDROID_MUSIC = "{\"client\":{\"clientName\":\"ANDROID_MUSIC\",\"clientVersion\":\""
+            + ANDROID_MUSIC_VERSION + "\",\"osName\":\"Android\",\"osVersion\":\"14\",\"androidSdkVersion\":34,"
+            + "\"hl\":\"en\",\"gl\":\"US\"}}";
+
+    /**
+     * YouTube Music's own timed lyrics: the lyrics tab of this very video asked for by the Android YouTube Music
+     * app, so they can't be another song's, and are timed to this recording. Song rows have them; music video rows
+     * send their lines without times, which reads as none.
+     */
+    static PhoneLyrics.Lyrics youTubeMusicTimed(Track track, long lengthMs) {
+        if (track == null || track.lyricsId == null) {
+            return null;
+        }
+        try {
+            java.util.Map<String, String> headers = new java.util.HashMap<>();
+            headers.put("User-Agent", "com.google.android.apps.youtube.music/" + ANDROID_MUSIC_VERSION + " (Linux; U; Android 14) gzip");
+            headers.put("X-YouTube-Client-Name", "21");
+            headers.put("X-YouTube-Client-Version", ANDROID_MUSIC_VERSION);
+            headers.put("X-Goog-Api-Format-Version", "1");
+            headers.put("X-Origin", "https://music.youtube.com");
+            headers.put("Referer", "https://music.youtube.com/");
+            JSONObject body = new JSONObject();
+            body.put("context", new JSONObject(ANDROID_MUSIC));
+            body.put("browseId", track.lyricsId);
+            if (!TextUtils.isEmpty(track.lyricsParams)) {
+                body.put("params", track.lyricsParams);
+            }
+            JSONObject root = new JSONObject(request("https://music.youtube.com/youtubei/v1/browse?prettyPrint=false",
+                    body.toString(), headers));
+            List<JSONObject> models = new ArrayList<>();
+            findAll(root, "timedLyricsModel", models);
+            JSONObject data = models.isEmpty() ? null : models.get(0).optJSONObject("lyricsData");
+            JSONArray cues = data != null ? data.optJSONArray("timedLyricsData") : null;
+            List<PhoneLyrics.Line> lines = new ArrayList<>();
+            for (int i = 0; cues != null && i < cues.length(); i++) {
+                JSONObject cue = cues.optJSONObject(i);
+                JSONObject range = cue != null ? cue.optJSONObject("cueRange") : null;
+                String text = cue != null ? cue.optString("lyricLine").trim() : "";
+                if (range == null || !range.has("startTimeMilliseconds") || text.replace("♪", "").trim().isEmpty()) {
+                    continue; // (a music video's lines come without times; a ♪ row only marks a gap)
+                }
+                lines.add(new PhoneLyrics.Line(range.optLong("startTimeMilliseconds"), text));
+            }
+            PhoneLyrics.Lyrics lyrics = timed(lines, "YouTube Music");
+            if (lyrics != null) {
+                lyrics.lengthMs = lengthMs;
+            }
+            return lyrics;
+        } catch (Throwable e) {
+            Log.d(TAG, "YouTube Music timed lyrics: " + e);
+            return null;
+        }
+    }
+
+    /** lrc.red's search, as Flow asks it: the same song and artist, word-timed files first, then the closest length */
+    static PhoneLyrics.Lyrics lrcRedSearch(String title, String artist, int seconds) {
+        try {
+            String query = "track=" + enc(title) + (TextUtils.isEmpty(artist) ? "" : "&artist=" + enc(firstArtist(artist)))
+                    + (seconds > 0 ? "&duration=" + seconds : "");
+            JSONArray results = new JSONObject(get("https://lrc.red/api/v1?" + query)).optJSONArray("results");
+            JSONObject best = null;
+            double bestScore = Double.MAX_VALUE;
+            for (int i = 0; results != null && i < results.length(); i++) {
+                JSONObject hit = results.optJSONObject(i);
+                String url = hit != null ? hit.optString("lyricsUrl") : "";
+                if (!url.startsWith("https://") || !sameTitle(hit.optString("track_name"), title)
+                        || (!TextUtils.isEmpty(artist) && !sameArtist(hit.optString("artist_name"), artist))) {
+                    continue;
+                }
+                int length = hit.optInt("duration", 0);
+                int off = seconds > 0 && length > 0 ? Math.abs(length - seconds) : 5;
+                if (off > 10) {
+                    continue; // another recording
+                }
+                double score = off + ("word".equalsIgnoreCase(hit.optString("timing_type")) ? 0 : 0.5);
+                if (score < bestScore) {
+                    best = hit;
+                    bestScore = score;
+                }
+            }
+            if (best == null) {
+                return null;
+            }
+            PhoneLyrics.Lyrics lyrics = enough(parseTtml(get(best.optString("lyricsUrl")), "Apple Music (lrc.red)"));
+            if (lyrics != null) {
+                lyrics.lengthMs = best.optInt("duration", seconds) * 1000L;
+            }
+            return lyrics;
+        } catch (Throwable e) {
+            Log.d(TAG, "lrc.red: " + e);
+            return null;
+        }
+    }
+
+    /** LyricsPlus (lyricsplus.binimum.org): Apple Music's and others' timed lyrics, by name, artist and length */
+    static PhoneLyrics.Lyrics lyricsPlus(String title, String artist, int seconds) {
+        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(artist)) {
+            return null;
+        }
+        try {
+            JSONObject root = new JSONObject(get("https://lyricsplus.binimum.org/v2/lyrics/get?title=" + enc(title)
+                    + "&artist=" + enc(firstArtist(artist)) + (seconds > 0 ? "&duration=" + seconds : "")));
+            JSONArray items = root.optJSONArray("lyrics");
+            List<PhoneLyrics.Line> lines = new ArrayList<>();
+            for (int i = 0; items != null && i < items.length(); i++) {
+                JSONObject item = items.optJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                String text = item.optString("text").trim();
+                JSONArray syllables = item.optJSONArray("syllabus");
+                if (syllables != null && syllables.length() > 0) {
+                    StringBuilder lead = new StringBuilder();
+                    for (int j = 0; j < syllables.length(); j++) {
+                        JSONObject syllable = syllables.optJSONObject(j);
+                        if (syllable != null && !syllable.optBoolean("isBackground")) {
+                            lead.append(syllable.optString("text"));
+                        }
+                    }
+                    if (lead.toString().trim().length() > 0) {
+                        text = lead.toString().trim();
+                    }
+                }
+                if (!text.isEmpty()) {
+                    lines.add(new PhoneLyrics.Line(item.optLong("time"), squash(text)));
+                }
+            }
+            PhoneLyrics.Lyrics lyrics = timed(lines, "LyricsPlus");
+            if (lyrics != null && !PhoneLyrics.mentionsTitle(lyrics, title)) {
+                Log.d(TAG, "LyricsPlus answered another song for " + title);
+                return null;
+            }
+            if (lyrics != null) {
+                lyrics.lengthMs = seconds * 1000L;
+            }
+            return lyrics;
+        } catch (Throwable e) {
+            Log.d(TAG, "LyricsPlus: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * SimpMusic's lyrics (api-lyrics.simpmusic.org), filed by YouTube video id; of its rows for the id, the one
+     * within 5 s of the song's length (another upload's would drift), the best voted
+     */
+    static PhoneLyrics.Lyrics simpMusic(String videoId, int seconds) {
+        try {
+            JSONObject root = new JSONObject(get("https://api-lyrics.simpmusic.org/v1/" + enc(videoId)));
+            JSONArray rows = root.optJSONArray("data");
+            JSONObject best = null;
+            for (int i = 0; rows != null && i < rows.length(); i++) {
+                JSONObject row = rows.optJSONObject(i);
+                if (row == null) {
+                    continue;
+                }
+                int length = row.optInt("durationSeconds", 0) > 0 ? row.optInt("durationSeconds") : row.optInt("duration", 0);
+                if (seconds > 0 && Math.abs(length - seconds) > 5) {
+                    continue;
+                }
+                if (best == null || row.optInt("vote", 0) > best.optInt("vote", 0)) {
+                    best = row;
+                }
+            }
+            if (best == null) {
+                return null;
+            }
+            String synced = best.optString("syncedLyrics", "");
+            PhoneLyrics.Lyrics lyrics = synced.isEmpty() || "null".equals(synced) ? null
+                    : PhoneLyrics.parseLrc(synced, "SimpMusic");
+            lyrics = lyrics != null && lyrics.synced ? enough(lyrics) : null;
+            if (lyrics != null) {
+                int length = best.optInt("durationSeconds", 0) > 0 ? best.optInt("durationSeconds") : best.optInt("duration", seconds);
+                lyrics.lengthMs = length * 1000L;
+            }
+            return lyrics;
+        } catch (Throwable e) {
+            Log.d(TAG, "SimpMusic: " + e);
+            return null;
+        }
+    }
+
+    /** Timed lines, enough of them and spread over the song (Flow's check: at least 10 s from first to last) */
+    private static PhoneLyrics.Lyrics timed(List<PhoneLyrics.Line> lines, String source) {
+        if (lines.size() < 4) {
+            return null;
+        }
+        Collections.sort(lines, (a, b) -> Long.compare(a.timeMs, b.timeMs));
+        if (lines.get(lines.size() - 1).timeMs - lines.get(0).timeMs < 10_000) {
+            return null;
+        }
+        return new PhoneLyrics.Lyrics(lines, true, source);
+    }
+
+    // endregion
+
     // region Helpers
 
     private static PhoneLyrics.Lyrics enough(PhoneLyrics.Lyrics lyrics) {
@@ -486,11 +687,20 @@ final class PhoneLyricsSources {
     }
 
     private static String request(String address, String json) throws Exception {
+        return request(address, json, null);
+    }
+
+    private static String request(String address, String json, java.util.Map<String, String> headers) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
         connection.setConnectTimeout(TIMEOUT_MS);
         connection.setReadTimeout(TIMEOUT_MS);
         connection.setRequestProperty("User-Agent", "StreamTube");
         connection.setRequestProperty("Accept", "application/json");
+        if (headers != null) {
+            for (java.util.Map.Entry<String, String> header : headers.entrySet()) {
+                connection.setRequestProperty(header.getKey(), header.getValue());
+            }
+        }
         try {
             if (json != null) {
                 connection.setRequestMethod("POST");

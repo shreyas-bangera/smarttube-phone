@@ -162,71 +162,134 @@ final class PhoneLyrics {
      *     off by that much.</li>
      * </ol>
      */
+    /** Flow's lyrics sources, in Flow's order (LyricsProviderOrder.DEFAULT, of the ones that answer anyone) */
+    private static final String[] ORDER = {"YouTube Music", "BetterLyrics", "lrc.red", "LyricsPlus", "SimpMusic", "LRCLIB"};
+    private static final ExecutorService SOURCES = Executors.newCachedThreadPool();
+    /** As Flow's run: everything stops at 9 s */
+    private static final long RUN_MS = 9_000;
+
     /**
-     * The lyrics for this video, the way MeeTube and Flow find them (see PhoneLyricsSources): YouTube Music names
-     * the song, lrc.red says which recording it is; Apple Music's timed lyrics for it (lrc.red, then BetterLyrics),
-     * else LRCLIB's (in the song's language, see lrclib), else YouTube Music's words. Then the timing is checked
-     * against this video (see onThisVideo).
+     * The lyrics for this video, found the way Flow finds them (github.com/Flow-Tube/Flow, data/lyrics):
+     * <ol>
+     *     <li>What plays: in music, the song's recording (see PhoneMusic.streamFor); YouTube Music names it (title,
+     *     artists, length).</li>
+     *     <li>Every source asked at once, in Flow's order: YouTube Music's own timed lyrics for the recording (by its
+     *     id: they can't be another song's, and are timed to it), BetterLyrics, lrc.red and LyricsPlus (Apple Music's,
+     *     by name, artist and length), SimpMusic (by video id), LRCLIB. 9 s at most.</li>
+     *     <li>The first timed answer in that order in the song's language (see songScript), its sibling script
+     *     converted (see oneScript); else the first timed answer; else words without times.</li>
+     *     <li>A music video's parts without music (SponsorBlock) put the lines on its clock (see onThisVideo).</li>
+     * </ol>
      */
     private static Lyrics find(String videoId, String title, String author, long durationMs) throws Exception {
         // In music, the recording plays for a music video (see PhoneMusic.streamFor): its timing is the one to match
         String recording = PhoneMusic.wantsMusic() ? PhoneLyricsSources.audioVersion(videoId) : null;
-        PhoneLyricsSources.Track track = PhoneLyricsSources.track(recording != null ? recording : videoId);
+        String playing = recording != null ? recording : videoId;
+        PhoneLyricsSources.Track track = PhoneLyricsSources.track(playing);
         String song = track != null ? track.title : displayTitle(title);
         String artist = track != null && !TextUtils.isEmpty(track.artist) ? track.artist : cleanArtist(author);
         long videoMs = recording != null && track != null && track.seconds > 0 ? track.seconds * 1000L
                 : durationMs > 0 ? durationMs : track != null ? track.seconds * 1000L : 0;
+        int seconds = (int) (videoMs / 1000);
         boolean audioTrack = recording != null || (track != null && track.audioTrack);
-        Log.d(TAG, "song: " + song + " / " + artist + (audioTrack ? " (art track)" : "") + ", " + videoMs / 1000 + " s");
+        Log.d(TAG, "song: " + song + " / " + artist + (audioTrack ? " (art track)" : "") + ", " + seconds + " s");
 
-        Lyrics apple = null;
-        if (!TextUtils.isEmpty(artist)) {
-            PhoneLyricsSources.Recording isrc = PhoneLyricsSources.identify(song, artist, (int) (videoMs / 1000));
-            apple = PhoneLyricsSources.lrcRed(isrc);
-            int seconds = isrc != null ? isrc.seconds : (int) (videoMs / 1000);
-            if (apple == null || !apple.synced) {
-                apple = PhoneLyricsSources.betterLyrics(song, artist, seconds);
-                if (apple != null && !mentionsTitle(apple, song)) {
-                    // Matched by name only (no recording to go by): another song came back (an English one for a
-                    // Hindi song); the song's own title would be in its words
-                    Log.d(TAG, "BetterLyrics answered another song for " + song);
-                    apple = null;
+        List<java.util.concurrent.Future<Lyrics>> asked = new ArrayList<>();
+        asked.add(SOURCES.submit(() -> PhoneLyricsSources.youTubeMusicTimed(track, videoMs)));
+        asked.add(SOURCES.submit(() -> {
+            Lyrics apple = TextUtils.isEmpty(artist) ? null : PhoneLyricsSources.betterLyrics(song, artist, seconds);
+            if (apple != null && !mentionsTitle(apple, song)) {
+                // Matched by name only: another song came back (an English one for a Hindi song); the song's own
+                // title would be in its words
+                Log.d(TAG, "BetterLyrics answered another song for " + song);
+                return null;
+            }
+            if (apple != null) {
+                apple.lengthMs = videoMs;
+            }
+            return apple;
+        }));
+        asked.add(SOURCES.submit(() -> {
+            Lyrics apple = PhoneLyricsSources.lrcRedSearch(song, artist, seconds);
+            if (apple == null && !TextUtils.isEmpty(artist)) {
+                PhoneLyricsSources.Recording isrc = PhoneLyricsSources.identify(song, artist, seconds);
+                apple = PhoneLyricsSources.lrcRed(isrc);
+                if (apple != null) {
+                    apple.lengthMs = isrc.seconds * 1000L;
                 }
             }
-            if (apple != null && apple.synced) {
-                apple.lengthMs = seconds * 1000L;
+            return apple;
+        }));
+        asked.add(SOURCES.submit(() -> PhoneLyricsSources.lyricsPlus(song, artist, seconds)));
+        asked.add(SOURCES.submit(() -> PhoneLyricsSources.simpMusic(playing, seconds)));
+        java.util.concurrent.Future<List<Candidate>> lrclib = SOURCES.submit(() -> lrclibVersions(song, artist, videoMs));
+
+        long deadline = System.currentTimeMillis() + RUN_MS;
+        List<Lyrics> answers = new ArrayList<>();
+        List<Object[]> scripts = new ArrayList<>();
+        for (int i = 0; i < asked.size(); i++) {
+            Lyrics answer = await(asked.get(i), deadline);
+            answer = answer != null && answer.synced && !answer.isEmpty() ? answer : null;
+            answers.add(answer);
+            if (answer != null) {
+                Object[] main = mainScript(text(answer));
+                scripts.add(main);
+                Log.d(TAG, ORDER[i] + ": " + answer.lines.size() + " lines in " + main[0]
+                        + (answer.lengthMs > 0 ? ", timed to " + answer.lengthMs / 1000 + " s" : ""));
             } else {
-                apple = null;
+                Log.d(TAG, ORDER[i] + ": none");
             }
         }
+        List<Candidate> versions = await(lrclib, deadline);
+        if (versions == null) {
+            versions = new ArrayList<>();
+        }
+        Character.UnicodeScript language = songScript(title, song, versions, scripts);
+        Lyrics fromLrclib = pick(versions, language, false);
+        answers.add(fromLrclib.synced ? fromLrclib : null);
+        Log.d(TAG, "song in " + language + ", " + versions.size() + " LRCLIB versions");
 
-        // Every version first, then the song's language from all of them, then the one to show
-        List<Candidate> versions = lrclibVersions(song, artist, videoMs);
-        Object[] appleMain = apple != null ? mainScript(text(apple)) : null;
-        Character.UnicodeScript appleScript = appleMain != null ? (Character.UnicodeScript) appleMain[0] : null;
-        Character.UnicodeScript language = songScript(title, song, versions, appleMain);
-        Log.d(TAG, "song in " + language + (apple != null ? ", Apple Music's lyrics in " + appleScript : "")
-                + ", " + versions.size() + " LRCLIB versions");
+        // The first timed answer in Flow's order that's in the song's language; else the first timed one
+        int chosen = -1;
+        for (int i = 0; i < answers.size() && chosen < 0; i++) {
+            Lyrics answer = answers.get(i);
+            if (answer != null) {
+                Character.UnicodeScript script = (Character.UnicodeScript) mainScript(text(answer))[0];
+                if (script == language || siblings(script, language)) {
+                    chosen = i;
+                }
+            }
+        }
+        for (int i = 0; i < answers.size() && chosen < 0; i++) {
+            if (answers.get(i) != null) {
+                chosen = i;
+            }
+        }
+        if (chosen >= 0) {
+            Log.d(TAG, "showing " + ORDER[chosen] + "'s");
+            // YouTube Music's and SimpMusic's are filed under what plays: its own timing
+            boolean byId = chosen == 0 || chosen == 4;
+            return inScript(onThisVideo(videoId, answers.get(chosen), videoMs, audioTrack || byId), language);
+        }
 
-        if (apple != null && (appleScript == language || siblings(appleScript, language))) {
-            return inScript(onThisVideo(videoId, apple, videoMs, audioTrack), language); // converted if a sibling
-        }
-        // Apple Music's are in another script (romanized words for a Hindi song): a timed version in the song's own
-        Lyrics own = pick(versions, language, apple != null);
-        if (own.synced) {
-            return inScript(onThisVideo(videoId, own, videoMs, audioTrack), language);
-        }
-        if (apple != null) {
-            return inScript(onThisVideo(videoId, apple, videoMs, audioTrack), language);
-        }
+        // Nothing timed: words, in the song's language
         Lyrics words = track != null ? PhoneLyricsSources.youTubeMusicLyrics(track.lyricsId) : null;
-        if (words != null && !words.isEmpty() && !own.isEmpty()) {
+        if (words != null && !words.isEmpty() && !fromLrclib.isEmpty()) {
             Character.UnicodeScript wordsScript = (Character.UnicodeScript) mainScript(text(words))[0];
             if (wordsScript != language && !siblings(wordsScript, language)) {
-                return inScript(own, language); // LRCLIB's words are in the song's language, YouTube Music's aren't
+                return inScript(fromLrclib, language); // LRCLIB's words are in the song's language, YouTube Music's aren't
             }
         }
-        return inScript(words != null && !words.isEmpty() ? words : own, language);
+        return inScript(words != null && !words.isEmpty() ? words : fromLrclib, language);
+    }
+
+    private static <T> T await(java.util.concurrent.Future<T> future, long deadline) {
+        try {
+            return future.get(Math.max(1, deadline - System.currentTimeMillis()), java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (Throwable e) {
+            future.cancel(true);
+            return null;
+        }
     }
 
     private static Lyrics inScript(Lyrics lyrics, Character.UnicodeScript language) {
@@ -374,7 +437,7 @@ final class PhoneLyrics {
     }
 
     /** The song's title (a word of it) is in its words: these lyrics are this song's */
-    private static boolean mentionsTitle(Lyrics lyrics, String title) {
+    static boolean mentionsTitle(Lyrics lyrics, String title) {
         StringBuilder all = new StringBuilder();
         for (Line line : lyrics.lines) {
             all.append(' ').append(line.text.toLowerCase(java.util.Locale.ROOT));
@@ -513,7 +576,7 @@ final class PhoneLyrics {
      * Gurmukhi more often than Punjabi ones in Devanagari.
      */
     private static Character.UnicodeScript songScript(String videoTitle, String song, List<Candidate> candidates,
-                                                      Object[] apple) {
+                                                      List<Object[]> answers) {
         for (String name : new String[] {song, videoTitle}) {
             Character.UnicodeScript titleScript = (Character.UnicodeScript) mainScript(name)[0];
             if (titleScript != Character.UnicodeScript.LATIN && titleScript != Character.UnicodeScript.COMMON) {
@@ -522,8 +585,9 @@ final class PhoneLyrics {
         }
         Map<Character.UnicodeScript, Integer> votes = new HashMap<>();
         Map<Character.UnicodeScript, Integer> firstSeen = new HashMap<>();
-        if (apple != null) {
-            vote(votes, firstSeen, (Character.UnicodeScript) apple[0], (Boolean) apple[1], -1);
+        for (int i = 0; i < answers.size(); i++) {
+            Object[] answer = answers.get(i);
+            vote(votes, firstSeen, (Character.UnicodeScript) answer[0], (Boolean) answer[1], i - answers.size());
         }
         for (Candidate candidate : candidates) {
             vote(votes, firstSeen, candidate.script, candidate.mixed, candidate.order);
@@ -618,6 +682,12 @@ final class PhoneLyrics {
     }
 
     private static final Pattern TIME = Pattern.compile("\\[(\\d+):(\\d+)(?:[.:](\\d+))?]");
+
+    /** LRC text from a source other than LRCLIB */
+    static Lyrics parseLrc(String text, String source) {
+        Lyrics parsed = parseSynced(text);
+        return new Lyrics(parsed.lines, parsed.synced, source);
+    }
 
     private static Lyrics parseSynced(String text) {
         List<Line> lines = new ArrayList<>();
