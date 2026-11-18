@@ -50,10 +50,25 @@ final class PhoneLyrics {
     static final class Lyrics {
         final List<Line> lines;
         final boolean synced;
+        /** Where they come from (Apple Music, LRCLIB, YouTube Music) */
+        final String source;
+        /** The length of the recording they're timed to, 0 when not known */
+        long lengthMs;
+        /**
+         * Their times are this video's: the video is the recording, or as long as it, or SponsorBlock says where its
+         * parts without music are. Otherwise they show without lighting up lines, until the listener puts them in
+         * time (holding the line being sung).
+         */
+        boolean trusted = true;
 
         Lyrics(List<Line> lines, boolean synced) {
+            this(lines, synced, "LRCLIB");
+        }
+
+        Lyrics(List<Line> lines, boolean synced, String source) {
             this.lines = lines;
             this.synced = synced;
+            this.source = source;
         }
 
         boolean isEmpty() {
@@ -98,7 +113,7 @@ final class PhoneLyrics {
         LOADER.execute(() -> {
             Lyrics lyrics = NONE;
             try {
-                lyrics = find(title, author, durationMs);
+                lyrics = find(videoId, title, author, durationMs);
             } catch (Throwable e) {
                 Log.d(TAG, "lyrics of " + videoId + ": " + e);
             }
@@ -142,8 +157,65 @@ final class PhoneLyrics {
      *     off by that much.</li>
      * </ol>
      */
-    private static Lyrics find(String title, String author, long durationMs) throws Exception {
-        String artist = cleanArtist(author);
+    /**
+     * The lyrics for this video, the way MeeTube and Flow find them (see PhoneLyricsSources): YouTube Music names
+     * the song, lrc.red says which recording it is; Apple Music's timed lyrics for it (lrc.red, then BetterLyrics),
+     * else LRCLIB's (in the song's language, see lrclib), else YouTube Music's words. Then the timing is checked
+     * against this video (see onThisVideo).
+     */
+    private static Lyrics find(String videoId, String title, String author, long durationMs) throws Exception {
+        PhoneLyricsSources.Track track = PhoneLyricsSources.track(videoId);
+        String song = track != null ? track.title : displayTitle(title);
+        String artist = track != null && !TextUtils.isEmpty(track.artist) ? track.artist : cleanArtist(author);
+        long videoMs = durationMs > 0 ? durationMs : track != null ? track.seconds * 1000L : 0;
+        boolean audioTrack = track != null && track.audioTrack;
+        Log.d(TAG, "song: " + song + " / " + artist + (audioTrack ? " (art track)" : "") + ", " + videoMs / 1000 + " s");
+
+        if (!TextUtils.isEmpty(artist)) {
+            PhoneLyricsSources.Recording recording = PhoneLyricsSources.identify(song, artist, (int) (videoMs / 1000));
+            Lyrics apple = PhoneLyricsSources.lrcRed(recording);
+            int seconds = recording != null ? recording.seconds : (int) (videoMs / 1000);
+            if (apple == null || !apple.synced) {
+                apple = PhoneLyricsSources.betterLyrics(song, artist, seconds);
+            }
+            if (apple != null && apple.synced) {
+                apple.lengthMs = seconds * 1000L;
+                return onThisVideo(videoId, apple, videoMs, audioTrack);
+            }
+        }
+
+        Lyrics lrclib = lrclib(song, artist, videoMs);
+        if (lrclib.synced) {
+            return onThisVideo(videoId, lrclib, videoMs, audioTrack);
+        }
+        Lyrics words = track != null ? PhoneLyricsSources.youTubeMusicLyrics(track.lyricsId) : null;
+        return words != null ? words : lrclib;
+    }
+
+    /**
+     * Timing made for the recording is this video's when the video is the recording (an art track) or as long as it;
+     * a music video with an intro or a scene is longer: SponsorBlock's "non-music" parts, where users marked them,
+     * put the lines on the video's clock. Otherwise the lines aren't trusted to light up (they'd run ahead of the
+     * singing) until the listener syncs them.
+     */
+    private static Lyrics onThisVideo(String videoId, Lyrics lyrics, long videoMs, boolean audioTrack) {
+        long diff = lyrics.lengthMs > 0 && videoMs > 0 ? Math.abs(lyrics.lengthMs - videoMs) : 0;
+        if (audioTrack || diff <= 3_000) {
+            return lyrics;
+        }
+        List<long[]> parts = PhoneLyricsSources.nonMusicParts(videoId);
+        if (!parts.isEmpty() && Math.abs(lyrics.lengthMs + PhoneLyricsSources.total(parts) - videoMs) <= 4_000) {
+            Lyrics fitted = PhoneLyricsSources.onVideoClock(lyrics, parts);
+            fitted.lengthMs = videoMs;
+            Log.d(TAG, "on the video's clock with SponsorBlock: " + parts.size() + " parts without music");
+            return fitted;
+        }
+        Log.d(TAG, "timing not this video's: off by " + diff + " ms");
+        lyrics.trusted = false;
+        return lyrics;
+    }
+
+    private static Lyrics lrclib(String title, String artist, long durationMs) throws Exception {
         List<String> tracks = trackNames(title);
         List<Candidate> candidates = new ArrayList<>();
         int order = 0;
@@ -198,7 +270,9 @@ final class PhoneLyrics {
         Log.d(TAG, "lyrics: " + best.item.optString("trackName") + " / " + best.item.optString("artistName") + ", "
                 + best.script + (best.mixed ? " (mixed)" : "") + " for a song in " + language + ", length off by "
                 + Math.round(best.lengthDiff) + " ms, of " + candidates.size() + " versions");
-        return best.synced ? parseSynced(best.lyrics) : parsePlain(best.lyrics);
+        Lyrics lyrics = best.synced ? parseSynced(best.lyrics) : parsePlain(best.lyrics);
+        lyrics.lengthMs = Math.round(best.item.optDouble("duration", 0) * 1000);
+        return lyrics;
     }
 
     private static void addCandidate(List<Candidate> candidates, JSONObject item, long durationMs, int order) {

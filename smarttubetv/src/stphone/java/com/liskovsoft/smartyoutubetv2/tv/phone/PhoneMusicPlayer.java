@@ -694,14 +694,14 @@ final class PhoneMusicPlayer {
         }
         SimpleExoPlayer exo = mHost.exo();
         long position = exo != null ? exo.getCurrentPosition() : 0;
-        int index = mLyrics.synced ? mLyrics.indexAt(position - mOffsetMs) : 0;
+        int index = timed() ? mLyrics.indexAt(position - mOffsetMs) : 0;
         if (index == mLyricIndex && !force) {
             return;
         }
         mLyricIndex = index;
         // The pill: the line being sung (before the first line, the first one to come; unsynced, the first line)
         String line = mLyrics.lines.get(Math.max(0, Math.min(index, mLyrics.lines.size() - 1))).text;
-        if (index < 0 && mLyrics.synced) {
+        if (index < 0 && timed()) {
             line = "♪";
         }
         boolean appearing = mLyricChip.getVisibility() != View.VISIBLE;
@@ -733,7 +733,7 @@ final class PhoneMusicPlayer {
             TextView view = text(mActivity, 23, Color.WHITE, true);
             view.setText(line.text);
             view.setPadding(0, dp(7), 0, dp(7));
-            view.setAlpha(mLyrics.synced ? 0.4f : 0.95f);
+            view.setAlpha(timed() ? 0.4f : 0.95f);
             view.setLineSpacing(dp(2), 1f);
             if (mLyrics.synced) {
                 view.setOnClickListener(v -> {
@@ -758,7 +758,7 @@ final class PhoneMusicPlayer {
     }
 
     private void highlightLyrics(int index) {
-        if (mLyrics == null || !mLyrics.synced || mLyricsList.getChildCount() == 0) {
+        if (mLyrics == null || !timed() || mLyricsList.getChildCount() == 0) {
             return;
         }
         for (int i = 0; i < mLyricsList.getChildCount(); i++) {
@@ -821,10 +821,25 @@ final class PhoneMusicPlayer {
     }
 
     private void setOffset(long offsetMs) {
+        boolean wasTimed = timed();
         mOffsetMs = Math.max(-60_000, Math.min(60_000, offsetMs));
+        if (mOffsetMs == 0 && mLyrics != null && !mLyrics.trusted) {
+            mOffsetMs = 1; // synced by hand right on the lyrics' own times: still in time from now on
+        }
         saveOffset(mVideoId, mOffsetMs);
         showOffset();
+        if (wasTimed != timed()) {
+            fillLyrics(); // the lines light up from now on
+        }
         updateLyrics(true);
+    }
+
+    /**
+     * The lines light up as they're sung: timed lyrics whose timing is this video's (see PhoneLyrics.onThisVideo), or
+     * that the listener put in time
+     */
+    private boolean timed() {
+        return mLyrics != null && mLyrics.synced && (mLyrics.trusted || mOffsetMs != 0);
     }
 
     private void showOffset() {
@@ -847,7 +862,7 @@ final class PhoneMusicPlayer {
             return;
         }
         android.content.SharedPreferences.Editor editor = mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE).edit();
-        if (Math.abs(offsetMs) < 50) {
+        if (offsetMs == 0) {
             editor.remove("offset_" + videoId);
         } else {
             editor.putLong("offset_" + videoId, offsetMs);
