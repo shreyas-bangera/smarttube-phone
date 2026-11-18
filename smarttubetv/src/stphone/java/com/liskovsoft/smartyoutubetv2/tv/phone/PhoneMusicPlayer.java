@@ -117,6 +117,8 @@ final class PhoneMusicPlayer {
     private int mLyricIndex = -2;
     /** How much later than their own times the lyrics show for this song (set by the user, kept per song) */
     private long mOffsetMs;
+    /** timed() when the lines were last drawn: they're redrawn when it changes (the length becomes known) */
+    private boolean mDrawnTimed;
     private TextView mSyncLabel;
     /** Behind the sync control and the little artwork: the panel's colour fading out, the lines slide under it */
     private View mLyricsHeader;
@@ -699,7 +701,15 @@ final class PhoneMusicPlayer {
         }
         SimpleExoPlayer exo = mHost.exo();
         long position = exo != null ? exo.getCurrentPosition() : 0;
-        int index = timed() ? mLyrics.indexAt(position - mOffsetMs) : 0;
+        if (mDrawnTimed != timed()) {
+            fillLyrics(); // the playing length is known now: the lines light up, or don't
+            android.util.Log.d("PhoneLyrics", "playing " + playingMs() / 1000 + " s, lyrics timed to "
+                    + mLyrics.lengthMs / 1000 + " s: " + (fits() ? "in time" : introMs() > 0 ? "after an intro of "
+                    + introMs() + " ms" : timed() ? "synced by hand" : "not in time"));
+            showOffset();
+            force = true;
+        }
+        int index = timed() ? mLyrics.indexAt(position - offset()) : 0;
         if (index == mLyricIndex && !force) {
             return;
         }
@@ -730,6 +740,7 @@ final class PhoneMusicPlayer {
 
     private void fillLyrics() {
         mLyricsList.removeAllViews();
+        mDrawnTimed = timed();
         if (mLyrics == null) {
             return;
         }
@@ -744,7 +755,7 @@ final class PhoneMusicPlayer {
                 view.setOnClickListener(v -> {
                     SimpleExoPlayer exo = mHost.exo();
                     if (exo != null) {
-                        exo.seekTo(Math.max(0, line.timeMs + mOffsetMs)); // tap a line: the song goes there
+                        exo.seekTo(Math.max(0, line.timeMs + offset())); // tap a line: the song goes there
                     }
                 });
                 view.setOnLongClickListener(v -> {
@@ -812,7 +823,7 @@ final class PhoneMusicPlayer {
         shape.setColor(0x2EFFFFFF);
         button.setBackground(shape);
         button.setContentDescription(context.getString(description));
-        button.setOnClickListener(v -> setOffset(mOffsetMs + step));
+        button.setOnClickListener(v -> setOffset(offset() + step));
         return button;
     }
 
@@ -828,7 +839,7 @@ final class PhoneMusicPlayer {
     private void setOffset(long offsetMs) {
         boolean wasTimed = timed();
         mOffsetMs = Math.max(-60_000, Math.min(60_000, offsetMs));
-        if (mOffsetMs == 0 && mLyrics != null && !mLyrics.trusted) {
+        if (mOffsetMs == 0 && mLyrics != null && !fits()) {
             mOffsetMs = 1; // synced by hand right on the lyrics' own times: still in time from now on
         }
         saveOffset(mVideoId, mOffsetMs);
@@ -844,17 +855,55 @@ final class PhoneMusicPlayer {
      * that the listener put in time
      */
     private boolean timed() {
-        return mLyrics != null && mLyrics.synced && (mLyrics.trusted || mOffsetMs != 0);
+        return mLyrics != null && mLyrics.synced && (mOffsetMs != 0 || fits() || introMs() > 0);
+    }
+
+    /** How far the lines are moved: the listener's sync, else past the video's intro (see introMs) */
+    private long offset() {
+        return mOffsetMs != 0 ? mOffsetMs : introMs();
+    }
+
+    /** The playing length, or 0 while not known */
+    private long playingMs() {
+        SimpleExoPlayer exo = mHost.exo();
+        long duration = exo != null ? exo.getDuration() : 0;
+        return duration > 0 ? duration : 0;
+    }
+
+    /**
+     * The lyrics are timed to what's playing: as long as it (within 3 s), checked against what really plays (the
+     * recording or the music video), or, while its length isn't known, as PhoneLyrics judged.
+     */
+    private boolean fits() {
+        long playing = playingMs();
+        if (mLyrics == null || mLyrics.lengthMs <= 0 || playing <= 0) {
+            return mLyrics != null && mLyrics.trusted;
+        }
+        return Math.abs(playing - mLyrics.lengthMs) <= 3_000;
+    }
+
+    /**
+     * A music video longer than the recording by up to 45 s: an intro (a film scene, a title card) before the song,
+     * the way music videos mostly are; the lines start that much later. 0 when it fits or isn't that.
+     */
+    private long introMs() {
+        long playing = playingMs();
+        if (mLyrics == null || !mLyrics.synced || mLyrics.lengthMs <= 0 || playing <= 0 || fits()) {
+            return 0;
+        }
+        long extra = playing - mLyrics.lengthMs;
+        return extra > 3_000 && extra <= 45_000 ? extra : 0;
     }
 
     private void showOffset() {
         if (mSyncLabel == null) {
             return;
         }
-        if (Math.abs(mOffsetMs) < 50) {
+        long offset = offset();
+        if (Math.abs(offset) < 50) {
             mSyncLabel.setText(R.string.phone_music_sync);
         } else {
-            mSyncLabel.setText(String.format(java.util.Locale.US, "%+.1fs", mOffsetMs / 1000f));
+            mSyncLabel.setText(String.format(java.util.Locale.US, "%+.1fs", offset / 1000f));
         }
     }
 
