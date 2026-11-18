@@ -882,10 +882,20 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
     private List<BrowseSection> sectionsOfTab(int tab) {
         List<BrowseSection> result = new ArrayList<>();
+        BrowseSection music = null;
         for (BrowseSection section : mSections) {
             if (tabOf(section) == tab) {
-                result.add(section);
+                if (tab == TAB_HOME && section.getId() == MediaGroup.TYPE_MUSIC) {
+                    music = section;
+                } else {
+                    result.add(section);
+                }
             }
+        }
+        if (music != null) {
+            // Music right after Home: the second chip
+            int afterHome = !result.isEmpty() && result.get(0).getId() == MediaGroup.TYPE_HOME ? 1 : 0;
+            result.add(afterHome, music);
         }
         return result;
     }
@@ -1066,6 +1076,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     private static int modeOf(BrowseSection section) {
         switch (section.getType()) {
             case BrowseSection.TYPE_ROW:
+                if (section.getId() == MediaGroup.TYPE_MUSIC) {
+                    return FeedAdapter.MODE_MUSIC; // laid out like YouTube's Music page
+                }
                 return section.getId() == MediaGroup.TYPE_HOME ? FeedAdapter.MODE_FEED : FeedAdapter.MODE_SHELVES;
             case BrowseSection.TYPE_SHORTS_GRID:
                 return FeedAdapter.MODE_SHORTS;

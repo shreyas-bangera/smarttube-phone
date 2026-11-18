@@ -186,4 +186,12 @@
     <string name="phone_whats_new_got_it">Faham</string>
     <string name="phone_whats_new_badge">Baharu</string>
     <string name="phone_whats_new_version">Versi %1$s</string>
+
+    <!-- Music page -->
+    <string name="phone_music_title">Muzik</string>
+    <string name="phone_music_subtitle">Lagu hit, campuran dan carta</string>
+    <string name="phone_music_play">Main</string>
+    <string name="phone_music_shuffle">Rawak</string>
+    <string name="phone_music_playlist">Senarai main</string>
+    <string name="phone_music_tracks">%1$s lagu</string>
 </resources>

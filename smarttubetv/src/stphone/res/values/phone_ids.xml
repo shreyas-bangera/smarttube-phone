@@ -2,4 +2,8 @@
 <resources>
     <!-- Download button under the video (phone only, not a SmartTube player button) -->
     <item name="phone_action_download" type="id" />
+    <item name="phone_music_pager" type="id"/>
+    <item name="phone_music_dots" type="id"/>
+    <item name="phone_music_play" type="id"/>
+    <item name="phone_music_shuffle" type="id"/>
 </resources>

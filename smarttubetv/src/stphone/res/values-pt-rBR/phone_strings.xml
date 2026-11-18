@@ -193,4 +193,12 @@
     <string name="phone_whats_new_got_it">Entendi</string>
     <string name="phone_whats_new_badge">Novo</string>
     <string name="phone_whats_new_version">Versão %1$s</string>
+
+    <!-- Music page -->
+    <string name="phone_music_title">Música</string>
+    <string name="phone_music_subtitle">Sucessos, mixes e paradas</string>
+    <string name="phone_music_play">Tocar</string>
+    <string name="phone_music_shuffle">Aleatório</string>
+    <string name="phone_music_playlist">Playlist</string>
+    <string name="phone_music_tracks">%1$s faixas</string>
 </resources>

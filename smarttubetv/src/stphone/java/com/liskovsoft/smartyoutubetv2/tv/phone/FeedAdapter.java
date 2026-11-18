@@ -43,6 +43,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public static final int MODE_FEED = 5;
     /** Compact rows, thumbnail left and text right (channel Videos tab, like the YouTube app). */
     public static final int MODE_ROWS = 6;
+    /** The Music section, laid out like YouTube's Music page (see PhoneMusicFeed) */
+    public static final int MODE_MUSIC = 7;
 
     private static final int SHORTS_BLOCK_SIZE = 4;
 
@@ -137,6 +139,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final List<SettingsItem> mSettings = new ArrayList<>();
     private final RecyclerView.RecycledViewPool mInnerPool = new RecyclerView.RecycledViewPool();
     private int mMode = MODE_FLAT;
+    private final PhoneMusicFeed mMusic = new PhoneMusicFeed();
     private Video mSelectedStripItem;
 
     public FeedAdapter(Listener listener) {
@@ -156,6 +159,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     public void clear() {
+        mMusic.clear();
         mGroups.clear();
         mSettings.clear();
         mSelectedStripItem = null;
@@ -501,6 +505,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         if (mMode == MODE_SETTINGS) {
             items.addAll(mSettings);
+        } else if (mMode == MODE_MUSIC) {
+            items.addAll(mMusic.build(mGroups));
         } else {
             for (Group group : mGroups) {
                 if (group.videos.isEmpty()) {
@@ -565,8 +571,11 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public long getItemId(int position) {
         Object item = mItems.get(position);
         long hash = System.identityHashCode(item) & 0xffffffffL;
+        int music = PhoneMusicFeed.viewType(item);
         if (item == HEADER_ITEM) {
             return (6L << 32) | mHeaderViewType;
+        } else if (music != 0) {
+            return ((long) music << 32) | hash;
         } else if (item instanceof Shelf) {
             return (1L << 32) | hash;
         } else if (item instanceof Strip) {
@@ -596,6 +605,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return VT_SECTION_HEADER;
         } else if (item instanceof ShortTile) {
             return VT_SHORT;
+        } else if (PhoneMusicFeed.viewType(item) != 0) {
+            return PhoneMusicFeed.viewType(item);
         }
 
         Video video = (Video) item;
@@ -625,6 +636,10 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             mHeaderView.setLayoutParams(new RecyclerView.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             return new Holder(mHeaderView);
+        }
+
+        if (PhoneMusicFeed.isMusicType(viewType)) {
+            return new Holder(PhoneMusicFeed.create(parent, viewType));
         }
 
         switch (viewType) {
@@ -694,6 +709,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         if (type == mHeaderViewType) {
             return; // bound by the owner
+        } else if (PhoneMusicFeed.isMusicType(type)) {
+            PhoneMusicFeed.bind(holder.itemView, item, mListener);
         } else if (type == VT_SHELF) {
             ((ShelfHolder) holder).bind(((Shelf) item).group, false);
         } else if (type == VT_STRIP) {
