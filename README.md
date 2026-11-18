@@ -300,6 +300,11 @@ Rotate back to portrait, or press Back, to leave full screen.
 **A background that feels the song.** Behind the player, a faint, slow animation follows the song's mood, read from its title and lyrics: hearts drifting up for a love song, soft rain for a sad one, sparkles for a party song, aurora waves for a calm one, rings pulsing for an energetic one and embers rising for a devotional one. It pauses with the song and stays still when the phone's animations are off.
 
 <p align="center">
+  <img src="images/phone/26_lyrics_love.jpg" width="200" alt="Perfect by Ed Sheeran: its lyrics, hearts drifting up behind">
+  <img src="images/phone/27_mood_love.jpg" width="200" alt="Perfect in the music player: the line being sung under the title, hearts drifting up behind">
+</p>
+
+<p align="center">
   <img src="images/phone/22_lyrics_sad.jpg" width="200" alt="Fix You by Coldplay: its lyrics, the line being sung lit up, soft rain behind">
   <img src="images/phone/23_mood_sad.jpg" width="200" alt="Fix You in the music player: the line being sung under the title, soft rain falling behind">
   <img src="images/phone/24_lyrics_party.jpg" width="200" alt="Party Rock Anthem by LMFAO: its lyrics, sparkles twinkling behind">

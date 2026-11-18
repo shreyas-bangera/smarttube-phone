@@ -59,7 +59,7 @@ song() {
   sleep 2
 }
 
-song "perfect%sed%ssheeran" love
+# song "perfect%sed%ssheeran" love (taken)
 # song "fix%syou%scoldplay" sad (taken)
 # song "party%srock%santhem%slmfao" party (taken)
 
