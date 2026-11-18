@@ -666,6 +666,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      */
     private boolean canEnterPip() {
         return Build.VERSION.SDK_INT >= 26 && mResumed && !isFinishing() && !mAppLeaving && !mShortsMode
+                && !mMusicMode // music keeps playing in the background, no floating window
                 && !isShort(currentVideo()) && !mMinimized && !mMinimizing
                 && !mShrinkDragging && mPlayer != null && mPlayer.getPlayWhenReady() && pipOnLeave(this)
                 && PhonePip.systemAllows(this)
@@ -2572,6 +2573,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     private void syncMusicPlayer() {
         PhoneMusic.setMusicMode(mMusicMode); // songs play as their recordings while it's on (see PhoneMusic.streamFor)
+        updatePipParams(); // no floating window on leaving in music
         if (mMusicPlayer == null) {
             return;
         }
