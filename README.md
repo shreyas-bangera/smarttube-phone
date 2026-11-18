@@ -113,7 +113,7 @@
 - Up to 8K, 60 fps and HDR when your phone supports it
 - Works without Google Play services
 - Dark (pure black for AMOLED screens), Light, or Same as device
-- Built-in updater: see what's new and install new builds from inside the app
+- Built-in updater: see what's new and install new builds from inside the app; after each update, a What's new card shows once on Home
 - A small download (about 29 MB)
 
 ## Requirements
@@ -291,7 +291,15 @@ Rotate back to portrait, or press Back, to leave full screen.
 - The seek bar, **Shuffle**, **Previous**, **Play/Pause**, **Next** and **Repeat**, and **Like** next to the title.
 - **Video** (top right) shows the video instead.
 
-**Lyrics.** Under the title, a coloured line with little moving bars shows the words being sung. Tap it: the lyrics take the artwork's place, the current line lit up and scrolling with the song; tap any line to jump there, and tap the small artwork in the corner (or Back) to return. Lyrics come from [LRCLIB](https://lrclib.net), a free and open lyrics database; songs it doesn't know show no lyrics line.
+**Song mode.** Songs in the music player play the song itself, like YouTube Music's Song mode: no music video intros or scenes. Tap **Video** to watch the music video.
+
+**Lyrics.** Under the title, a coloured line with little moving bars shows the words being sung. Tap it: the lyrics take the artwork's place, the current line lit up and scrolling with the song; tap any line to jump there, and tap the small artwork in the corner (or Back) to return.
+- **In time with the song:** the first choice is YouTube Music's own timed lyrics for the song playing, then Apple Music's (through BetterLyrics, lrc.red and LyricsPlus), SimpMusic and [LRCLIB](https://lrclib.net). All of them are asked at once, so the lyrics appear within a few seconds. Songs none of them know show no lyrics line.
+- **In the song's language:** a Hindi or Punjabi song shows its lyrics in Hindi (Devanagari) letters, or in Gurmukhi on a phone set to Punjabi, whichever script the source wrote them in. An English song stays in English.
+
+**A background that feels the song.** Behind the player, a faint, slow animation follows the song's mood, read from its title and lyrics: hearts drifting up for a love song, soft rain for a sad one, sparkles for a party song, aurora waves for a calm one, rings pulsing for an energetic one and embers rising for a devotional one. It pauses with the song and stays still when the phone's animations are off.
+
+**In the car.** Car and Bluetooth screens show the title and artist of what's playing, with its artwork (in the music player, the song's own name and singer).
 
 **Search for music.** In Search, turn on the **music note** next to the filters (it lights up red): songs and playlists from the results open in the music player, and it stays on until you turn it off. The **search button** on the Music page opens Search with it already on.
 
@@ -372,7 +380,7 @@ When it opens again it offers a crash report. Please [open an issue](https://git
 
 - No ads, and no tracking added by the app.
 - Sign in happens on Google's website; the app never sees your password. It keeps only the access token Google gives it, on your phone.
-- The app talks to YouTube, to GitHub when it checks for updates, to SponsorBlock if it is turned on, and to LRCLIB for the lyrics of songs you play in the music player (it sends the song's title and artist, nothing about you). See [PRIVACY.md](PRIVACY.md).
+- The app talks to YouTube, to GitHub when it checks for updates, to SponsorBlock if it is turned on, and to lyrics services (YouTube Music, BetterLyrics, lrc.red, LyricsPlus, SimpMusic and LRCLIB) for the lyrics of songs you play in the music player (it sends the song's title, artist, length and video ID, nothing about you). See [PRIVACY.md](PRIVACY.md).
 
 ## Building from source
 
