@@ -219,10 +219,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
             @Override
             public void minimize() {
-                mMusicPlayer.show(false);
                 if (canMinimizeToCard()) {
-                    minimizeToCard();
+                    mMusicPlayer.slideAway(PhonePlaybackActivity.this::minimizeToMusicPill);
                 } else {
+                    mMusicPlayer.show(false);
                     onBackPressed();
                 }
             }
@@ -1274,6 +1274,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         setShrinkProgress(0);
         if (mVideoBox != null) {
             mVideoBox.setTranslationX(0); // the mini player shrink also moves it sideways
+            mVideoBox.setAlpha(1f); // (hidden on the way into the music pill)
         }
     }
 
@@ -1622,7 +1623,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
             mPlayer.detachVideo();
         }
-        PhoneMiniPlayer.begin(this, still, aspect);
+        PhoneMiniPlayer.begin(this, still, aspect, mMusicMode);
         mPlayer.blockEngine(true); // keeps playing behind the app
         getViewManager().removeTop(this); // Back on the screen underneath doesn't come back here
         Class<? extends android.app.Activity> host = PhoneMiniPlayer.hostClass();
@@ -1638,6 +1639,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mMinimized = false;
         mMinimizing = false;
+        syncMusicPlayer(); // from the music pill: the music player is back at once
         android.graphics.Bitmap still = PhoneMiniPlayer.takeStill();
         PhoneMiniPlayer.end();
         setSeeThrough(false);
@@ -2530,6 +2532,27 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private PhoneMusicPlayer mMusicPlayer;
+
+    /** The music player slid down: the music pill takes over at the bottom of the app (the video isn't shown) */
+    private void minimizeToMusicPill() {
+        mMinimizing = true;
+        showPhoneControls(false);
+        setSeeThrough(true);
+        if (mVideoBox != null) {
+            mVideoBox.setAlpha(0f);
+        }
+        copyFrame(still -> handOffToCard(still, 16f / 9f));
+    }
+
+    /** For the music pill: the song playing */
+    Video playingVideo() {
+        return currentVideo();
+    }
+
+    /** For the music pill: the next song */
+    void playNext() {
+        presenter().onNextClicked();
+    }
     /** Songs opened from the Music page play in the music player (until a video is opened from elsewhere) */
     private boolean mMusicMode;
 

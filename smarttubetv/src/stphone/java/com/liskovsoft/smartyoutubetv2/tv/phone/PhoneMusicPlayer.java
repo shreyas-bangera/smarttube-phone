@@ -1,11 +1,15 @@
 package com.liskovsoft.smartyoutubetv2.tv.phone;
 
 import android.animation.ValueAnimator;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
@@ -13,9 +17,11 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -33,20 +39,21 @@ import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.transition.Transition;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
+import com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The music player (songs opened from the Music page), in the style of YouTube Music and Spotify: a background glowing
- * in the colours of the song's artwork, gently pulsing while it plays; the big artwork; title, artist and like; a seek
- * bar; shuffle, previous, play, next and repeat; and the lyrics, the line being sung lit up (tap the card for all of
- * them, tap a line to go there).
+ * in the colours of the song's artwork, gently pulsing while it plays; the big artwork (swipe it sideways for the next
+ * or previous song); title, artist and like; the line being sung, in a coloured pill under the title (tap it: the
+ * lyrics take the artwork's place, the line being sung lit up; the little artwork in their corner brings it back); a
+ * seek bar; shuffle, previous, play, next and repeat.
  *
- * It's a layer over the video player screen: the same player plays underneath, so everything else (the queue, the
- * mini player, background playback) works as for videos. "Video" (top right) shows the video instead.
+ * It's a layer over the video player screen: the same player plays underneath, so the queue, background playback and
+ * the mini player (a music pill, see PhoneMusicPill) work as for videos. "Video" (top right) shows the video instead.
  */
 final class PhoneMusicPlayer {
     interface Host {
@@ -64,7 +71,7 @@ final class PhoneMusicPlayer {
 
         boolean liked();
 
-        /** Down arrow: the player goes small, as from the video */
+        /** Down arrow: the player goes small (the music pill) */
         void minimize();
 
         /** "Video": back to the video player for this song */
@@ -80,32 +87,38 @@ final class PhoneMusicPlayer {
     private final View mBackground;
     private final View mGlow;
     private final View mGlow2;
-    private final ImageView mArt;
+    private final LinearLayout mColumn;
+    private final FrameLayout mStage;
     private final FrameLayout mArtFrame;
+    private final ImageView mArt;
+    private final FrameLayout mLyricsPanel;
+    private final ScrollView mLyricsScroll;
+    private final LinearLayout mLyricsList;
+    private final ImageView mBackToArt;
     private final TextView mSource;
     private final TextView mTitle;
     private final TextView mArtist;
     private final ImageView mLike;
+    private final LinearLayout mLyricChip;
+    private final Bars mChipBars;
+    private final TextView mChipLine;
     private final SeekBar mSeek;
     private final TextView mElapsed;
     private final TextView mLeft;
     private final ImageView mPlay;
     private final ImageView mShuffle;
     private final ImageView mRepeat;
-    private final LinearLayout mLyricsCard;
-    private final TextView[] mLyricLines = new TextView[5];
-    private final TextView mLyricsNote;
-    private final FrameLayout mLyricsFull;
-    private final ScrollView mLyricsScroll;
-    private final LinearLayout mLyricsList;
 
     private boolean mShown;
     private boolean mSeeking;
+    private boolean mLyricsOpen;
     private String mVideoId;
     private PhoneLyrics.Lyrics mLyrics;
     private int mLyricIndex = -2;
     private int mColor = 0xFF3A3A3A;
     private ValueAnimator mPulse;
+    /** After a swipe: the side the next artwork comes in from (1 from the right, -1 from the left), 0 none */
+    private int mEnterFrom;
 
     private final Runnable mTick = new Runnable() {
         @Override
@@ -148,10 +161,10 @@ final class PhoneMusicPlayer {
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         mRoot.addView(scroll, match());
-        LinearLayout column = new LinearLayout(context);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(24), 0, dp(24), dp(24));
-        scroll.addView(column, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mColumn = new LinearLayout(context);
+        mColumn.setOrientation(LinearLayout.VERTICAL);
+        mColumn.setPadding(dp(24), 0, dp(24), dp(24));
+        scroll.addView(mColumn, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // Top: down arrow, "Playing from …", Video
         LinearLayout top = new LinearLayout(context);
@@ -183,32 +196,55 @@ final class PhoneMusicPlayer {
         video.setBackground(videoBg);
         video.setOnClickListener(v -> mHost.showVideo());
         top.addView(video, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
-        column.addView(top);
+        mColumn.addView(top);
 
-        // The artwork
+        // The stage: the artwork, or the lyrics in its place
+        int stageSize = context.getResources().getDisplayMetrics().widthPixels - dp(48);
+        mStage = new FrameLayout(context);
+        mStage.setClipChildren(false);
+        LinearLayout.LayoutParams stageParams = new LinearLayout.LayoutParams(stageSize, stageSize);
+        stageParams.topMargin = dp(20);
+        stageParams.gravity = Gravity.CENTER_HORIZONTAL;
+        mColumn.addView(mStage, stageParams);
+
         mArtFrame = new FrameLayout(context);
         mArtFrame.setElevation(dp(18));
-        mArtFrame.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(18));
-            }
-        });
-        mArtFrame.setClipToOutline(true);
+        rounded(mArtFrame, dp(18));
         mArt = new ImageView(context);
         mArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
         mArt.setBackgroundColor(0x22FFFFFF);
         mArtFrame.addView(mArt, match());
-        int artSize = context.getResources().getDisplayMetrics().widthPixels - dp(48);
-        LinearLayout.LayoutParams artParams = new LinearLayout.LayoutParams(artSize, artSize);
-        artParams.topMargin = dp(20);
-        artParams.gravity = Gravity.CENTER_HORIZONTAL;
-        column.addView(mArtFrame, artParams);
+        mStage.addView(mArtFrame, match());
+        setupArtSwipe(scroll);
+
+        mLyricsPanel = new FrameLayout(context);
+        mLyricsPanel.setVisibility(View.GONE);
+        mLyricsPanel.setElevation(dp(18));
+        rounded(mLyricsPanel, dp(18));
+        mLyricsScroll = new ScrollView(context);
+        mLyricsScroll.setVerticalScrollBarEnabled(false);
+        mLyricsScroll.setVerticalFadingEdgeEnabled(true);
+        mLyricsScroll.setFadingEdgeLength(dp(48));
+        mLyricsList = new LinearLayout(context);
+        mLyricsList.setOrientation(LinearLayout.VERTICAL);
+        mLyricsList.setPadding(dp(22), stageSize / 3, dp(22), stageSize / 2);
+        mLyricsScroll.addView(mLyricsList);
+        mLyricsPanel.addView(mLyricsScroll, match());
+        // Back to the artwork: a little copy of it in the corner
+        mBackToArt = new ImageView(context);
+        mBackToArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        rounded(mBackToArt, dp(10));
+        mBackToArt.setElevation(dp(6));
+        mBackToArt.setOnClickListener(v -> showLyrics(false));
+        FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.END);
+        backParams.setMargins(0, dp(12), dp(12), 0);
+        mLyricsPanel.addView(mBackToArt, backParams);
+        mStage.addView(mLyricsPanel, match());
 
         // Title, artist, like
         LinearLayout titleRow = new LinearLayout(context);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        titleRow.setPadding(0, dp(28), 0, 0);
+        titleRow.setPadding(0, dp(26), 0, 0);
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(LinearLayout.VERTICAL);
         mTitle = text(context, 24, Color.WHITE, true);
@@ -229,7 +265,24 @@ final class PhoneMusicPlayer {
             mHandler.postDelayed(this::updateLike, 300);
         });
         titleRow.addView(mLike, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        column.addView(titleRow);
+        mColumn.addView(titleRow);
+
+        // The line being sung: a coloured pill with little moving bars (tap: all the lyrics)
+        mLyricChip = new LinearLayout(context);
+        mLyricChip.setGravity(Gravity.CENTER_VERTICAL);
+        mLyricChip.setPadding(dp(12), dp(9), dp(14), dp(9));
+        mLyricChip.setVisibility(View.GONE);
+        mLyricChip.setOnClickListener(v -> showLyrics(!mLyricsOpen));
+        mChipBars = new Bars(context);
+        mLyricChip.addView(mChipBars, new LinearLayout.LayoutParams(dp(16), dp(16)));
+        mChipLine = text(context, 15, Color.WHITE, true);
+        mChipLine.setSingleLine(true);
+        mChipLine.setEllipsize(TextUtils.TruncateAt.END);
+        mChipLine.setPadding(dp(10), 0, 0, 0);
+        mLyricChip.addView(mChipLine, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        chipParams.topMargin = dp(12);
+        mColumn.addView(mLyricChip, chipParams);
 
         // Seek bar and times
         mSeek = new SeekBar(context);
@@ -265,23 +318,23 @@ final class PhoneMusicPlayer {
                 }
             }
         });
-        column.addView(mSeek, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mColumn.addView(mSeek, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         FrameLayout times = new FrameLayout(context);
         times.setPadding(dp(4), 0, dp(4), 0);
         mElapsed = text(context, 12, 0xB3FFFFFF, false);
         times.addView(mElapsed, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.START));
         mLeft = text(context, 12, 0xB3FFFFFF, false);
         times.addView(mLeft, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.END));
-        column.addView(times);
+        mColumn.addView(times);
 
         // Shuffle, previous, play, next, repeat
         LinearLayout controls = new LinearLayout(context);
         controls.setGravity(Gravity.CENTER_VERTICAL);
         controls.setPadding(0, dp(14), 0, dp(10));
         mShuffle = icon(context, R.drawable.ic_phone_mode_shuffle, 24);
-        mShuffle.setOnClickListener(v -> toggleMode(PlayerConstantsModes.SHUFFLE));
+        mShuffle.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_SHUFFLE));
         ImageView previous = icon(context, R.drawable.ic_phone_prev, 36);
-        previous.setOnClickListener(v -> mHost.previous());
+        previous.setOnClickListener(v -> change(-1));
         mPlay = new ImageView(context);
         mPlay.setScaleType(ImageView.ScaleType.CENTER);
         GradientDrawable playBg = new GradientDrawable();
@@ -294,9 +347,9 @@ final class PhoneMusicPlayer {
             mHandler.postDelayed(this::update, 50);
         });
         ImageView next = icon(context, R.drawable.ic_phone_next, 36);
-        next.setOnClickListener(v -> mHost.next());
+        next.setOnClickListener(v -> change(1));
         mRepeat = icon(context, R.drawable.ic_phone_mode_repeat_one, 24);
-        mRepeat.setOnClickListener(v -> toggleMode(PlayerConstantsModes.ONE));
+        mRepeat.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_ONE));
         controls.addView(mShuffle, new LinearLayout.LayoutParams(0, dp(48), 1f));
         controls.addView(previous, new LinearLayout.LayoutParams(0, dp(56), 1f));
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(76), dp(76));
@@ -304,50 +357,10 @@ final class PhoneMusicPlayer {
         controls.addView(mPlay, playParams);
         controls.addView(next, new LinearLayout.LayoutParams(0, dp(56), 1f));
         controls.addView(mRepeat, new LinearLayout.LayoutParams(0, dp(48), 1f));
-        column.addView(controls);
-
-        // Lyrics card: the line being sung, two before and two after
-        mLyricsCard = new LinearLayout(context);
-        mLyricsCard.setOrientation(LinearLayout.VERTICAL);
-        mLyricsCard.setPadding(dp(20), dp(18), dp(20), dp(20));
-        mLyricsCard.setOnClickListener(v -> showFullLyrics(true));
-        TextView lyricsTitle = text(context, 16, Color.WHITE, true);
-        lyricsTitle.setText(R.string.phone_music_lyrics);
-        lyricsTitle.setPadding(0, 0, 0, dp(10));
-        mLyricsCard.addView(lyricsTitle);
-        for (int i = 0; i < mLyricLines.length; i++) {
-            TextView line = text(context, 19, Color.WHITE, true);
-            line.setPadding(0, dp(3), 0, dp(3));
-            mLyricLines[i] = line;
-            mLyricsCard.addView(line);
-        }
-        mLyricsNote = text(context, 15, 0xB3FFFFFF, false);
-        mLyricsCard.addView(mLyricsNote);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(18);
-        column.addView(mLyricsCard, cardParams);
-
-        // All the lyrics, full screen
-        mLyricsFull = new FrameLayout(context);
-        mLyricsFull.setVisibility(View.GONE);
-        mLyricsFull.setClickable(true);
-        mLyricsScroll = new ScrollView(context);
-        mLyricsScroll.setVerticalScrollBarEnabled(false);
-        mLyricsList = new LinearLayout(context);
-        mLyricsList.setOrientation(LinearLayout.VERTICAL);
-        mLyricsList.setPadding(dp(28), dp(80), dp(28), dp(200));
-        mLyricsScroll.addView(mLyricsList);
-        mLyricsFull.addView(mLyricsScroll, match());
-        ImageView close = icon(context, R.drawable.ic_phone_collapse, 26);
-        close.setOnClickListener(v -> showFullLyrics(false));
-        FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.START);
-        closeParams.setMargins(dp(20), dp(12), 0, 0);
-        mLyricsFull.addView(close, closeParams);
-        mRoot.addView(mLyricsFull, match());
+        mColumn.addView(controls);
 
         mRoot.setOnApplyWindowInsetsListener((v, insets) -> {
-            column.setPadding(dp(24), insets.getSystemWindowInsetTop(), dp(24), dp(24) + insets.getSystemWindowInsetBottom());
-            mLyricsFull.setPadding(0, insets.getSystemWindowInsetTop(), 0, insets.getSystemWindowInsetBottom());
+            mColumn.setPadding(dp(24), insets.getSystemWindowInsetTop(), dp(24), dp(24) + insets.getSystemWindowInsetBottom());
             return insets;
         });
 
@@ -371,6 +384,8 @@ final class PhoneMusicPlayer {
         }
         mShown = show;
         if (show) {
+            mRoot.animate().cancel();
+            mRoot.setTranslationY(0);
             mRoot.setAlpha(0f);
             mRoot.setVisibility(View.VISIBLE);
             mRoot.animate().alpha(1f).setDuration(220).start();
@@ -381,10 +396,21 @@ final class PhoneMusicPlayer {
         } else {
             mRoot.animate().cancel();
             mRoot.setVisibility(View.GONE);
-            showFullLyrics(false);
             stopPulse();
             mHandler.removeCallbacks(mTick);
         }
+    }
+
+    /** Down arrow: the whole screen slides down, then the pill takes over */
+    void slideAway(Runnable done) {
+        mRoot.animate().cancel();
+        mRoot.animate().translationY(mRoot.getHeight()).setDuration(240)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator(1.2f))
+                .withEndAction(() -> {
+                    show(false);
+                    mRoot.setTranslationY(0);
+                    done.run();
+                }).start();
     }
 
     void release() {
@@ -395,10 +421,10 @@ final class PhoneMusicPlayer {
         }
     }
 
-    /** Back pressed: closes the full lyrics first */
+    /** Back pressed: the lyrics give the artwork its place back first */
     boolean onBack() {
-        if (mShown && mLyricsFull.getVisibility() == View.VISIBLE) {
-            showFullLyrics(false);
+        if (mShown && mLyricsOpen) {
+            showLyrics(false);
             return true;
         }
         return false;
@@ -421,7 +447,11 @@ final class PhoneMusicPlayer {
         mArtist.setText(artist != null ? artist : "");
         mLyrics = null;
         mLyricIndex = -2;
-        showLyricsState(mActivity.getString(R.string.phone_music_lyrics_loading));
+        mLyricsList.removeAllViews();
+        mLyricChip.setVisibility(View.GONE);
+        if (mLyricsOpen) {
+            showLyrics(false);
+        }
 
         if (PhoneUi.isAlive(mActivity)) {
             String id = video.videoId;
@@ -431,6 +461,7 @@ final class PhoneMusicPlayer {
                     .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg").centerCrop())
                     .transition(DrawableTransitionOptions.withCrossFade(250))
                     .into(mArt);
+            Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").centerCrop().into(mBackToArt);
             // The colours come from a small copy of the artwork
             Glide.with(mActivity).asBitmap().load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").override(48, 27)
                     .into(new CustomTarget<Bitmap>() {
@@ -446,6 +477,7 @@ final class PhoneMusicPlayer {
                         }
                     });
         }
+        enterArt();
 
         SimpleExoPlayer exo = mHost.exo();
         long duration = exo != null && exo.getDuration() > 0 ? exo.getDuration() : video.getDurationMs();
@@ -453,7 +485,7 @@ final class PhoneMusicPlayer {
             if (videoId.equals(mVideoId)) {
                 mLyrics = lyrics;
                 mLyricIndex = -2;
-                fillFullLyrics();
+                fillLyrics();
                 updateLyrics(true);
             }
         });
@@ -486,11 +518,13 @@ final class PhoneMusicPlayer {
             mElapsed.setText(time(position));
             mLeft.setText("-" + time(Math.max(0, duration - position)));
         }
-        if (playing && exo.getPlaybackState() == com.google.android.exoplayer2.Player.STATE_READY) {
+        boolean moving = playing && exo.getPlaybackState() == com.google.android.exoplayer2.Player.STATE_READY;
+        if (moving) {
             startPulse();
         } else {
             stopPulse();
         }
+        mChipBars.setPlaying(moving);
         updateModes();
         updateLike();
         updateLyrics(false);
@@ -504,28 +538,131 @@ final class PhoneMusicPlayer {
 
     // endregion
 
-    // region Shuffle and repeat (the app's playback mode)
+    // region Swipe the artwork: next and previous song
 
-    private static final class PlayerConstantsModes {
-        static final int SHUFFLE = 1;
-        static final int ONE = 2;
+    /** Next (1) or previous (-1) song: the artwork slides off that way, the next one comes in when the song changes */
+    private void change(int direction) {
+        int width = mStage.getWidth() > 0 ? mStage.getWidth() : dp(300);
+        mArtFrame.animate().cancel();
+        mArtFrame.animate()
+                .translationX(-direction * width * 1.15f)
+                .rotation(-direction * 6f)
+                .alpha(0f)
+                .setDuration(200)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator(1.3f))
+                .start();
+        mEnterFrom = direction;
+        // Safety net: the song may not change (the start of a list): the artwork comes back
+        mHandler.postDelayed(() -> {
+            if (mEnterFrom == direction) {
+                mEnterFrom = -direction;
+                enterArt();
+            }
+        }, 2_500);
+        if (direction > 0) {
+            mHost.next();
+        } else {
+            mHost.previous();
+        }
     }
 
-    private void toggleMode(int which) {
+    /** A new song (or none after all): its artwork slides in from the side it was swiped to */
+    private void enterArt() {
+        int from = mEnterFrom;
+        mEnterFrom = 0;
+        mArtFrame.animate().cancel();
+        if (from == 0) {
+            mArtFrame.setTranslationX(0);
+            mArtFrame.setRotation(0);
+            mArtFrame.setAlpha(1f);
+            return;
+        }
+        int width = mStage.getWidth() > 0 ? mStage.getWidth() : dp(300);
+        mArtFrame.setTranslationX(from * width * 0.9f);
+        mArtFrame.setRotation(from * 5f);
+        mArtFrame.setAlpha(0f);
+        mArtFrame.animate().translationX(0).rotation(0).alpha(1f).setDuration(320)
+                .setInterpolator(new DecelerateInterpolator(1.8f)).start();
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupArtSwipe(ScrollView scroll) {
+        float[] down = new float[2];
+        boolean[] dragging = {false};
+        android.view.VelocityTracker[] velocity = {null};
+        int slop = android.view.ViewConfiguration.get(mActivity).getScaledTouchSlop();
+        mArtFrame.setOnTouchListener((v, event) -> {
+            int width = mStage.getWidth() > 0 ? mStage.getWidth() : dp(300);
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    down[0] = event.getRawX();
+                    down[1] = event.getRawY();
+                    dragging[0] = false;
+                    if (velocity[0] != null) {
+                        velocity[0].recycle();
+                    }
+                    velocity[0] = android.view.VelocityTracker.obtain();
+                    velocity[0].addMovement(event);
+                    mArtFrame.animate().cancel();
+                    return true;
+                case MotionEvent.ACTION_MOVE: {
+                    velocity[0].addMovement(event);
+                    float dx = event.getRawX() - down[0];
+                    float dy = event.getRawY() - down[1];
+                    if (!dragging[0] && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
+                        dragging[0] = true;
+                        scroll.requestDisallowInterceptTouchEvent(true);
+                    }
+                    if (dragging[0]) {
+                        float f = Math.min(1f, Math.abs(dx) / width);
+                        mArtFrame.setTranslationX(dx);
+                        mArtFrame.setRotation(dx / width * 8f);
+                        mArtFrame.setAlpha(1f - f * 0.5f);
+                        float scale = 1f - f * 0.06f;
+                        mArtFrame.setScaleX(scale);
+                        mArtFrame.setScaleY(scale);
+                    }
+                    return true;
+                }
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL: {
+                    float dx = event.getRawX() - down[0];
+                    velocity[0].addMovement(event);
+                    velocity[0].computeCurrentVelocity(1000);
+                    float vx = velocity[0].getXVelocity();
+                    boolean fling = Math.abs(vx) > dp(900) && Math.signum(vx) == Math.signum(dx);
+                    mArtFrame.animate().scaleX(1f).scaleY(1f).setDuration(200).start();
+                    if (dragging[0] && event.getActionMasked() == MotionEvent.ACTION_UP
+                            && (Math.abs(dx) > width * 0.28f || fling)) {
+                        change(dx < 0 ? 1 : -1); // swiped left: the next song
+                    } else {
+                        mArtFrame.animate().translationX(0).rotation(0).alpha(1f).scaleX(1f).scaleY(1f)
+                                .setDuration(260).setInterpolator(new DecelerateInterpolator(1.6f)).start();
+                    }
+                    dragging[0] = false;
+                    return true;
+                }
+                default:
+                    return true;
+            }
+        });
+    }
+
+    // endregion
+
+    // region Shuffle and repeat (the app's playback mode)
+
+    private void toggleMode(int target) {
         PlayerData data = PlayerData.instance(mActivity);
         int mode = data.getPlaybackMode();
-        int shuffle = com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants.PLAYBACK_MODE_SHUFFLE;
-        int one = com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants.PLAYBACK_MODE_ONE;
-        int all = com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants.PLAYBACK_MODE_ALL;
-        int target = which == PlayerConstantsModes.SHUFFLE ? shuffle : one;
-        data.setPlaybackMode(mode == target ? all : target);
+        data.setPlaybackMode(mode == target ? PlayerConstants.PLAYBACK_MODE_ALL : target);
         updateModes();
     }
 
     private void updateModes() {
         int mode = PlayerData.instance(mActivity).getPlaybackMode();
-        boolean shuffle = mode == com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants.PLAYBACK_MODE_SHUFFLE;
-        boolean one = mode == com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerConstants.PLAYBACK_MODE_ONE;
+        boolean shuffle = mode == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
+        boolean one = mode == PlayerConstants.PLAYBACK_MODE_ONE;
         mShuffle.setAlpha(shuffle ? 1f : 0.55f);
         mShuffle.setImageTintList(android.content.res.ColorStateList.valueOf(shuffle ? lighten(mColor) : Color.WHITE));
         mRepeat.setAlpha(one ? 1f : 0.55f);
@@ -536,20 +673,9 @@ final class PhoneMusicPlayer {
 
     // region Lyrics
 
-    private void showLyricsState(String note) {
-        for (TextView line : mLyricLines) {
-            line.setVisibility(View.GONE);
-        }
-        mLyricsNote.setText(note);
-        mLyricsNote.setVisibility(View.VISIBLE);
-    }
-
     private void updateLyrics(boolean force) {
-        if (mLyrics == null) {
-            return;
-        }
-        if (mLyrics.isEmpty()) {
-            showLyricsState(mActivity.getString(R.string.phone_music_lyrics_none));
+        if (mLyrics == null || mLyrics.isEmpty()) {
+            mLyricChip.setVisibility(View.GONE);
             return;
         }
         SimpleExoPlayer exo = mHost.exo();
@@ -559,36 +685,42 @@ final class PhoneMusicPlayer {
             return;
         }
         mLyricIndex = index;
-        mLyricsNote.setVisibility(View.GONE);
-        int current = Math.max(index, 0);
-        for (int i = 0; i < mLyricLines.length; i++) {
-            int lineIndex = mLyrics.synced ? current - 2 + i : i;
-            TextView view = mLyricLines[i];
-            if (lineIndex < 0 || lineIndex >= mLyrics.lines.size()) {
-                view.setVisibility(lineIndex < 0 ? View.INVISIBLE : View.GONE);
-                view.setText(" ");
-                continue;
-            }
-            view.setVisibility(View.VISIBLE);
-            view.setText(mLyrics.lines.get(lineIndex).text);
-            boolean now = mLyrics.synced && lineIndex == index;
-            view.setTextSize(TypedValue.COMPLEX_UNIT_SP, now ? 22 : 18);
-            view.setAlpha(!mLyrics.synced ? 0.9f : now ? 1f : 0.45f);
+        // The pill: the line being sung (before the first line, the first one to come; unsynced, the first line)
+        String line = mLyrics.lines.get(Math.max(0, Math.min(index, mLyrics.lines.size() - 1))).text;
+        if (index < 0 && mLyrics.synced) {
+            line = "♪";
         }
-        highlightFull(index);
+        boolean appearing = mLyricChip.getVisibility() != View.VISIBLE;
+        mLyricChip.setVisibility(mLyricsOpen ? View.INVISIBLE : View.VISIBLE);
+        if (!TextUtils.equals(mChipLine.getText(), line)) {
+            String text = line;
+            if (appearing) {
+                mChipLine.setText(text);
+            } else {
+                // The new line rises in
+                mChipLine.animate().cancel();
+                mChipLine.animate().alpha(0f).translationY(-dp(6)).setDuration(120).withEndAction(() -> {
+                    mChipLine.setText(text);
+                    mChipLine.setTranslationY(dp(6));
+                    mChipLine.animate().alpha(1f).translationY(0).setDuration(180).start();
+                }).start();
+            }
+        }
+        highlightLyrics(index);
     }
 
-    private void fillFullLyrics() {
+    private void fillLyrics() {
         mLyricsList.removeAllViews();
         if (mLyrics == null) {
             return;
         }
         for (int i = 0; i < mLyrics.lines.size(); i++) {
             PhoneLyrics.Line line = mLyrics.lines.get(i);
-            TextView view = text(mActivity, 26, Color.WHITE, true);
+            TextView view = text(mActivity, 23, Color.WHITE, true);
             view.setText(line.text);
-            view.setPadding(0, dp(8), 0, dp(8));
+            view.setPadding(0, dp(7), 0, dp(7));
             view.setAlpha(mLyrics.synced ? 0.4f : 0.95f);
+            view.setLineSpacing(dp(2), 1f);
             if (mLyrics.synced) {
                 view.setOnClickListener(v -> {
                     SimpleExoPlayer exo = mHost.exo();
@@ -601,32 +733,45 @@ final class PhoneMusicPlayer {
         }
     }
 
-    private void highlightFull(int index) {
+    private void highlightLyrics(int index) {
         if (mLyrics == null || !mLyrics.synced || mLyricsList.getChildCount() == 0) {
             return;
         }
         for (int i = 0; i < mLyricsList.getChildCount(); i++) {
-            mLyricsList.getChildAt(i).animate().alpha(i == index ? 1f : i < index ? 0.3f : 0.45f).setDuration(200).start();
+            View view = mLyricsList.getChildAt(i);
+            view.animate().alpha(i == index ? 1f : i < index ? 0.3f : 0.45f)
+                    .scaleX(i == index ? 1.04f : 1f).scaleY(i == index ? 1.04f : 1f).setDuration(220).start();
+            view.setPivotX(0);
         }
-        if (mLyricsFull.getVisibility() == View.VISIBLE && index >= 0 && index < mLyricsList.getChildCount()) {
+        if (mLyricsOpen && index >= 0 && index < mLyricsList.getChildCount()) {
             View line = mLyricsList.getChildAt(index);
             int target = line.getTop() - mLyricsScroll.getHeight() / 3;
             mLyricsScroll.smoothScrollTo(0, Math.max(0, target));
         }
     }
 
-    private void showFullLyrics(boolean show) {
+    /** The lyrics take the artwork's place (or give it back) */
+    private void showLyrics(boolean show) {
         if (show && (mLyrics == null || mLyrics.isEmpty())) {
             return;
         }
+        mLyricsOpen = show;
+        View in = show ? mLyricsPanel : mArtFrame;
+        View out = show ? mArtFrame : mLyricsPanel;
+        out.animate().cancel();
+        out.animate().alpha(0f).scaleX(0.94f).scaleY(0.94f).setDuration(180).withEndAction(() -> {
+            out.setVisibility(show ? View.INVISIBLE : View.GONE);
+            out.setScaleX(1f);
+            out.setScaleY(1f);
+        }).start();
+        in.setVisibility(View.VISIBLE);
+        in.setAlpha(0f);
+        in.setScaleX(0.94f);
+        in.setScaleY(0.94f);
+        in.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(240).setInterpolator(new DecelerateInterpolator(1.6f)).start();
+        mLyricChip.setVisibility(show ? View.INVISIBLE : (mLyrics != null && !mLyrics.isEmpty() ? View.VISIBLE : View.GONE));
         if (show) {
-            mLyricsFull.setBackgroundColor(darken(mColor, 0.45f) | 0xFF000000);
-            mLyricsFull.setAlpha(0f);
-            mLyricsFull.setVisibility(View.VISIBLE);
-            mLyricsFull.animate().alpha(1f).setDuration(200).start();
-            mLyricsFull.post(() -> highlightFull(mLyricIndex));
-        } else {
-            mLyricsFull.setVisibility(View.GONE);
+            mLyricsPanel.post(() -> highlightLyrics(mLyricIndex));
         }
     }
 
@@ -649,10 +794,19 @@ final class PhoneMusicPlayer {
         mBackground.setBackground(background);
         mGlow.setBackground(glow(lighten(color), 0x99));
         mGlow2.setBackground(glow(color, 0x66));
-        GradientDrawable card = new GradientDrawable();
-        card.setCornerRadius(dp(22));
-        card.setColor((darken(color, 0.6f) & 0x00FFFFFF) | 0xCC000000);
-        mLyricsCard.setBackground(card);
+        // The lyrics panel: a deep shade of the song's colour
+        GradientDrawable panel = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[] {darken(color, 0.35f), darken(color, 0.62f)});
+        mLyricsPanel.setBackground(panel);
+        // The lyric pill: tinted with it, its words in a light shade of it
+        GradientDrawable chip = new GradientDrawable();
+        chip.setCornerRadius(dp(18));
+        chip.setColor((lighten(color) & 0x00FFFFFF) | 0x33000000);
+        chip.setStroke(dp(1), (lighten(color) & 0x00FFFFFF) | 0x55000000);
+        mLyricChip.setBackground(chip);
+        int words = blend(color, Color.WHITE, 0.7f);
+        mChipLine.setTextColor(words);
+        mChipBars.setColor(words);
         updateModes();
     }
 
@@ -684,11 +838,9 @@ final class PhoneMusicPlayer {
             mGlow2.setTranslationX(dp(30) * (float) Math.cos(t));
             mGlow2.setTranslationY(dp(20) * (float) Math.sin(t));
             mGlow2.setAlpha(0.6f + 0.25f * (float) Math.cos(t));
-            mArtFrame.setScaleX(1f + 0.008f * beat);
-            mArtFrame.setScaleY(1f + 0.008f * beat);
         });
         mPulse.start();
-        mArtFrame.animate().scaleX(1f).scaleY(1f).setDuration(250).start();
+        mStage.animate().scaleX(1f).scaleY(1f).setDuration(250).start();
     }
 
     private void stopPulse() {
@@ -699,11 +851,11 @@ final class PhoneMusicPlayer {
         mPulse = null;
         mGlow.animate().scaleX(1f).scaleY(1f).alpha(0.6f).setDuration(400).start();
         mGlow2.animate().translationX(0).translationY(0).alpha(0.5f).setDuration(400).start();
-        mArtFrame.animate().scaleX(0.94f).scaleY(0.94f).setDuration(300).start(); // paused: the artwork steps back
+        mStage.animate().scaleX(0.94f).scaleY(0.94f).setDuration(300).start(); // paused: the artwork steps back
     }
 
     /** The most colourful bright-enough tone of the artwork */
-    private static int vibrant(Bitmap bitmap) {
+    static int vibrant(Bitmap bitmap) {
         float[] hsv = new float[3];
         double r = 0, g = 0, b = 0, weight = 0;
         double ar = 0, ag = 0, ab = 0;
@@ -734,15 +886,15 @@ final class PhoneMusicPlayer {
         return Color.HSVToColor(hsv);
     }
 
-    private static int darken(int color, float amount) {
+    static int darken(int color, float amount) {
         return blend(color, Color.BLACK, amount);
     }
 
-    private static int lighten(int color) {
+    static int lighten(int color) {
         return blend(color, Color.WHITE, 0.35f);
     }
 
-    private static int blend(int from, int to, float t) {
+    static int blend(int from, int to, float t) {
         return Color.rgb(
                 Math.round(Color.red(from) + (Color.red(to) - Color.red(from)) * t),
                 Math.round(Color.green(from) + (Color.green(to) - Color.green(from)) * t),
@@ -751,7 +903,75 @@ final class PhoneMusicPlayer {
 
     // endregion
 
+    /** Three little bars moving like a level meter while the song plays: "this is what's being sung" */
+    static final class Bars extends View {
+        private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF mRect = new RectF();
+        private ValueAnimator mAnimator;
+        private float mPhase;
+
+        Bars(Context context) {
+            super(context);
+            mPaint.setColor(Color.WHITE);
+        }
+
+        void setColor(int color) {
+            mPaint.setColor(color);
+            invalidate();
+        }
+
+        void setPlaying(boolean playing) {
+            if (playing && mAnimator == null) {
+                mAnimator = ValueAnimator.ofFloat(0f, (float) (2 * Math.PI));
+                mAnimator.setDuration(900);
+                mAnimator.setRepeatCount(ValueAnimator.INFINITE);
+                mAnimator.setInterpolator(new LinearInterpolator());
+                mAnimator.addUpdateListener(a -> {
+                    mPhase = (float) a.getAnimatedValue();
+                    invalidate();
+                });
+                mAnimator.start();
+            } else if (!playing && mAnimator != null) {
+                mAnimator.cancel();
+                mAnimator = null;
+                mPhase = 0;
+                invalidate();
+            }
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            setPlaying(false);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth();
+            float h = getHeight();
+            float bar = w / 5f;
+            float[] offsets = {0f, 2.1f, 4.2f};
+            for (int i = 0; i < 3; i++) {
+                float level = mAnimator == null ? (i == 1 ? 0.6f : 0.35f)
+                        : 0.3f + 0.7f * (0.5f + 0.5f * (float) Math.sin(mPhase * (i == 1 ? 2 : 1) + offsets[i]));
+                float left = i * bar * 2f;
+                mRect.set(left, h * (1f - level), left + bar, h);
+                canvas.drawRoundRect(mRect, bar / 2f, bar / 2f, mPaint);
+            }
+        }
+    }
+
     // region Helpers
+
+    private static void rounded(View view, int radius) {
+        view.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, Outline outline) {
+                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
+            }
+        });
+        view.setClipToOutline(true);
+    }
 
     private static String time(long ms) {
         long seconds = Math.max(0, ms / 1000);
@@ -773,13 +993,9 @@ final class PhoneMusicPlayer {
         ImageView view = new ImageView(context);
         view.setImageResource(drawable);
         view.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        view.setScaleType(ImageView.ScaleType.CENTER);
-        Drawable d = view.getDrawable();
-        if (d != null) {
-            view.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            int pad = Math.max(0, (dp(44) - dp(sizeDp)) / 2);
-            view.setPadding(pad, pad, pad, pad);
-        }
+        view.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int pad = Math.max(0, (dp(44) - dp(sizeDp)) / 2);
+        view.setPadding(pad, pad, pad, pad);
         TypedValue ripple = new TypedValue();
         context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
         view.setBackgroundResource(ripple.resourceId);

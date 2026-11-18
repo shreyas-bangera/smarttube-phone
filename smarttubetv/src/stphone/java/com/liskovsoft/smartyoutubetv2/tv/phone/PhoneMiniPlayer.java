@@ -44,6 +44,9 @@ final class PhoneMiniPlayer {
     private static WeakReference<PhoneActivity> sHost = new WeakReference<>(null);
     private static WeakReference<Card> sCard = new WeakReference<>(null);
     private static boolean sActive;
+    /** Music (from the Music page): the music pill instead of the video card */
+    private static boolean sMusic;
+    private static WeakReference<PhoneMusicPill> sPill = new WeakReference<>(null);
     /** The last frame, shown by the next card until its own frames arrive */
     private static Bitmap sStill;
     /** The card surface the player draws into */
@@ -74,6 +77,10 @@ final class PhoneMiniPlayer {
 
     /** Something on the host screen changed the room at the bottom (the update banner came or went) */
     static void replace() {
+        PhoneMusicPill pill = sPill.get();
+        if (pill != null && pill.getParent() != null) {
+            pill.place(false);
+        }
         Card card = sCard.get();
         if (card != null && card.getParent() != null && !card.mDragging) {
             card.place();
@@ -99,6 +106,10 @@ final class PhoneMiniPlayer {
     }
 
     static void onHostStopped(PhoneActivity host) {
+        PhoneMusicPill pill = sPill.get();
+        if (pill != null && pill.host() == host) {
+            pill.remove();
+        }
         Card card = sCard.get();
         if (card != null && card.mHost == host) {
             card.remove();
@@ -125,6 +136,12 @@ final class PhoneMiniPlayer {
 
     /** The player shrank into the card: from now on the card shows its video */
     static void begin(PhonePlaybackActivity player, Bitmap still, float aspect) {
+        begin(player, still, aspect, false);
+    }
+
+    /** @param music the music pill instead of the video card */
+    static void begin(PhonePlaybackActivity player, Bitmap still, float aspect, boolean music) {
+        sMusic = music;
         sPlayer = new WeakReference<>(player);
         sAspect = aspect > 0 ? aspect : 16f / 9f;
         sActive = true;
@@ -162,6 +179,18 @@ final class PhoneMiniPlayer {
     }
 
     private static void expand() {
+        if (sMusic) {
+            PhonePlaybackActivity player = sPlayer.get();
+            PhoneMusicPill pill = sPill.get();
+            if (player == null || pill == null) {
+                end();
+                return;
+            }
+            PhoneActivity host = pill.host();
+            host.startActivity(new android.content.Intent(host, PhonePlaybackActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP));
+            return;
+        }
         PhonePlaybackActivity player = sPlayer.get();
         Card card = sCard.get();
         if (player == null || card == null) {
@@ -184,6 +213,10 @@ final class PhoneMiniPlayer {
         PhonePlaybackActivity player = sPlayer.get();
         Card card = sCard.get();
         sStill = null;
+        PhoneMusicPill pill = sPill.get();
+        if (pill != null && pill.getParent() != null && pill.getAlpha() > 0.9f && pill.getTranslationX() == 0) {
+            pill.animateAway(0); // (thrown away by hand, it's already on its way)
+        }
         if (card != null) {
             if (swipedDown) {
                 card.slideAway();
@@ -253,7 +286,61 @@ final class PhoneMiniPlayer {
 
     // region Card
 
+    private static void showPill(PhoneActivity host) {
+        PhoneMusicPill pill = sPill.get();
+        if (pill != null && pill.host() == host && pill.getParent() != null) {
+            pill.place(false);
+            return;
+        }
+        if (pill != null) {
+            pill.remove();
+        }
+        ViewGroup content = host.findViewById(android.R.id.content);
+        if (content == null) {
+            return;
+        }
+        pill = new PhoneMusicPill(host, new PhoneMusicPill.Actions() {
+            @Override
+            public SimpleExoPlayer exo() {
+                PhonePlaybackActivity player = sPlayer.get();
+                return player != null ? player.exoPlayer() : null;
+            }
+
+            @Override
+            public com.liskovsoft.smartyoutubetv2.common.app.models.data.Video video() {
+                PhonePlaybackActivity player = sPlayer.get();
+                return player != null ? player.playingVideo() : null;
+            }
+
+            @Override
+            public void expand() {
+                PhoneMiniPlayer.expand();
+            }
+
+            @Override
+            public void next() {
+                PhonePlaybackActivity player = sPlayer.get();
+                if (player != null) {
+                    player.playNext();
+                }
+            }
+
+            @Override
+            public void close() {
+                PhoneMiniPlayer.close();
+            }
+        });
+        content.addView(pill, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        sPill = new WeakReference<>(pill);
+        pill.place(true);
+    }
+
     private static void showCard(PhoneActivity host) {
+        if (sMusic) {
+            showPill(host);
+            return;
+        }
         Card card = sCard.get();
         if (card != null && card.mHost == host && card.getParent() != null) {
             card.refresh();
