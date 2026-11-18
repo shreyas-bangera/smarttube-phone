@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# README screenshots of the music features, from the real app on the emulator: the Music page, a playlist, the music
-# player, its lyrics and the music bar. Each one is printed to the log (base64 JPEG between ==IMG name== and ==END==)
-# and kept in ./screens.
+# README screenshots from the real app on the emulator: the music player with lyrics and its mood background (a love,
+# a sad and a party song), the lyrics panel, and What's new. Each one is printed to the log (base64 JPEG between
+# ==IMG name== and ==END==) and kept in ./screens.
 set -x
 PKG=org.smarttube.phone
 SPLASH=com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity
@@ -27,66 +27,54 @@ shot() { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > 
 adb shell am start -n "$PKG/$SPLASH"
 sleep 45
 
-# 1. Search with the music switch on
+# Music search on, once
 tap 'content-desc="Search YouTube"'
 sleep 4
 tap 'content-desc="Music search"'
 sleep 1
-adb shell input text "shape%sof%syou%sed%ssheeran"
-adb shell input keyevent 66
-sleep 15
-shot search_1_music
 
-# 2. A result: the music player
-tap 'text=".*Shape of You.*"' || adb shell input tap 540 700
-sleep 30
-shot search_2_player
-
-# 3. Video: the video player, with Listen under the video
-tap 'text="Video"'
-sleep 8
-shot player_listen
-
-# 3b. A Hindi song, from a music search: its lyrics (the log says where they came from)
-adb shell input keyevent KEYCODE_BACK
-sleep 3
-tap 'content-desc="Search YouTube"' || true
-sleep 3
-adb shell input text "shararat%sdhurandhar"
-adb shell input keyevent 66
-sleep 15
-adb shell input tap 540 700
-sleep 40
-shot song_hindi
-if tap 'content-desc="Lyrics"'; then
-  sleep 4
-  shot song_hindi_lyrics
+# A song from a music search: the player (lyrics line, mood background), then its lyrics
+song() {
+  local query=$1 name=$2
+  adb shell input text "$query"
+  adb shell input keyevent 66
+  sleep 15
+  adb shell input tap 540 700
+  sleep 45
+  shot "${name}_player"
+  if tap 'content-desc="Lyrics"'; then
+    sleep 5
+    shot "${name}_lyrics"
+    adb shell input keyevent KEYCODE_BACK
+    sleep 2
+  fi
+  # Back to the search box for the next one
   adb shell input keyevent KEYCODE_BACK
-fi
+  sleep 3
+  tap 'content-desc="Search YouTube"' || true
+  sleep 3
+  tap 'resource-id="[^"]*search[^"]*" .*text="[^"]+"' > /dev/null || true
+  adb shell input keyevent KEYCODE_MOVE_END
+  for i in $(seq 1 60); do adb shell input keyevent 67; done
+}
 
-# 4. Home, the Music page and its search button
+song "tum%shi%sho%sarijit%ssingh" love
+song "channa%smereya" sad
+song "london%sthumakda" party
+
+# What's new: You > Settings > What's new
 adb shell input keyevent KEYCODE_BACK
-sleep 3
+sleep 2
 adb shell input keyevent KEYCODE_BACK
-sleep 3
-adb shell input keyevent KEYCODE_BACK
-sleep 3
+sleep 2
 adb shell am start -n "$PKG/$SPLASH"
 sleep 8
-tap 'text="Music"'
-sleep 15
-adb shell input swipe 540 1700 540 1150 500
-sleep 3
-shot music_search_button
-
-# 5. A chart: its playlist page (its card shows the number of videos)
-adb shell input swipe 540 1900 540 900 600
+tap 'text="You"' || tap 'content-desc="You"'
+sleep 5
+tap 'text="Settings"'
 sleep 4
-tap 'text="[0-9.,]+ videos"' || tap 'text=".*[0-9]+ videos"'
-sleep 15
-shot playlist_1
-adb shell input swipe 540 1800 540 1000 500
-sleep 3
-shot playlist_2
+for i in 1 2 3; do tap "text=\"What's new\"" && break; adb shell input swipe 540 1800 540 900 500; sleep 2; done
+sleep 4
+shot whats_new
 
-adb logcat -d | grep -E "AndroidRuntime|FATAL|PhoneLyrics" | tail -40
+adb logcat -d | grep -E "AndroidRuntime|FATAL|PhoneLyrics" | tail -80
