@@ -47,6 +47,23 @@ tap 'text="Video"'
 sleep 8
 shot player_listen
 
+# 3b. A Hindi song, from a music search: its lyrics (the log says where they came from)
+adb shell input keyevent KEYCODE_BACK
+sleep 3
+tap 'content-desc="Search YouTube"' || true
+sleep 3
+adb shell input text "shararat%sdhurandhar"
+adb shell input keyevent 66
+sleep 15
+adb shell input tap 540 700
+sleep 40
+shot song_hindi
+if tap 'content-desc="Lyrics"'; then
+  sleep 4
+  shot song_hindi_lyrics
+  adb shell input keyevent KEYCODE_BACK
+fi
+
 # 4. Home, the Music page and its search button
 adb shell input keyevent KEYCODE_BACK
 sleep 3
