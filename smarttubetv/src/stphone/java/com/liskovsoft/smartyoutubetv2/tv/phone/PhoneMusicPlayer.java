@@ -244,10 +244,10 @@ final class PhoneMusicPlayer {
         FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.END);
         backParams.setMargins(0, dp(12), dp(12), 0);
         mLyricsPanel.addView(mBackToArt, backParams);
-        mLyricsPanel.addView(createSyncBar(context), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL) {{
-            bottomMargin = dp(12);
-        }});
+        FrameLayout.LayoutParams syncParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+        syncParams.setMargins(dp(12), dp(16), 0, 0); // level with the little artwork, top right
+        mLyricsPanel.addView(createSyncBar(context), syncParams);
         mStage.addView(mLyricsPanel, match());
 
         // Title, artist, like
@@ -776,37 +776,48 @@ final class PhoneMusicPlayer {
 
     // Sync: the lyrics a little earlier or later (another version of the song has another intro)
 
+    /** Top left of the lyrics (the artwork is top right): − Sync + */
     private View createSyncBar(Context context) {
         LinearLayout bar = new LinearLayout(context);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(4), dp(4), dp(4), dp(4));
         GradientDrawable shape = new GradientDrawable();
-        shape.setCornerRadius(dp(20));
-        shape.setColor(0x66000000);
+        shape.setCornerRadius(dp(22));
+        shape.setColor(0x47000000);
+        shape.setStroke(dp(1), 0x26FFFFFF);
         bar.setBackground(shape);
-        TextView earlier = syncButton(context, "−0.5s", -500);
-        mSyncLabel = text(context, 13, 0xDDFFFFFF, true);
+        bar.addView(syncButton(context, "−", -500, R.string.phone_music_sync_earlier), new LinearLayout.LayoutParams(dp(32), dp(32)));
+        mSyncLabel = text(context, 13, Color.WHITE, true);
         mSyncLabel.setGravity(Gravity.CENTER);
-        mSyncLabel.setPadding(dp(10), 0, dp(10), 0);
+        mSyncLabel.setMinWidth(dp(48));
+        mSyncLabel.setPadding(dp(6), 0, dp(6), 0);
         mSyncLabel.setOnClickListener(v -> setOffset(0)); // tap: back to the lyrics' own times
-        TextView later = syncButton(context, "+0.5s", 500);
-        bar.addView(earlier, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
         bar.addView(mSyncLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
-        bar.addView(later, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
+        bar.addView(syncButton(context, "+", 500, R.string.phone_music_sync_later), new LinearLayout.LayoutParams(dp(32), dp(32)));
         return bar;
     }
 
-    private TextView syncButton(Context context, String label, long step) {
-        TextView button = text(context, 13, Color.WHITE, true);
+    private TextView syncButton(Context context, String label, long step, int description) {
+        TextView button = text(context, 18, Color.WHITE, true);
         button.setText(label);
         button.setGravity(Gravity.CENTER);
-        button.setPadding(dp(12), 0, dp(12), 0);
+        button.setIncludeFontPadding(false);
         GradientDrawable shape = new GradientDrawable();
-        shape.setCornerRadius(dp(16));
-        shape.setColor(0x33FFFFFF);
+        shape.setShape(GradientDrawable.OVAL);
+        shape.setColor(0x2EFFFFFF);
         button.setBackground(shape);
+        button.setContentDescription(context.getString(description));
         button.setOnClickListener(v -> setOffset(mOffsetMs + step));
         return button;
+    }
+
+    /** The first time the lyrics open: how to put them in time */
+    private void showSyncTipOnce() {
+        android.content.SharedPreferences prefs = mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE);
+        if (mLyrics != null && mLyrics.synced && !prefs.getBoolean("sync_tip", false)) {
+            prefs.edit().putBoolean("sync_tip", true).apply();
+            android.widget.Toast.makeText(mActivity, R.string.phone_music_sync_hint, android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private void setOffset(long offsetMs) {
@@ -821,7 +832,7 @@ final class PhoneMusicPlayer {
             return;
         }
         if (Math.abs(mOffsetMs) < 50) {
-            mSyncLabel.setText(R.string.phone_music_sync_hint);
+            mSyncLabel.setText(R.string.phone_music_sync);
         } else {
             mSyncLabel.setText(String.format(java.util.Locale.US, "%+.1fs", mOffsetMs / 1000f));
         }
@@ -866,6 +877,7 @@ final class PhoneMusicPlayer {
         mLyricChip.setVisibility(show ? View.INVISIBLE : (mLyrics != null && !mLyrics.isEmpty() ? View.VISIBLE : View.GONE));
         if (show) {
             mLyricsPanel.post(() -> highlightLyrics(mLyricIndex));
+            showSyncTipOnce();
         }
     }
 

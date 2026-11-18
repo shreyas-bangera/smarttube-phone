@@ -110,18 +110,35 @@ final class PhoneLyrics {
 
     private static Lyrics find(String title, String author, long durationMs) throws Exception {
         String artist = cleanArtist(author);
+        List<String> tracks = trackNames(title);
+        Character.UnicodeScript titleScript = script(title);
+
+        // 1. LRCLIB's own match: this song by this artist, its length within two seconds of the video's (the same
+        //    recording, so the same timing)
+        if (!TextUtils.isEmpty(artist) && durationMs > 0) {
+            for (String track : tracks) {
+                JSONObject exact = get(track, artist, durationMs);
+                if (exact != null && !TextUtils.isEmpty(exact.optString("syncedLyrics", ""))
+                        && scriptRank(exact.optString("syncedLyrics"), titleScript) <= 1) {
+                    Log.d(TAG, "synced lyrics (exact): " + exact.optString("trackName") + " / " + exact.optString("artistName"));
+                    return parseSynced(exact.optString("syncedLyrics"));
+                }
+            }
+        }
+
+        // 2. A search: the timed lyrics in a script you read (the title's, or Latin, then Devanagari; a version in
+        //    another script, or mixing scripts, last), and of those the one closest in length (another version, with
+        //    another intro or ending, puts every line off by that much). One step of script counts as 3 s of length.
         Set<String> queries = new LinkedHashSet<>();
-        for (String track : trackNames(title)) {
+        for (String track : tracks) {
             if (!TextUtils.isEmpty(artist)) {
                 queries.add(track + " " + artist);
             }
             queries.add(track);
         }
-        // The timed lyrics of the version closest in length to this video (the same recording, most likely: a version
-        // with another intro or ending puts every line off by that much)
         JSONObject plainOnly = null;
         JSONObject best = null;
-        double bestDiff = Double.MAX_VALUE;
+        double bestScore = Double.MAX_VALUE;
         for (String query : queries) {
             JSONArray results = search(query);
             for (int i = 0; results != null && i < results.length(); i++) {
@@ -131,22 +148,25 @@ final class PhoneLyrics {
                 if (diff >= 8_000 || item.optBoolean("instrumental", false)) {
                     continue;
                 }
-                if (!TextUtils.isEmpty(item.optString("syncedLyrics", ""))) {
-                    if (diff < bestDiff) {
+                String synced = item.optString("syncedLyrics", "");
+                if (!TextUtils.isEmpty(synced)) {
+                    double score = scriptRank(synced, titleScript) * 3_000 + diff + i * 100; // (LRCLIB's order a little)
+                    if (score < bestScore) {
                         best = item;
-                        bestDiff = diff;
+                        bestScore = score;
                     }
-                } else if (plainOnly == null && !TextUtils.isEmpty(item.optString("plainLyrics", ""))) {
+                } else if (plainOnly == null && !TextUtils.isEmpty(item.optString("plainLyrics", ""))
+                        && scriptRank(item.optString("plainLyrics"), titleScript) <= 1) {
                     plainOnly = item;
                 }
             }
-            if (best != null && bestDiff < 1_500) {
+            if (best != null && bestScore < 1_500) {
                 break; // as good as it gets
             }
         }
         if (best != null) {
             Log.d(TAG, "synced lyrics: " + best.optString("trackName") + " / " + best.optString("artistName")
-                    + ", length off by " + Math.round(bestDiff) + " ms");
+                    + ", score " + Math.round(bestScore));
             return parseSynced(best.optString("syncedLyrics"));
         }
         if (plainOnly != null) {
@@ -155,8 +175,72 @@ final class PhoneLyrics {
         return NONE;
     }
 
-    private static JSONArray search(String query) throws Exception {
-        URL url = new URL("https://lrclib.net/api/search?q=" + URLEncoder.encode(query, "UTF-8"));
+    /** LRCLIB's best record for this song, artist and length (within 2 s), or null */
+    private static JSONObject get(String track, String artist, long durationMs) throws Exception {
+        URL url = new URL("https://lrclib.net/api/get?track_name=" + URLEncoder.encode(track, "UTF-8")
+                + "&artist_name=" + URLEncoder.encode(artist, "UTF-8") + "&duration=" + Math.round(durationMs / 1000.0));
+        String body = fetch(url);
+        return body != null ? new JSONObject(body) : null;
+    }
+
+    /** 0: the title's script, or Latin; 1: Devanagari; 2: another script; one more when the lyrics mix scripts */
+    private static int scriptRank(String lyrics, Character.UnicodeScript titleScript) {
+        Map<Character.UnicodeScript, Integer> counts = new HashMap<>();
+        int letters = 0;
+        for (int i = 0; i < lyrics.length(); ) {
+            int cp = lyrics.codePointAt(i);
+            i += Character.charCount(cp);
+            if (!Character.isLetter(cp)) {
+                continue;
+            }
+            Character.UnicodeScript script = Character.UnicodeScript.of(cp);
+            counts.put(script, counts.containsKey(script) ? counts.get(script) + 1 : 1);
+            letters++;
+        }
+        if (letters == 0) {
+            return 3;
+        }
+        Character.UnicodeScript main = null;
+        int most = 0;
+        for (Map.Entry<Character.UnicodeScript, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > most) {
+                main = entry.getKey();
+                most = entry.getValue();
+            }
+        }
+        int rank = main == titleScript || main == Character.UnicodeScript.LATIN ? 0
+                : main == Character.UnicodeScript.DEVANAGARI ? 1 : 2;
+        if (most < letters * 0.85) {
+            rank++; // two scripts mixed: a messy version
+        }
+        return rank;
+    }
+
+    /** The script most of the letters are in */
+    private static Character.UnicodeScript script(String text) {
+        if (text == null) {
+            return Character.UnicodeScript.LATIN;
+        }
+        Map<Character.UnicodeScript, Integer> counts = new HashMap<>();
+        Character.UnicodeScript main = Character.UnicodeScript.LATIN;
+        int most = 0;
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            i += Character.charCount(cp);
+            if (Character.isLetter(cp)) {
+                Character.UnicodeScript script = Character.UnicodeScript.of(cp);
+                int count = counts.containsKey(script) ? counts.get(script) + 1 : 1;
+                counts.put(script, count);
+                if (count > most) {
+                    most = count;
+                    main = script;
+                }
+            }
+        }
+        return main;
+    }
+
+    private static String fetch(URL url) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setConnectTimeout(6_000);
         connection.setReadTimeout(8_000);
@@ -172,10 +256,15 @@ final class PhoneLyrics {
                     body.append(line).append('\n');
                 }
             }
-            return new JSONArray(body.toString());
+            return body.toString();
         } finally {
             connection.disconnect();
         }
+    }
+
+    private static JSONArray search(String query) throws Exception {
+        String body = fetch(new URL("https://lrclib.net/api/search?q=" + URLEncoder.encode(query, "UTF-8")));
+        return body != null ? new JSONArray(body) : null;
     }
 
     private static final Pattern TIME = Pattern.compile("\\[(\\d+):(\\d+)(?:[.:](\\d+))?]");

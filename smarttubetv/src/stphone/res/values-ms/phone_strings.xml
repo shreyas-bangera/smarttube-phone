@@ -212,5 +212,8 @@
     <string name="phone_music_search_hint">Cari lagu, artis atau senarai main</string>
     <string name="phone_music_search">Cari muzik</string>
     <string name="phone_music_synced">Lirik diselaraskan dengan baris ini</string>
-    <string name="phone_music_sync_hint">Tahan baris yang dinyanyikan untuk selaras</string>
+    <string name="phone_music_sync_hint">Lirik tidak selaras? Tahan baris yang dinyanyikan, atau guna − dan + di atas</string>
+    <string name="phone_music_sync">Selaras</string>
+    <string name="phone_music_sync_earlier">Lirik lebih awal</string>
+    <string name="phone_music_sync_later">Lirik lebih lewat</string>
 </resources>
