@@ -140,6 +140,12 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final RecyclerView.RecycledViewPool mInnerPool = new RecyclerView.RecycledViewPool();
     private int mMode = MODE_FLAT;
     private final PhoneMusicFeed mMusic = new PhoneMusicFeed();
+    /** A music playlist: a note on each duration badge, like YouTube */
+    private boolean mMusicBadges;
+
+    public void setMusicBadges(boolean music) {
+        mMusicBadges = music;
+    }
     private Video mSelectedStripItem;
 
     public FeedAdapter(Listener listener) {
@@ -730,6 +736,12 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         } else {
             Video video = (Video) item;
             PhoneUi.bindCard(holder.itemView, video);
+            if (mMusicBadges) {
+                TextView badge = holder.itemView.findViewById(R.id.phone_badge);
+                if (badge != null && badge.getVisibility() == View.VISIBLE && !badge.getText().toString().startsWith("♪")) {
+                    badge.setText("♪ " + badge.getText());
+                }
+            }
             if (type == VT_ROW && mHiddenAuthor != null) {
                 TextView meta = holder.itemView.findViewById(R.id.phone_meta);
                 String text = meta.getText().toString();

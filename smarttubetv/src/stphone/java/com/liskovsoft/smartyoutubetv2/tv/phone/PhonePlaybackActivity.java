@@ -120,6 +120,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             updateProgress();
             syncPlaybackService();
             logShortTiming();
+            syncMusicPlayer();
             peekTick();
             shortsAutoAdvance();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
@@ -180,6 +181,58 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         // The next Short, loaded in a second hidden player (above both pictures, below the Shorts overlay)
         mPeek = new PhoneShortsPeek(this, mVideoBox, 3);
+        mMusicPlayer = new PhoneMusicPlayer(this, new PhoneMusicPlayer.Host() {
+            @Override
+            public com.google.android.exoplayer2.SimpleExoPlayer exo() {
+                return exoPlayer();
+            }
+
+            @Override
+            public Video video() {
+                return currentVideo();
+            }
+
+            @Override
+            public void togglePlay() {
+                PhonePlaybackActivity.this.togglePlay();
+            }
+
+            @Override
+            public void next() {
+                presenter().onNextClicked();
+            }
+
+            @Override
+            public void previous() {
+                presenter().onPreviousClicked();
+            }
+
+            @Override
+            public void like() {
+                clickButton(R.id.action_thumbs_up);
+            }
+
+            @Override
+            public boolean liked() {
+                return getButtonState(R.id.action_thumbs_up) == PlayerUI.BUTTON_ON;
+            }
+
+            @Override
+            public void minimize() {
+                mMusicPlayer.show(false);
+                if (canMinimizeToCard()) {
+                    minimizeToCard();
+                } else {
+                    onBackPressed();
+                }
+            }
+
+            @Override
+            public void showVideo() {
+                mMusicMode = false;
+                mMusicPlayer.show(false);
+            }
+        });
         // Spinning circle over the thumbnail while the video loads, and while it buffers
         mLoading = new android.widget.ProgressBar(this);
         mLoading.setIndeterminate(true);
@@ -365,6 +418,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mPeek != null) {
             mPeek.release(exoPlayer());
         }
+        if (mMusicPlayer != null) {
+            mMusicPlayer.release();
+        }
         unregisterPipReceiver();
         stopPlaybackService();
         if (mPlayPauseReceiver != null) {
@@ -406,6 +462,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     @Override
     public void onBackPressed() {
+        if (mMusicPlayer != null && mMusicPlayer.onBack()) {
+            return; // the full lyrics close first
+        }
         if (!mPortrait && !isPip()) {
             // Leave full screen first, like the YouTube app
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -861,6 +920,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public boolean dispatchTouchEvent(MotionEvent event) {
         if (mMinimizing) {
             return true; // on its way into the mini player
+        }
+        if (mMusicPlayer != null && mMusicPlayer.isShown()) {
+            return super.dispatchTouchEvent(event); // the music player handles its own touches
         }
         if (mVideoBox == null || isPip()) {
             return super.dispatchTouchEvent(event);
@@ -2467,6 +2529,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }, Math.max(0, left - 150));
     }
 
+    private PhoneMusicPlayer mMusicPlayer;
+    /** Songs opened from the Music page play in the music player (until a video is opened from elsewhere) */
+    private boolean mMusicMode;
+
+    private void syncMusicPlayer() {
+        if (mMusicPlayer == null) {
+            return;
+        }
+        boolean show = mMusicMode && !mShortsMode && !isPip() && !mMinimized && !mMinimizing && currentVideo() != null;
+        mMusicPlayer.show(show);
+    }
+
     /** The main player has the Short now and draws it: its picture is no longer needed */
     private void afterPeek() {
         if (mPoster != null) {
@@ -3360,6 +3434,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mAdapter != null && video != null) {
             mAdapter.setExcludedVideoId(video.videoId);
         }
+        Boolean music = PhoneMusic.consumeChoice(); // opened from the Music page: the music player
+        if (music != null) {
+            mMusicMode = music;
+        }
+        syncMusicPlayer();
         refreshDetails();
         if (mShortsMode) {
             preloadNextShorts();

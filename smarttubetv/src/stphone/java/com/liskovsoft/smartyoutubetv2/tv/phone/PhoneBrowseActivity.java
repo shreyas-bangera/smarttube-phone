@@ -1429,6 +1429,10 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (mCurrentTab == TAB_YOU && mYouDashboard) {
             mBackToYou = true; // before the presenter acts on the click (it re-selects Home right away)
         }
+        if (isSection(MediaGroup.TYPE_MUSIC) && video != null) {
+            // From the Music page: songs play in the music player, playlists open as music playlists
+            PhoneMusic.markMusic(PhoneMusicFeed.isPlaylist(video) ? video.getTitle() : getString(R.string.phone_music_title));
+        }
         PhoneUi.prepareExpandLaunch(video);
         mPresenter.onVideoItemSelected(video);
         mPresenter.onVideoItemClicked(video);

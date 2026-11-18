@@ -201,4 +201,12 @@
     <string name="phone_music_shuffle">Aleatório</string>
     <string name="phone_music_playlist">Playlist</string>
     <string name="phone_music_tracks">%1$s faixas</string>
+    <string name="phone_music_playing_from">Tocando de</string>
+    <string name="phone_music_video">Vídeo</string>
+    <string name="phone_music_lyrics">Letra</string>
+    <string name="phone_music_lyrics_loading">Procurando a letra…</string>
+    <string name="phone_music_lyrics_none">Sem letra para esta música</string>
+    <string name="phone_music_play_all">Tocar tudo</string>
+    <string name="phone_music_videos">Playlist · %1$s</string>
+    <string name="phone_music_share">Compartilhar</string>
 </resources>

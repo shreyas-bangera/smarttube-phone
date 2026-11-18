@@ -57,6 +57,7 @@ final class PhoneUi {
             thumb = itemView.findViewById(R.id.phone_thumb);
         }
         sLastClickedThumb = new java.lang.ref.WeakReference<>(thumb != null ? thumb : itemView);
+        PhoneMusic.onCardClick(); // a regular video, unless the Music page says otherwise right after
     }
 
     /**

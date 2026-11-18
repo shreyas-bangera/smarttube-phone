@@ -201,4 +201,12 @@
     <string name="phone_music_shuffle">Shuffle</string>
     <string name="phone_music_playlist">Playlist</string>
     <string name="phone_music_tracks">%1$s tracks</string>
+    <string name="phone_music_playing_from">Playing from</string>
+    <string name="phone_music_video">Video</string>
+    <string name="phone_music_lyrics">Lyrics</string>
+    <string name="phone_music_lyrics_loading">Looking for the lyrics…</string>
+    <string name="phone_music_lyrics_none">No lyrics for this song</string>
+    <string name="phone_music_play_all">Play all</string>
+    <string name="phone_music_videos">Playlist · %1$s</string>
+    <string name="phone_music_share">Share</string>
 </resources>

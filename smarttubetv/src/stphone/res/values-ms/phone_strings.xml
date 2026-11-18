@@ -194,4 +194,12 @@
     <string name="phone_music_shuffle">Rawak</string>
     <string name="phone_music_playlist">Senarai main</string>
     <string name="phone_music_tracks">%1$s lagu</string>
+    <string name="phone_music_playing_from">Dimainkan dari</string>
+    <string name="phone_music_video">Video</string>
+    <string name="phone_music_lyrics">Lirik</string>
+    <string name="phone_music_lyrics_loading">Mencari lirik…</string>
+    <string name="phone_music_lyrics_none">Tiada lirik untuk lagu ini</string>
+    <string name="phone_music_play_all">Main semua</string>
+    <string name="phone_music_videos">Senarai main · %1$s</string>
+    <string name="phone_music_share">Kongsi</string>
 </resources>
