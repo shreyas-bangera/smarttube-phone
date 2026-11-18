@@ -218,9 +218,4 @@
     <string name="phone_music_search_off">Music search off: results open as videos</string>
     <string name="phone_music_search_hint">Search songs, artists or playlists</string>
     <string name="phone_music_search">Search music</string>
-    <string name="phone_music_synced">Lyrics synced to this line</string>
-    <string name="phone_music_sync_hint">Lyrics out of time? Hold the line being sung, or use − and + at the top</string>
-    <string name="phone_music_sync">Sync</string>
-    <string name="phone_music_sync_earlier">Lyrics earlier</string>
-    <string name="phone_music_sync_later">Lyrics later</string>
 </resources>

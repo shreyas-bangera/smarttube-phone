@@ -218,9 +218,4 @@
     <string name="phone_music_search_off">Busca de música desativada: os resultados abrem como vídeos</string>
     <string name="phone_music_search_hint">Busque músicas, artistas ou playlists</string>
     <string name="phone_music_search">Buscar música</string>
-    <string name="phone_music_synced">Letra sincronizada com esta linha</string>
-    <string name="phone_music_sync_hint">Letra fora do tempo? Segure a linha cantada, ou use − e + no topo</string>
-    <string name="phone_music_sync">Sincronizar</string>
-    <string name="phone_music_sync_earlier">Letra antes</string>
-    <string name="phone_music_sync_later">Letra depois</string>
 </resources>

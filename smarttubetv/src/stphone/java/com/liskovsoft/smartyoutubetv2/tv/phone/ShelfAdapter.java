@@ -23,6 +23,8 @@ class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
     static final int STYLE_CARD = 10;
     static final int STYLE_SHORT = 11;
     static final int STYLE_AVATAR = 12;
+    /** A small video card, about two and a half to a screen, like the YouTube app's History row in You */
+    static final int STYLE_COMPACT = 13;
 
     interface SelectionProvider {
         Video getSelected();
@@ -78,6 +80,14 @@ class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
             params.width = (int) (parentWidth * 0.40f);
             view.setLayoutParams(params);
+        } else if (viewType == STYLE_COMPACT) {
+            view = inflater.inflate(R.layout.phone_item_shelf_card, parent, false);
+            float dp = parent.getResources().getDisplayMetrics().density;
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+            params.width = Math.max((int) (150 * dp), (int) (parentWidth * 0.42f));
+            params.setMarginEnd((int) (10 * dp));
+            view.setLayoutParams(params);
+            compact(view, dp);
         } else {
             view = inflater.inflate(R.layout.phone_item_shelf_card, parent, false);
             ViewGroup.LayoutParams params = view.getLayoutParams();
@@ -138,6 +148,30 @@ class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
             mListener.onVideoLongClicked(video);
             return true;
         });
+    }
+
+    /** Smaller words under the picture: the title in two lines, one line under it, a small menu button */
+    private static void compact(View card, float dp) {
+        TextView title = card.findViewById(R.id.phone_title);
+        TextView meta = card.findViewById(R.id.phone_meta);
+        View more = card.findViewById(R.id.phone_more);
+        if (title != null) {
+            title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+            ((View) title.getParent().getParent()).setPadding((int) (2 * dp), (int) (8 * dp), 0, 0);
+        }
+        if (meta != null) {
+            meta.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+            meta.setMaxLines(1);
+            ((ViewGroup.MarginLayoutParams) meta.getLayoutParams()).topMargin = (int) (2 * dp);
+        }
+        if (more != null) {
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) more.getLayoutParams();
+            params.width = (int) (30 * dp);
+            params.height = (int) (30 * dp);
+            params.setMarginEnd(0);
+            params.topMargin = (int) (-6 * dp);
+            more.setPadding((int) (7 * dp), (int) (7 * dp), (int) (7 * dp), (int) (7 * dp));
+        }
     }
 
     static final class Holder extends RecyclerView.ViewHolder {

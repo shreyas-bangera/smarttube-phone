@@ -118,10 +118,8 @@ final class PhoneMusicPlayer {
     private PhoneLyrics.Lyrics mLyrics;
     private int mLyricIndex = -2;
     /** How much later than their own times the lyrics show for this song (set by the user, kept per song) */
-    private long mOffsetMs;
     /** timed() when the lines were last drawn: they're redrawn when it changes (the length becomes known) */
     private boolean mDrawnTimed;
-    private TextView mSyncLabel;
     /** Behind the sync control and the little artwork: the panel's colour fading out, the lines slide under it */
     private View mLyricsHeader;
     private int mColor = 0xFF3A3A3A;
@@ -255,10 +253,6 @@ final class PhoneMusicPlayer {
         mLyricsHeader = new View(context);
         mLyricsPanel.addView(mLyricsHeader, mLyricsPanel.indexOfChild(mBackToArt),
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88), Gravity.TOP));
-        FrameLayout.LayoutParams syncParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
-        syncParams.setMargins(dp(12), dp(16), 0, 0); // level with the little artwork, top right
-        mLyricsPanel.addView(createSyncBar(context), syncParams);
         mStage.addView(mLyricsPanel, match());
 
         // Title, artist, like
@@ -468,8 +462,6 @@ final class PhoneMusicPlayer {
         mArtist.setText(artist != null ? artist : "");
         mLyrics = null;
         mLyricIndex = -2;
-        mOffsetMs = loadOffset(video.videoId);
-        showOffset();
         mLyricsList.removeAllViews();
         mLyricChip.setVisibility(View.GONE);
         if (mLyricsOpen) {
@@ -713,8 +705,7 @@ final class PhoneMusicPlayer {
             fillLyrics(); // the playing length is known now: the lines light up, or don't
             android.util.Log.d("PhoneLyrics", "playing " + playingMs() / 1000 + " s, lyrics timed to "
                     + mLyrics.lengthMs / 1000 + " s: " + (fits() ? "in time" : introMs() > 0 ? "after an intro of "
-                    + introMs() + " ms" : timed() ? "synced by hand" : "not in time"));
-            showOffset();
+                    + introMs() + " ms" : "not in time"));
             force = true;
         }
         int index = timed() ? mLyrics.indexAt(position - offset()) : 0;
@@ -766,16 +757,6 @@ final class PhoneMusicPlayer {
                         exo.seekTo(Math.max(0, line.timeMs + offset())); // tap a line: the song goes there
                     }
                 });
-                view.setOnLongClickListener(v -> {
-                    // Long press the line being sung right now: the lyrics are in time from here on
-                    SimpleExoPlayer exo = mHost.exo();
-                    if (exo != null) {
-                        setOffset(exo.getCurrentPosition() - line.timeMs);
-                        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                        android.widget.Toast.makeText(mActivity, R.string.phone_music_synced, android.widget.Toast.LENGTH_SHORT).show();
-                    }
-                    return true;
-                });
             }
             mLyricsList.addView(view);
         }
@@ -798,77 +779,17 @@ final class PhoneMusicPlayer {
         }
     }
 
-    // Sync: the lyrics a little earlier or later (another version of the song has another intro)
-
-    /** Top left of the lyrics (the artwork is top right): − Sync + */
-    private View createSyncBar(Context context) {
-        LinearLayout bar = new LinearLayout(context);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(4), dp(4), dp(4), dp(4));
-        GradientDrawable shape = new GradientDrawable();
-        shape.setCornerRadius(dp(22));
-        shape.setColor(0x47000000);
-        shape.setStroke(dp(1), 0x26FFFFFF);
-        bar.setBackground(shape);
-        bar.addView(syncButton(context, "−", -500, R.string.phone_music_sync_earlier), new LinearLayout.LayoutParams(dp(32), dp(32)));
-        mSyncLabel = text(context, 13, Color.WHITE, true);
-        mSyncLabel.setGravity(Gravity.CENTER);
-        mSyncLabel.setMinWidth(dp(48));
-        mSyncLabel.setPadding(dp(6), 0, dp(6), 0);
-        mSyncLabel.setOnClickListener(v -> setOffset(0)); // tap: back to the lyrics' own times
-        bar.addView(mSyncLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
-        bar.addView(syncButton(context, "+", 500, R.string.phone_music_sync_later), new LinearLayout.LayoutParams(dp(32), dp(32)));
-        return bar;
-    }
-
-    private TextView syncButton(Context context, String label, long step, int description) {
-        TextView button = text(context, 18, Color.WHITE, true);
-        button.setText(label);
-        button.setGravity(Gravity.CENTER);
-        button.setIncludeFontPadding(false);
-        GradientDrawable shape = new GradientDrawable();
-        shape.setShape(GradientDrawable.OVAL);
-        shape.setColor(0x2EFFFFFF);
-        button.setBackground(shape);
-        button.setContentDescription(context.getString(description));
-        button.setOnClickListener(v -> setOffset(offset() + step));
-        return button;
-    }
-
-    /** The first time the lyrics open: how to put them in time */
-    private void showSyncTipOnce() {
-        android.content.SharedPreferences prefs = mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE);
-        if (mLyrics != null && mLyrics.synced && !prefs.getBoolean("sync_tip", false)) {
-            prefs.edit().putBoolean("sync_tip", true).apply();
-            android.widget.Toast.makeText(mActivity, R.string.phone_music_sync_hint, android.widget.Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void setOffset(long offsetMs) {
-        boolean wasTimed = timed();
-        mOffsetMs = Math.max(-60_000, Math.min(60_000, offsetMs));
-        if (mOffsetMs == 0 && mLyrics != null && !fits()) {
-            mOffsetMs = 1; // synced by hand right on the lyrics' own times: still in time from now on
-        }
-        saveOffset(mVideoId, mOffsetMs);
-        showOffset();
-        if (wasTimed != timed()) {
-            fillLyrics(); // the lines light up from now on
-        }
-        updateLyrics(true);
-    }
-
     /**
-     * The lines light up as they're sung: timed lyrics whose timing is this video's (see PhoneLyrics.onThisVideo), or
-     * that the listener put in time
+     * The lines light up as they're sung: timed lyrics whose timing is what's playing (see PhoneLyrics.onThisVideo),
+     * or moved past a music video's intro
      */
     private boolean timed() {
-        return mLyrics != null && mLyrics.synced && (mOffsetMs != 0 || fits() || introMs() > 0);
+        return mLyrics != null && mLyrics.synced && (fits() || introMs() > 0);
     }
 
-    /** How far the lines are moved: the listener's sync, else past the video's intro (see introMs) */
+    /** How far the lines are moved: past a music video's intro (see introMs) */
     private long offset() {
-        return mOffsetMs != 0 ? mOffsetMs : introMs();
+        return introMs();
     }
 
     /** The playing length, or 0 while not known */
@@ -903,35 +824,6 @@ final class PhoneMusicPlayer {
         return extra > 3_000 && extra <= 45_000 ? extra : 0;
     }
 
-    private void showOffset() {
-        if (mSyncLabel == null) {
-            return;
-        }
-        long offset = offset();
-        if (Math.abs(offset) < 50) {
-            mSyncLabel.setText(R.string.phone_music_sync);
-        } else {
-            mSyncLabel.setText(String.format(java.util.Locale.US, "%+.1fs", offset / 1000f));
-        }
-    }
-
-    private long loadOffset(String videoId) {
-        return videoId == null ? 0 : mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE).getLong("offset_" + videoId, 0);
-    }
-
-    private void saveOffset(String videoId, long offsetMs) {
-        if (videoId == null) {
-            return;
-        }
-        android.content.SharedPreferences.Editor editor = mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE).edit();
-        if (offsetMs == 0) {
-            editor.remove("offset_" + videoId);
-        } else {
-            editor.putLong("offset_" + videoId, offsetMs);
-        }
-        editor.apply();
-    }
-
     /** The lyrics take the artwork's place (or give it back) */
     private void showLyrics(boolean show) {
         if (show && (mLyrics == null || mLyrics.isEmpty())) {
@@ -954,7 +846,6 @@ final class PhoneMusicPlayer {
         mLyricChip.setVisibility(show ? View.INVISIBLE : (mLyrics != null && !mLyrics.isEmpty() ? View.VISIBLE : View.GONE));
         if (show) {
             mLyricsPanel.post(() -> highlightLyrics(mLyricIndex));
-            showSyncTipOnce();
         }
     }
 

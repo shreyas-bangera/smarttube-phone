@@ -75,7 +75,7 @@ final class PhoneYouDashboard {
         mView.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         mView.setPadding(0, 0, 0, dp(16));
 
-        mHistoryAdapter = new ShelfAdapter(mHistory, ShelfAdapter.STYLE_CARD, callback.listener(), null);
+        mHistoryAdapter = new ShelfAdapter(mHistory, ShelfAdapter.STYLE_COMPACT, callback.listener(), null);
         mHistoryShelf = historyShelf();
         mView.addView(mHistoryShelf);
 

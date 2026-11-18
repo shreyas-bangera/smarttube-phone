@@ -115,7 +115,141 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         if (host != null) {
             host.onPlayerVideo(video);
         }
+        refreshCarInfo();
     }
+
+    // region What cars, Bluetooth devices and watches show
+
+    private Object mInfoConnector;
+    private Object mInfoPlayer;
+    private String mArtVideoId;
+    private android.graphics.Bitmap mArt;
+
+    /**
+     * Sends the song's (or video's) title, artist, length and artwork to the media session again. SmartTube sent
+     * them only when the stream's timeline changed, often before the video was known, so a car's Bluetooth screen
+     * showed "Unavailable"; now they go again when the video changes, when it starts playing and when the
+     * artwork loads, never empty.
+     */
+    public void refreshCarInfo() {
+        com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector connector = connector();
+        if (connector == null) {
+            return;
+        }
+        if (connector != mInfoConnector) {
+            mInfoConnector = connector;
+            connector.setMediaMetadataProvider(player -> carInfo(player));
+        }
+        com.google.android.exoplayer2.SimpleExoPlayer exo = getExoPlayer();
+        if (exo != null && exo != mInfoPlayer) {
+            mInfoPlayer = exo;
+            exo.addListener(new com.google.android.exoplayer2.Player.EventListener() {
+                @Override
+                public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+                    if (playbackState == com.google.android.exoplayer2.Player.STATE_READY) {
+                        refreshCarInfo(); // the length is known now
+                    }
+                }
+            });
+        }
+        connector.invalidateMediaSessionMetadata();
+        loadArt();
+    }
+
+    private com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector connector() {
+        try {
+            java.lang.reflect.Field field = PlaybackFragment.class.getDeclaredField("mMediaSessionConnector");
+            field.setAccessible(true);
+            Object connector = field.get(this);
+            return connector instanceof com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
+                    ? (com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector) connector : null;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    private android.support.v4.media.MediaMetadataCompat carInfo(com.google.android.exoplayer2.Player player) {
+        Video video = getVideo();
+        if (video == null) {
+            return null;
+        }
+        String app = getString(com.liskovsoft.smartyoutubetv2.tv.R.string.app_name);
+        String title = video.getTitleFull();
+        if (android.text.TextUtils.isEmpty(title)) {
+            title = video.getTitle();
+        }
+        String artist = video.getAuthor();
+        if (android.text.TextUtils.isEmpty(artist) && video.getSecondTitleFull() != null) {
+            artist = video.getSecondTitleFull().toString().split(" \u2022 ")[0].trim();
+        }
+        if (PhoneMusic.wantsMusic()) {
+            // A song: its own name and singer, not "Song (Official Video) | Film | Label"
+            String song = PhoneLyrics.displayTitle(title);
+            String singer = PhoneLyrics.cleanArtist(artist);
+            title = !android.text.TextUtils.isEmpty(song) ? song : title;
+            artist = !android.text.TextUtils.isEmpty(singer) ? singer : artist;
+        }
+        if (android.text.TextUtils.isEmpty(title)) {
+            title = app;
+        }
+        if (android.text.TextUtils.isEmpty(artist)) {
+            artist = app;
+        }
+        android.support.v4.media.MediaMetadataCompat.Builder info = new android.support.v4.media.MediaMetadataCompat.Builder()
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, video.videoId)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artist)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, artist)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, app)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
+                        "https://i.ytimg.com/vi/" + video.videoId + "/hqdefault.jpg");
+        long duration = player != null ? player.getDuration() : 0;
+        if (duration > 0) {
+            info.putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+        }
+        if (mArt != null && video.videoId != null && video.videoId.equals(mArtVideoId)) {
+            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, mArt);
+            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, mArt);
+        }
+        return info.build();
+    }
+
+    /** The artwork as a picture (cars and watches show it; most can't fetch a link) */
+    private void loadArt() {
+        Video video = getVideo();
+        android.content.Context context = getContext();
+        if (video == null || video.videoId == null || context == null || video.videoId.equals(mArtVideoId)) {
+            return;
+        }
+        String id = video.videoId;
+        mArtVideoId = id;
+        mArt = null;
+        com.bumptech.glide.Glide.with(context.getApplicationContext())
+                .asBitmap()
+                .load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg")
+                .override(320, 240)
+                .into(new com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
+                    @Override
+                    public void onResourceReady(@androidx.annotation.NonNull android.graphics.Bitmap bitmap,
+                            @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super android.graphics.Bitmap> transition) {
+                        if (id.equals(mArtVideoId)) {
+                            mArt = bitmap;
+                            com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector connector = connector();
+                            if (connector != null) {
+                                connector.invalidateMediaSessionMetadata();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onLoadCleared(@androidx.annotation.Nullable android.graphics.drawable.Drawable placeholder) {
+                    }
+                });
+    }
+
+    // endregion
 
     @Override
     public void updateSuggestions(VideoGroup group) {
