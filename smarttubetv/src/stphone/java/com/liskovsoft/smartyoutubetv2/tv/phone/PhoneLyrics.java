@@ -108,27 +108,55 @@ final class PhoneLyrics {
         });
     }
 
+    /** A version of the lyrics LRCLIB has, with what decides between them */
+    private static final class Candidate {
+        final JSONObject item;
+        final String lyrics;
+        final boolean synced;
+        final double lengthDiff;
+        final int order;
+        final Character.UnicodeScript script;
+        final boolean mixed;
+
+        Candidate(JSONObject item, String lyrics, boolean synced, double lengthDiff, int order) {
+            this.item = item;
+            this.lyrics = lyrics;
+            this.synced = synced;
+            this.lengthDiff = lengthDiff;
+            this.order = order;
+            Object[] main = mainScript(lyrics);
+            this.script = (Character.UnicodeScript) main[0];
+            this.mixed = (Boolean) main[1];
+        }
+    }
+
+    /**
+     * The lyrics in the song's own language, timed to this recording:
+     * <ol>
+     *     <li>All the versions LRCLIB has: its own match for this song, artist and length, then search results.</li>
+     *     <li>The song's language: the title's script when it isn't Latin; otherwise the script most versions are
+     *     written in, other than Latin (a Hindi song: Devanagari; Punjabi: Gurmukhi; Korean: Hangul); Latin when they're
+     *     all in Latin (an English or Spanish song).</li>
+     *     <li>Of the versions in that script (then romanized ones, then any other; never mixed scripts first), the
+     *     timed one closest in length to the video: another version, with another intro or ending, puts every line
+     *     off by that much.</li>
+     * </ol>
+     */
     private static Lyrics find(String title, String author, long durationMs) throws Exception {
         String artist = cleanArtist(author);
         List<String> tracks = trackNames(title);
-        Character.UnicodeScript titleScript = script(title);
+        List<Candidate> candidates = new ArrayList<>();
+        int order = 0;
 
-        // 1. LRCLIB's own match: this song by this artist, its length within two seconds of the video's (the same
-        //    recording, so the same timing)
         if (!TextUtils.isEmpty(artist) && durationMs > 0) {
             for (String track : tracks) {
                 JSONObject exact = get(track, artist, durationMs);
-                if (exact != null && !TextUtils.isEmpty(exact.optString("syncedLyrics", ""))
-                        && scriptRank(exact.optString("syncedLyrics"), titleScript) <= 1) {
-                    Log.d(TAG, "synced lyrics (exact): " + exact.optString("trackName") + " / " + exact.optString("artistName"));
-                    return parseSynced(exact.optString("syncedLyrics"));
+                if (exact != null) {
+                    addCandidate(candidates, exact, durationMs, order++);
+                    break;
                 }
             }
         }
-
-        // 2. A search: the timed lyrics in a script you read (the title's, or Latin, then Devanagari; a version in
-        //    another script, or mixing scripts, last), and of those the one closest in length (another version, with
-        //    another intro or ending, puts every line off by that much). One step of script counts as 3 s of length.
         Set<String> queries = new LinkedHashSet<>();
         for (String track : tracks) {
             if (!TextUtils.isEmpty(artist)) {
@@ -136,43 +164,130 @@ final class PhoneLyrics {
             }
             queries.add(track);
         }
-        JSONObject plainOnly = null;
-        JSONObject best = null;
-        double bestScore = Double.MAX_VALUE;
+        int queried = 0;
         for (String query : queries) {
             JSONArray results = search(query);
             for (int i = 0; results != null && i < results.length(); i++) {
-                JSONObject item = results.getJSONObject(i);
-                double seconds = item.optDouble("duration", 0);
-                double diff = durationMs <= 0 || seconds <= 0 ? 4_000 : Math.abs(seconds * 1000 - durationMs);
-                if (diff >= 8_000 || item.optBoolean("instrumental", false)) {
+                addCandidate(candidates, results.getJSONObject(i), durationMs, order++);
+            }
+            if (++queried >= 2 && countSynced(candidates) >= 3) {
+                break; // enough to choose from
+            }
+        }
+        if (candidates.isEmpty()) {
+            return NONE;
+        }
+
+        Character.UnicodeScript language = songScript(title, candidates);
+        Candidate best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (Candidate candidate : candidates) {
+            int rank = candidate.script == language ? 0 : candidate.script == Character.UnicodeScript.LATIN ? 1 : 3;
+            if (candidate.mixed) {
+                rank += 2;
+            }
+            if (!candidate.synced) {
+                rank += 1; // words without times: only when nothing timed fits
+            }
+            double score = rank * 4_000 + candidate.lengthDiff + candidate.order * 30;
+            if (score < bestScore) {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+        Log.d(TAG, "lyrics: " + best.item.optString("trackName") + " / " + best.item.optString("artistName") + ", "
+                + best.script + (best.mixed ? " (mixed)" : "") + " for a song in " + language + ", length off by "
+                + Math.round(best.lengthDiff) + " ms, of " + candidates.size() + " versions");
+        return best.synced ? parseSynced(best.lyrics) : parsePlain(best.lyrics);
+    }
+
+    private static void addCandidate(List<Candidate> candidates, JSONObject item, long durationMs, int order) {
+        if (item.optBoolean("instrumental", false)) {
+            return;
+        }
+        for (Candidate existing : candidates) {
+            if (existing.item.optLong("id", -1) == item.optLong("id", -2)) {
+                return; // already there (the exact match comes up in the search too)
+            }
+        }
+        double seconds = item.optDouble("duration", 0);
+        double diff = durationMs <= 0 || seconds <= 0 ? 4_000 : Math.abs(seconds * 1000 - durationMs);
+        if (diff >= 8_000) {
+            return; // another recording
+        }
+        String synced = item.optString("syncedLyrics", "");
+        String plain = item.optString("plainLyrics", "");
+        if (!TextUtils.isEmpty(synced)) {
+            candidates.add(new Candidate(item, synced, true, diff, order));
+        } else if (!TextUtils.isEmpty(plain)) {
+            candidates.add(new Candidate(item, plain, false, diff, order));
+        }
+    }
+
+    private static int countSynced(List<Candidate> candidates) {
+        int count = 0;
+        for (Candidate candidate : candidates) {
+            if (candidate.synced) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** The script the song's language is written in (see find) */
+    private static Character.UnicodeScript songScript(String title, List<Candidate> candidates) {
+        Character.UnicodeScript titleScript = (Character.UnicodeScript) mainScript(title)[0];
+        if (titleScript != Character.UnicodeScript.LATIN && titleScript != Character.UnicodeScript.COMMON) {
+            return titleScript;
+        }
+        Map<Character.UnicodeScript, Integer> votes = new HashMap<>();
+        Map<Character.UnicodeScript, Integer> firstSeen = new HashMap<>();
+        for (Candidate candidate : candidates) {
+            if (candidate.mixed || candidate.script == Character.UnicodeScript.LATIN) {
+                continue;
+            }
+            votes.put(candidate.script, votes.containsKey(candidate.script) ? votes.get(candidate.script) + 1 : 1);
+            if (!firstSeen.containsKey(candidate.script)) {
+                firstSeen.put(candidate.script, candidate.order);
+            }
+        }
+        Character.UnicodeScript best = Character.UnicodeScript.LATIN;
+        int bestVotes = 0;
+        for (Map.Entry<Character.UnicodeScript, Integer> entry : votes.entrySet()) {
+            int count = entry.getValue();
+            if (count > bestVotes || (count == bestVotes && firstSeen.get(entry.getKey()) < firstSeen.get(best))) {
+                best = entry.getKey();
+                bestVotes = count;
+            }
+        }
+        return best;
+    }
+
+    /** The script most of the letters are in, and whether a second script has a real share of them */
+    private static Object[] mainScript(String text) {
+        Map<Character.UnicodeScript, Integer> counts = new HashMap<>();
+        int letters = 0;
+        if (text != null) {
+            for (int i = 0; i < text.length(); ) {
+                int cp = text.codePointAt(i);
+                i += Character.charCount(cp);
+                if (!Character.isLetter(cp)) {
                     continue;
                 }
-                String synced = item.optString("syncedLyrics", "");
-                if (!TextUtils.isEmpty(synced)) {
-                    double score = scriptRank(synced, titleScript) * 3_000 + diff + i * 100; // (LRCLIB's order a little)
-                    if (score < bestScore) {
-                        best = item;
-                        bestScore = score;
-                    }
-                } else if (plainOnly == null && !TextUtils.isEmpty(item.optString("plainLyrics", ""))
-                        && scriptRank(item.optString("plainLyrics"), titleScript) <= 1) {
-                    plainOnly = item;
-                }
-            }
-            if (best != null && bestScore < 1_500) {
-                break; // as good as it gets
+                Character.UnicodeScript script = Character.UnicodeScript.of(cp);
+                counts.put(script, counts.containsKey(script) ? counts.get(script) + 1 : 1);
+                letters++;
             }
         }
-        if (best != null) {
-            Log.d(TAG, "synced lyrics: " + best.optString("trackName") + " / " + best.optString("artistName")
-                    + ", score " + Math.round(bestScore));
-            return parseSynced(best.optString("syncedLyrics"));
+        Character.UnicodeScript main = Character.UnicodeScript.LATIN;
+        int most = 0;
+        for (Map.Entry<Character.UnicodeScript, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > most) {
+                main = entry.getKey();
+                most = entry.getValue();
+            }
         }
-        if (plainOnly != null) {
-            return parsePlain(plainOnly.optString("plainLyrics"));
-        }
-        return NONE;
+        return new Object[] {main, letters > 0 && most < letters * 0.85};
     }
 
     /** LRCLIB's best record for this song, artist and length (within 2 s), or null */
@@ -181,63 +296,6 @@ final class PhoneLyrics {
                 + "&artist_name=" + URLEncoder.encode(artist, "UTF-8") + "&duration=" + Math.round(durationMs / 1000.0));
         String body = fetch(url);
         return body != null ? new JSONObject(body) : null;
-    }
-
-    /** 0: the title's script, or Latin; 1: Devanagari; 2: another script; one more when the lyrics mix scripts */
-    private static int scriptRank(String lyrics, Character.UnicodeScript titleScript) {
-        Map<Character.UnicodeScript, Integer> counts = new HashMap<>();
-        int letters = 0;
-        for (int i = 0; i < lyrics.length(); ) {
-            int cp = lyrics.codePointAt(i);
-            i += Character.charCount(cp);
-            if (!Character.isLetter(cp)) {
-                continue;
-            }
-            Character.UnicodeScript script = Character.UnicodeScript.of(cp);
-            counts.put(script, counts.containsKey(script) ? counts.get(script) + 1 : 1);
-            letters++;
-        }
-        if (letters == 0) {
-            return 3;
-        }
-        Character.UnicodeScript main = null;
-        int most = 0;
-        for (Map.Entry<Character.UnicodeScript, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() > most) {
-                main = entry.getKey();
-                most = entry.getValue();
-            }
-        }
-        int rank = main == titleScript || main == Character.UnicodeScript.LATIN ? 0
-                : main == Character.UnicodeScript.DEVANAGARI ? 1 : 2;
-        if (most < letters * 0.85) {
-            rank++; // two scripts mixed: a messy version
-        }
-        return rank;
-    }
-
-    /** The script most of the letters are in */
-    private static Character.UnicodeScript script(String text) {
-        if (text == null) {
-            return Character.UnicodeScript.LATIN;
-        }
-        Map<Character.UnicodeScript, Integer> counts = new HashMap<>();
-        Character.UnicodeScript main = Character.UnicodeScript.LATIN;
-        int most = 0;
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            i += Character.charCount(cp);
-            if (Character.isLetter(cp)) {
-                Character.UnicodeScript script = Character.UnicodeScript.of(cp);
-                int count = counts.containsKey(script) ? counts.get(script) + 1 : 1;
-                counts.put(script, count);
-                if (count > most) {
-                    most = count;
-                    main = script;
-                }
-            }
-        }
-        return main;
     }
 
     private static String fetch(URL url) throws Exception {
