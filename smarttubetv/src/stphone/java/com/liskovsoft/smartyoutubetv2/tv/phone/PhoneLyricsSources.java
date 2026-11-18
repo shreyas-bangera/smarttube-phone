@@ -474,6 +474,8 @@ final class PhoneLyricsSources {
             if (best == null) {
                 return null;
             }
+            Log.d(TAG, "lrc.red: " + best.optString("track_name") + " / " + best.optString("artist_name") + ", "
+                    + best.optInt("duration") + " s");
             PhoneLyrics.Lyrics lyrics = enough(parseTtml(get(best.optString("lyricsUrl")), "Apple Music (lrc.red)"));
             if (lyrics != null) {
                 lyrics.lengthMs = best.optInt("duration", seconds) * 1000L;
@@ -605,7 +607,48 @@ final class PhoneLyricsSources {
         return !first.isEmpty() && letters(theirs).contains(first);
     }
 
+    private static final Pattern BRACKETED = Pattern.compile("[(\\[](.*?)[)\\]]");
+    private static final Pattern DASH_SUFFIX = Pattern.compile("\\s+[-\u2013\u2014]\\s+([^-\u2013\u2014(\\[]+)$");
+    private static final String[][] VERSIONS = {
+            {"live", "live"}, {"concert", "live"}, {"session", "live"}, {"unplugged", "unplugged"},
+            {"acoustic", "acoustic"}, {"remix", "remix"}, {"cover", "cover"}, {"karaoke", "karaoke"},
+            {"instrumental", "instrumental"}, {"slowed", "slowed"}, {"sped up", "sped"}, {"speed up", "sped"},
+            {"nightcore", "sped"}, {"demo", "demo"}, {"8d", "8d"}, {"reprise", "reprise"}, {"lofi", "lofi"},
+            {"lo-fi", "lofi"}};
+
+    /**
+     * Which recording a title names, from its brackets and dash suffix ("Perfect (Live at Wembley)": live), the way
+     * Flow tells them apart: a live or remixed version's lyrics (and timing) aren't the song's
+     */
+    static java.util.Set<String> versionTags(String title) {
+        java.util.Set<String> tags = new java.util.HashSet<>();
+        if (title == null) {
+            return tags;
+        }
+        List<String> parts = new ArrayList<>();
+        java.util.regex.Matcher brackets = BRACKETED.matcher(title);
+        while (brackets.find()) {
+            parts.add(brackets.group(1));
+        }
+        java.util.regex.Matcher dash = DASH_SUFFIX.matcher(title);
+        if (dash.find()) {
+            parts.add(dash.group(1));
+        }
+        for (String part : parts) {
+            String lower = " " + part.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}-]+", " ") + " ";
+            for (String[] version : VERSIONS) {
+                if (lower.contains(" " + version[0] + " ")) {
+                    tags.add(version[1]);
+                }
+            }
+        }
+        return tags;
+    }
+
     static boolean sameTitle(String theirs, String ours) {
+        if (!versionTags(theirs).equals(versionTags(ours))) {
+            return false; // another recording of it: live, a remix, slowed...
+        }
         List<String> names = PhoneLyrics.trackNames(theirs);
         String a = letters(names.isEmpty() ? theirs : names.get(0));
         String b = letters(ours);

@@ -60,7 +60,7 @@ song() {
 }
 
 song "perfect%sed%ssheeran" love
-song "fix%syou%scoldplay" sad
-song "party%srock%santhem%slmfao" party
+# song "fix%syou%scoldplay" sad (taken)
+# song "party%srock%santhem%slmfao" party (taken)
 
 adb logcat -d | grep -E "AndroidRuntime|FATAL|PhoneLyrics" | tail -80
