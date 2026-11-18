@@ -7,3 +7,4 @@
 - Playlists look like YouTube's now: big artwork, title and description at the top, with Play all, Shuffle and Share
 - Lyrics out of time with the singing? Use the Sync button above them (− and +), or long-press the line being sung; the app remembers it for that song
 - History, Settings and the other parts of the You tab open as their own pages
+- The music player feels the song: a quiet animation in the background follows its mood. Hearts drift up for love songs, soft rain falls for sad ones, sparkles twinkle for party songs, aurora waves for calm ones, rings pulse for energetic ones and embers rise for devotional ones. It pauses with the song

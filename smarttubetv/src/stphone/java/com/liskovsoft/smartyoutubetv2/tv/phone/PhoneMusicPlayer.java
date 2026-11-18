@@ -87,6 +87,8 @@ final class PhoneMusicPlayer {
     private final View mBackground;
     private final View mGlow;
     private final View mGlow2;
+    /** The song's mood, drawn faintly behind everything (see PhoneMood) */
+    private final PhoneMood.Backdrop mMood;
     private final LinearLayout mColumn;
     private final FrameLayout mStage;
     private final FrameLayout mArtFrame;
@@ -162,6 +164,8 @@ final class PhoneMusicPlayer {
         glow2Params.rightMargin = -glowSize / 3;
         glow2Params.bottomMargin = -glowSize / 4;
         mRoot.addView(mGlow2, glow2Params);
+        mMood = new PhoneMood.Backdrop(context);
+        mRoot.addView(mMood, match());
 
         ScrollView scroll = new ScrollView(context);
         scroll.setFillViewport(true);
@@ -471,6 +475,7 @@ final class PhoneMusicPlayer {
         if (mLyricsOpen) {
             showLyrics(false);
         }
+        mMood.setMood(PhoneMood.of(video.getTitle(), null)); // the title first, the lyrics when they come
 
         if (PhoneUi.isAlive(mActivity)) {
             String id = video.videoId;
@@ -506,6 +511,9 @@ final class PhoneMusicPlayer {
             if (videoId.equals(mVideoId)) {
                 mLyrics = lyrics;
                 mLyricIndex = -2;
+                PhoneMood.Mood mood = PhoneMood.of(video.getTitle(), lyrics.lines);
+                android.util.Log.d("PhoneLyrics", "mood of " + videoId + ": " + mood);
+                mMood.setMood(mood);
                 fillLyrics();
                 updateLyrics(true);
             }
@@ -969,6 +977,7 @@ final class PhoneMusicPlayer {
         mBackground.setBackground(background);
         mGlow.setBackground(glow(lighten(color), 0x99));
         mGlow2.setBackground(glow(color, 0x66));
+        mMood.setColor(color);
         // The lyrics panel: a deep shade of the song's colour
         GradientDrawable panel = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[] {darken(color, 0.35f), darken(color, 0.62f)});
@@ -1001,6 +1010,7 @@ final class PhoneMusicPlayer {
 
     /** While the song plays the glow breathes and drifts a little; paused, it rests */
     private void startPulse() {
+        mMood.setRunning(true);
         if (mPulse != null) {
             return;
         }
@@ -1024,6 +1034,7 @@ final class PhoneMusicPlayer {
     }
 
     private void stopPulse() {
+        mMood.setRunning(false);
         if (mPulse == null) {
             return;
         }
