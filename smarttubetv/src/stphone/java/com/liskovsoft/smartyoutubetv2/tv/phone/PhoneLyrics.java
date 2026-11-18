@@ -60,6 +60,8 @@ final class PhoneLyrics {
          * time (holding the line being sung).
          */
         boolean trusted = true;
+        /** The script the song's language is written in (see find), null when not known */
+        Character.UnicodeScript script;
 
         Lyrics(List<Line> lines, boolean synced) {
             this(lines, synced, "LRCLIB");
@@ -177,9 +179,10 @@ final class PhoneLyrics {
         boolean audioTrack = recording != null || (track != null && track.audioTrack);
         Log.d(TAG, "song: " + song + " / " + artist + (audioTrack ? " (art track)" : "") + ", " + videoMs / 1000 + " s");
 
+        Lyrics apple = null;
         if (!TextUtils.isEmpty(artist)) {
             PhoneLyricsSources.Recording isrc = PhoneLyricsSources.identify(song, artist, (int) (videoMs / 1000));
-            Lyrics apple = PhoneLyricsSources.lrcRed(isrc);
+            apple = PhoneLyricsSources.lrcRed(isrc);
             int seconds = isrc != null ? isrc.seconds : (int) (videoMs / 1000);
             if (apple == null || !apple.synced) {
                 apple = PhoneLyricsSources.betterLyrics(song, artist, seconds);
@@ -192,16 +195,62 @@ final class PhoneLyrics {
             }
             if (apple != null && apple.synced) {
                 apple.lengthMs = seconds * 1000L;
-                return onThisVideo(videoId, apple, videoMs, audioTrack);
+            } else {
+                apple = null;
             }
         }
 
-        Lyrics lrclib = lrclib(song, artist, videoMs);
-        if (lrclib.synced) {
-            return onThisVideo(videoId, lrclib, videoMs, audioTrack);
+        // Every version first, then the song's language from all of them, then the one to show
+        List<Candidate> versions = lrclibVersions(song, artist, videoMs);
+        Object[] appleMain = apple != null ? mainScript(text(apple)) : null;
+        Character.UnicodeScript appleScript = appleMain != null ? (Character.UnicodeScript) appleMain[0] : null;
+        Character.UnicodeScript language = songScript(title, song, versions, appleMain);
+        Log.d(TAG, "song in " + language + (apple != null ? ", Apple Music's lyrics in " + appleScript : "")
+                + ", " + versions.size() + " LRCLIB versions");
+
+        if (apple != null && (appleScript == language || siblings(appleScript, language))) {
+            return inScript(onThisVideo(videoId, apple, videoMs, audioTrack), language); // converted if a sibling
+        }
+        // Apple Music's are in another script (romanized words for a Hindi song): a timed version in the song's own
+        Lyrics own = pick(versions, language, apple != null);
+        if (own.synced) {
+            return inScript(onThisVideo(videoId, own, videoMs, audioTrack), language);
+        }
+        if (apple != null) {
+            return inScript(onThisVideo(videoId, apple, videoMs, audioTrack), language);
         }
         Lyrics words = track != null ? PhoneLyricsSources.youTubeMusicLyrics(track.lyricsId) : null;
-        return words != null ? words : lrclib;
+        if (words != null && !words.isEmpty() && !own.isEmpty()) {
+            Character.UnicodeScript wordsScript = (Character.UnicodeScript) mainScript(text(words))[0];
+            if (wordsScript != language && !siblings(wordsScript, language)) {
+                return inScript(own, language); // LRCLIB's words are in the song's language, YouTube Music's aren't
+            }
+        }
+        return inScript(words != null && !words.isEmpty() ? words : own, language);
+    }
+
+    private static Lyrics inScript(Lyrics lyrics, Character.UnicodeScript language) {
+        if (lyrics != NONE) { // (shared: never marked)
+            lyrics.script = language;
+        }
+        return lyrics;
+    }
+
+    private static String text(Lyrics lyrics) {
+        StringBuilder all = new StringBuilder();
+        for (Line line : lyrics.lines) {
+            all.append(line.text).append('\n');
+        }
+        return all.toString();
+    }
+
+    /** Hindi and Punjabi scripts: the same letters, one converts to the other */
+    private static boolean siblings(Character.UnicodeScript a, Character.UnicodeScript b) {
+        return indic(a) && indic(b);
+    }
+
+    private static boolean indic(Character.UnicodeScript script) {
+        return script == Character.UnicodeScript.DEVANAGARI || script == Character.UnicodeScript.GURMUKHI;
     }
 
     /**
@@ -228,9 +277,10 @@ final class PhoneLyrics {
     }
 
     /**
-     * Hindi film songs come with lines in two scripts: Devanagari, and Gurmukhi where the words are Punjabi. Read as
-     * one song, they're all put in Devanagari (the two scripts map letter for letter). Lyrics wholly in Gurmukhi (a
-     * Punjabi song) stay as they are.
+     * The lyrics all in the song's script: Hindi film songs come with lines in Devanagari and in Gurmukhi (where the
+     * words are Punjabi), and some versions of a Hindi song are wholly in Gurmukhi, or of a Punjabi song in
+     * Devanagari. The two scripts map letter for letter, so the lines are put in the song's. When the song's script
+     * isn't known, lines mixing the two go to Devanagari and lyrics wholly in Gurmukhi stay as they are.
      */
     static Lyrics oneScript(Lyrics lyrics) {
         int devanagari = 0;
@@ -246,17 +296,53 @@ final class PhoneLyrics {
             }
         }
         int both = devanagari + gurmukhi;
-        if (gurmukhi == 0 || devanagari < both * 0.1) {
+        boolean toGurmukhi;
+        if (lyrics.script == Character.UnicodeScript.DEVANAGARI) {
+            toGurmukhi = false;
+        } else if (lyrics.script == Character.UnicodeScript.GURMUKHI) {
+            toGurmukhi = true;
+        } else if (gurmukhi > 0 && devanagari >= both * 0.1) {
+            toGurmukhi = false;
+        } else {
+            return lyrics;
+        }
+        if (toGurmukhi ? devanagari == 0 : gurmukhi == 0) {
             return lyrics;
         }
         List<Line> lines = new ArrayList<>();
         for (Line line : lyrics.lines) {
-            lines.add(new Line(line.timeMs, gurmukhiToDevanagari(line.text)));
+            lines.add(new Line(line.timeMs, toGurmukhi ? devanagariToGurmukhi(line.text) : gurmukhiToDevanagari(line.text)));
         }
         Lyrics converted = new Lyrics(lines, lyrics.synced, lyrics.source);
         converted.lengthMs = lyrics.lengthMs;
         converted.trusted = lyrics.trusted;
+        converted.script = lyrics.script;
+        Log.d(TAG, "lyrics put in " + (toGurmukhi ? "Gurmukhi" : "Devanagari"));
         return converted;
+    }
+
+    /** Devanagari letters as Gurmukhi: the same letters, 0x100 apart, but for a few Gurmukhi doesn't have */
+    static String devanagariToGurmukhi(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < 0x0900 || c > 0x097F || c == 0x0964 || c == 0x0965) {
+                out.append(c); // (the danda is both scripts')
+            } else if (c == 0x090B) {
+                out.append("\u0A30\u0A3F"); // vocalic r: ri
+            } else if (c == 0x0943) {
+                out.append("\u0A4D\u0A30\u0A3F"); // its sign: + ri
+            } else if (c == 0x0937) {
+                out.append('\u0A36'); // ssa: sha
+            } else if (c == 0x0950) {
+                out.append('\u0A74'); // om
+            } else if (Character.isDefined(c + 0x100)) {
+                out.append((char) (c + 0x100));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     /** Gurmukhi letters as Devanagari: the same letters, 0x100 apart, but for a few signs of Gurmukhi's own */
@@ -306,9 +392,19 @@ final class PhoneLyrics {
             "song", "the", "and", "from", "with", "official", "video", "audio", "full", "lyrical", "lyrics", "feat",
             "version", "remix", "live", "music", "title", "track"));
 
-    private static Lyrics lrclib(String title, String artist, long durationMs) throws Exception {
-        List<String> tracks = trackNames(title);
+    /** The versions LRCLIB has of this song: its own match for song, artist and length, then search results */
+    private static List<Candidate> lrclibVersions(String title, String artist, long durationMs) {
         List<Candidate> candidates = new ArrayList<>();
+        try {
+            collect(candidates, title, artist, durationMs);
+        } catch (Exception e) {
+            Log.d(TAG, "LRCLIB: " + e);
+        }
+        return candidates;
+    }
+
+    private static void collect(List<Candidate> candidates, String title, String artist, long durationMs) throws Exception {
+        List<String> tracks = trackNames(title);
         int order = 0;
 
         if (!TextUtils.isEmpty(artist) && durationMs > 0) {
@@ -337,17 +433,24 @@ final class PhoneLyrics {
                 break; // enough to choose from
             }
         }
-        if (candidates.isEmpty()) {
-            return NONE;
-        }
+    }
 
-        Character.UnicodeScript language = songScript(title, candidates);
+    /**
+     * Of LRCLIB's versions, the one in the song's script (then romanized, then any other; never mixed scripts
+     * first), timed, closest in length to the video: another version, with another intro or ending, puts every line
+     * off by that much. With ownScriptOnly, only a timed one in the song's script (or its sibling).
+     */
+    private static Lyrics pick(List<Candidate> candidates, Character.UnicodeScript language, boolean ownScriptOnly) {
         Candidate best = null;
         double bestScore = Double.MAX_VALUE;
         for (Candidate candidate : candidates) {
-            int rank = candidate.script == language ? 0 : candidate.script == Character.UnicodeScript.LATIN ? 1 : 3;
-            if (candidate.mixed) {
-                rank += 2;
+            boolean own = candidate.script == language || siblings(candidate.script, language);
+            if (ownScriptOnly && (!own || !candidate.synced)) {
+                continue;
+            }
+            int rank = candidate.script == language ? 0 : own ? 1 : candidate.script == Character.UnicodeScript.LATIN ? 2 : 4;
+            if (candidate.mixed && !indic(candidate.script)) {
+                rank += 2; // (Hindi and Punjabi lines together are put in one script, see oneScript)
             }
             if (!candidate.synced) {
                 rank += 1; // words without times: only when nothing timed fits
@@ -357,6 +460,9 @@ final class PhoneLyrics {
                 best = candidate;
                 bestScore = score;
             }
+        }
+        if (best == null) {
+            return NONE;
         }
         Log.d(TAG, "lyrics: " + best.item.optString("trackName") + " / " + best.item.optString("artistName") + ", "
                 + best.script + (best.mixed ? " (mixed)" : "") + " for a song in " + language + ", length off by "
@@ -399,33 +505,54 @@ final class PhoneLyrics {
         return count;
     }
 
-    /** The script the song's language is written in (see find) */
-    private static Character.UnicodeScript songScript(String title, List<Candidate> candidates) {
-        Character.UnicodeScript titleScript = (Character.UnicodeScript) mainScript(title)[0];
-        if (titleScript != Character.UnicodeScript.LATIN && titleScript != Character.UnicodeScript.COMMON) {
-            return titleScript;
+    /**
+     * The script the song's language is written in: the video's or the song's title when it's in a script of its
+     * own; otherwise the one most versions of the lyrics are written in (Apple Music's and LRCLIB's), other than
+     * Latin (a Hindi song: Devanagari; Punjabi: Gurmukhi; Korean: Hangul); Latin when they're all in Latin (an
+     * English or Spanish song). Between Devanagari and Gurmukhi on equal votes, Devanagari: Hindi songs come in
+     * Gurmukhi more often than Punjabi ones in Devanagari.
+     */
+    private static Character.UnicodeScript songScript(String videoTitle, String song, List<Candidate> candidates,
+                                                      Object[] apple) {
+        for (String name : new String[] {song, videoTitle}) {
+            Character.UnicodeScript titleScript = (Character.UnicodeScript) mainScript(name)[0];
+            if (titleScript != Character.UnicodeScript.LATIN && titleScript != Character.UnicodeScript.COMMON) {
+                return titleScript;
+            }
         }
         Map<Character.UnicodeScript, Integer> votes = new HashMap<>();
         Map<Character.UnicodeScript, Integer> firstSeen = new HashMap<>();
+        if (apple != null) {
+            vote(votes, firstSeen, (Character.UnicodeScript) apple[0], (Boolean) apple[1], -1);
+        }
         for (Candidate candidate : candidates) {
-            if (candidate.mixed || candidate.script == Character.UnicodeScript.LATIN) {
-                continue;
-            }
-            votes.put(candidate.script, votes.containsKey(candidate.script) ? votes.get(candidate.script) + 1 : 1);
-            if (!firstSeen.containsKey(candidate.script)) {
-                firstSeen.put(candidate.script, candidate.order);
-            }
+            vote(votes, firstSeen, candidate.script, candidate.mixed, candidate.order);
         }
         Character.UnicodeScript best = Character.UnicodeScript.LATIN;
         int bestVotes = 0;
         for (Map.Entry<Character.UnicodeScript, Integer> entry : votes.entrySet()) {
+            Character.UnicodeScript script = entry.getKey();
             int count = entry.getValue();
-            if (count > bestVotes || (count == bestVotes && firstSeen.get(entry.getKey()) < firstSeen.get(best))) {
-                best = entry.getKey();
+            boolean tie = count == bestVotes && bestVotes > 0;
+            boolean wins = count > bestVotes || (tie && (siblings(script, best)
+                    ? script == Character.UnicodeScript.DEVANAGARI : firstSeen.get(script) < firstSeen.get(best)));
+            if (wins) {
+                best = script;
                 bestVotes = count;
             }
         }
         return best;
+    }
+
+    private static void vote(Map<Character.UnicodeScript, Integer> votes, Map<Character.UnicodeScript, Integer> firstSeen,
+                             Character.UnicodeScript script, boolean mixed, int order) {
+        if (script == Character.UnicodeScript.LATIN || (mixed && !indic(script))) {
+            return; // (Hindi and Punjabi lines mixed still say which of the two)
+        }
+        votes.put(script, votes.containsKey(script) ? votes.get(script) + 1 : 1);
+        if (!firstSeen.containsKey(script)) {
+            firstSeen.put(script, order);
+        }
     }
 
     /** The script most of the letters are in, and whether a second script has a real share of them */
