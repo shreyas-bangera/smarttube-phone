@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# README screenshots from the real app on the emulator: the music player with lyrics and its mood background (a love,
-# a sad and a party song), the lyrics panel, and What's new. Each one is printed to the log (base64 JPEG between
-# ==IMG name== and ==END==) and kept in ./screens.
+# README screenshots from the real app on the emulator: English songs in the music player, with their lyrics and
+# mood background (a love, a sad and a party song). Each one is printed to the log (base64 JPEG between ==IMG name==
+# and ==END==) and kept in ./screens.
 set -x
 PKG=org.smarttube.phone
 SPLASH=com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity
@@ -26,55 +26,41 @@ shot() { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS > 
 
 adb shell am start -n "$PKG/$SPLASH"
 sleep 45
-
-# Music search on, once
+# Music search on, once (it stays on)
 tap 'content-desc="Search YouTube"'
 sleep 4
 tap 'content-desc="Music search"'
 sleep 1
+adb shell am force-stop $PKG
 
-# A song from a music search: the player (lyrics line, mood background), then its lyrics
+# A song from a music search, in the music player: its lyrics with a line lit (tapping a line takes the song there),
+# then the player with that line under the title and the mood background
 song() {
   local query=$1 name=$2
+  adb shell am start -n "$PKG/$SPLASH"
+  sleep 25
+  tap 'content-desc="Search YouTube"'
+  sleep 4
   adb shell input text "$query"
   adb shell input keyevent 66
   sleep 15
   adb shell input tap 540 700
-  sleep 45
-  shot "${name}_player"
+  sleep 40
   if tap 'content-desc="Lyrics"'; then
-    sleep 5
+    sleep 4
+    adb shell input tap 300 1060
+    sleep 4
     shot "${name}_lyrics"
     adb shell input keyevent KEYCODE_BACK
-    sleep 2
+    sleep 3
   fi
-  # Back to the search box for the next one
-  adb shell input keyevent KEYCODE_BACK
-  sleep 3
-  tap 'content-desc="Search YouTube"' || true
-  sleep 3
-  tap 'resource-id="[^"]*search[^"]*" .*text="[^"]+"' > /dev/null || true
-  adb shell input keyevent KEYCODE_MOVE_END
-  for i in $(seq 1 60); do adb shell input keyevent 67; done
+  shot "${name}_player"
+  adb shell am force-stop $PKG
+  sleep 2
 }
 
-song "tum%shi%sho%sarijit%ssingh" love
-song "channa%smereya" sad
-song "london%sthumakda" party
-
-# What's new: You > Settings > What's new
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-adb shell am start -n "$PKG/$SPLASH"
-sleep 8
-tap 'text="You"' || tap 'content-desc="You"'
-sleep 5
-tap 'text="Settings"'
-sleep 4
-for i in 1 2 3; do tap "text=\"What's new\"" && break; adb shell input swipe 540 1800 540 900 500; sleep 2; done
-sleep 4
-shot whats_new
+song "perfect%sed%ssheeran" love
+song "fix%syou%scoldplay" sad
+song "party%srock%santhem%slmfao" party
 
 adb logcat -d | grep -E "AndroidRuntime|FATAL|PhoneLyrics" | tail -80
