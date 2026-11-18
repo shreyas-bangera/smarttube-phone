@@ -26,6 +26,13 @@
   <img src="images/phone/05_shorts.jpg" width="200" alt="Shorts">
 </p>
 
+<p align="center">
+  <img src="images/phone/14_music.jpg" width="200" alt="The Music page">
+  <img src="images/phone/15_music_player.jpg" width="200" alt="The music player">
+  <img src="images/phone/16_music_lyrics.jpg" width="200" alt="Lyrics in the music player">
+  <img src="images/phone/17_music_bar.jpg" width="200" alt="The music bar">
+</p>
+
 > [!NOTE]
 > **StreamTube is a port of [SmartTube](https://github.com/yuliskov/SmartTube) to Android phones.**
 > SmartTube, by [Yuriy Liskov](https://github.com/yuliskov), is the popular open-source YouTube client for Android TV, made for the big screen and a TV remote. StreamTube keeps SmartTube's engine (the YouTube client, playback, sign in, SponsorBlock and settings) and replaces the TV interface with a touch interface built for phones.
@@ -263,7 +270,12 @@ Rotate back to portrait, or press Back, to leave full screen.
 
 ### Music
 
-<!-- MUSIC_SCREENSHOTS -->
+<p align="center">
+  <img src="images/phone/14_music.jpg" width="200" alt="The Music page: featured music videos, Play and Shuffle, shelves">
+  <img src="images/phone/15_music_player.jpg" width="200" alt="The music player, glowing in the colours of the song's artwork">
+  <img src="images/phone/16_music_lyrics.jpg" width="200" alt="The lyrics in place of the artwork">
+  <img src="images/phone/17_music_bar.jpg" width="200" alt="The music bar at the bottom of the app">
+</p>
 
 **The Music page.** Tap **Music**, the second chip on Home.
 - At the top, featured music videos: swipe sideways through them (they also move on by themselves), tap one to play it.

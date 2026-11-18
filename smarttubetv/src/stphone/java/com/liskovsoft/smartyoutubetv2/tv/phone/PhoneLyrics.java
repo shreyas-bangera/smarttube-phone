@@ -237,6 +237,28 @@ final class PhoneLyrics {
         return names;
     }
 
+    /**
+     * The song's name for the player and the music bar: "Lloyd - You (Official Music Video) ft. Lil Wayne" → "You",
+     * "Song | Film | Label" → "Song" (the artist shows below it anyway)
+     */
+    static String displayTitle(String title) {
+        if (TextUtils.isEmpty(title)) {
+            return "";
+        }
+        List<String> names = trackNames(title);
+        if (names.isEmpty()) {
+            return title;
+        }
+        String whole = names.get(names.size() - 1);
+        if (whole.contains(" - ")) {
+            String song = whole.substring(whole.indexOf(" - ") + 3).trim();
+            if (song.length() >= 2) {
+                return song;
+            }
+        }
+        return whole;
+    }
+
     private static void add(List<String> names, String name) {
         String trimmed = name.replaceAll("\\s+", " ").trim();
         if (trimmed.length() >= 2 && !names.contains(trimmed)) {

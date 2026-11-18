@@ -225,9 +225,7 @@ final class PhoneMusicPill extends FrameLayout {
     }
 
     private void bind(Video video) {
-        String title = video.getTitle();
-        java.util.List<String> names = PhoneLyrics.trackNames(title);
-        mTitle.setText(names.isEmpty() ? title : names.get(names.size() - 1));
+        mTitle.setText(PhoneLyrics.displayTitle(video.getTitle()));
         String artist = PhoneLyrics.cleanArtist(video.getAuthor());
         mArtist.setText(artist != null ? artist : "");
         if (!PhoneUi.isAlive(getContext())) {

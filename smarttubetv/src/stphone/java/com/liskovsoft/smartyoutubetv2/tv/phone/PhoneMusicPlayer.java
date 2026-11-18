@@ -445,7 +445,7 @@ final class PhoneMusicPlayer {
         mVideoId = video.videoId;
         String source = PhoneMusic.source();
         mSource.setText(!TextUtils.isEmpty(source) ? source : mActivity.getString(R.string.phone_music_title));
-        mTitle.setText(cleanTitle(video.getTitle()));
+        mTitle.setText(PhoneLyrics.displayTitle(video.getTitle()));
         String artist = PhoneLyrics.cleanArtist(video.getAuthor());
         mArtist.setText(artist != null ? artist : "");
         mLyrics = null;
