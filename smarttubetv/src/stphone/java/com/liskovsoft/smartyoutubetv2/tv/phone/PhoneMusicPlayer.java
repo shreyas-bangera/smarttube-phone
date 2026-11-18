@@ -115,6 +115,9 @@ final class PhoneMusicPlayer {
     private String mVideoId;
     private PhoneLyrics.Lyrics mLyrics;
     private int mLyricIndex = -2;
+    /** How much later than their own times the lyrics show for this song (set by the user, kept per song) */
+    private long mOffsetMs;
+    private TextView mSyncLabel;
     private int mColor = 0xFF3A3A3A;
     private ValueAnimator mPulse;
     /** After a swipe: the side the next artwork comes in from (1 from the right, -1 from the left), 0 none */
@@ -241,6 +244,10 @@ final class PhoneMusicPlayer {
         FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.END);
         backParams.setMargins(0, dp(12), dp(12), 0);
         mLyricsPanel.addView(mBackToArt, backParams);
+        mLyricsPanel.addView(createSyncBar(context), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL) {{
+            bottomMargin = dp(12);
+        }});
         mStage.addView(mLyricsPanel, match());
 
         // Title, artist, like
@@ -450,6 +457,8 @@ final class PhoneMusicPlayer {
         mArtist.setText(artist != null ? artist : "");
         mLyrics = null;
         mLyricIndex = -2;
+        mOffsetMs = loadOffset(video.videoId);
+        showOffset();
         mLyricsList.removeAllViews();
         mLyricChip.setVisibility(View.GONE);
         if (mLyricsOpen) {
@@ -685,7 +694,7 @@ final class PhoneMusicPlayer {
         }
         SimpleExoPlayer exo = mHost.exo();
         long position = exo != null ? exo.getCurrentPosition() : 0;
-        int index = mLyrics.synced ? mLyrics.indexAt(position) : 0;
+        int index = mLyrics.synced ? mLyrics.indexAt(position - mOffsetMs) : 0;
         if (index == mLyricIndex && !force) {
             return;
         }
@@ -730,8 +739,18 @@ final class PhoneMusicPlayer {
                 view.setOnClickListener(v -> {
                     SimpleExoPlayer exo = mHost.exo();
                     if (exo != null) {
-                        exo.seekTo(line.timeMs); // tap a line: the song goes there
+                        exo.seekTo(Math.max(0, line.timeMs + mOffsetMs)); // tap a line: the song goes there
                     }
+                });
+                view.setOnLongClickListener(v -> {
+                    // Long press the line being sung right now: the lyrics are in time from here on
+                    SimpleExoPlayer exo = mHost.exo();
+                    if (exo != null) {
+                        setOffset(exo.getCurrentPosition() - line.timeMs);
+                        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                        android.widget.Toast.makeText(mActivity, R.string.phone_music_synced, android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
                 });
             }
             mLyricsList.addView(view);
@@ -753,6 +772,76 @@ final class PhoneMusicPlayer {
             int target = line.getTop() - mLyricsScroll.getHeight() / 3;
             mLyricsScroll.smoothScrollTo(0, Math.max(0, target));
         }
+    }
+
+    // Sync: the lyrics a little earlier or later (another version of the song has another intro)
+
+    private View createSyncBar(Context context) {
+        LinearLayout bar = new LinearLayout(context);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(4), dp(4), dp(4), dp(4));
+        GradientDrawable shape = new GradientDrawable();
+        shape.setCornerRadius(dp(20));
+        shape.setColor(0x66000000);
+        bar.setBackground(shape);
+        TextView earlier = syncButton(context, "−0.5s", -500);
+        mSyncLabel = text(context, 13, 0xDDFFFFFF, true);
+        mSyncLabel.setGravity(Gravity.CENTER);
+        mSyncLabel.setPadding(dp(10), 0, dp(10), 0);
+        mSyncLabel.setOnClickListener(v -> setOffset(0)); // tap: back to the lyrics' own times
+        TextView later = syncButton(context, "+0.5s", 500);
+        bar.addView(earlier, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
+        bar.addView(mSyncLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
+        bar.addView(later, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
+        return bar;
+    }
+
+    private TextView syncButton(Context context, String label, long step) {
+        TextView button = text(context, 13, Color.WHITE, true);
+        button.setText(label);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(12), 0, dp(12), 0);
+        GradientDrawable shape = new GradientDrawable();
+        shape.setCornerRadius(dp(16));
+        shape.setColor(0x33FFFFFF);
+        button.setBackground(shape);
+        button.setOnClickListener(v -> setOffset(mOffsetMs + step));
+        return button;
+    }
+
+    private void setOffset(long offsetMs) {
+        mOffsetMs = Math.max(-60_000, Math.min(60_000, offsetMs));
+        saveOffset(mVideoId, mOffsetMs);
+        showOffset();
+        updateLyrics(true);
+    }
+
+    private void showOffset() {
+        if (mSyncLabel == null) {
+            return;
+        }
+        if (Math.abs(mOffsetMs) < 50) {
+            mSyncLabel.setText(R.string.phone_music_sync_hint);
+        } else {
+            mSyncLabel.setText(String.format(java.util.Locale.US, "%+.1fs", mOffsetMs / 1000f));
+        }
+    }
+
+    private long loadOffset(String videoId) {
+        return videoId == null ? 0 : mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE).getLong("offset_" + videoId, 0);
+    }
+
+    private void saveOffset(String videoId, long offsetMs) {
+        if (videoId == null) {
+            return;
+        }
+        android.content.SharedPreferences.Editor editor = mActivity.getSharedPreferences("phone_music", Context.MODE_PRIVATE).edit();
+        if (Math.abs(offsetMs) < 50) {
+            editor.remove("offset_" + videoId);
+        } else {
+            editor.putLong("offset_" + videoId, offsetMs);
+        }
+        editor.apply();
     }
 
     /** The lyrics take the artwork's place (or give it back) */

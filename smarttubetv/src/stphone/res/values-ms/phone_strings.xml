@@ -211,4 +211,6 @@
     <string name="phone_music_search_off">Carian muzik dimatikan: hasil dibuka sebagai video</string>
     <string name="phone_music_search_hint">Cari lagu, artis atau senarai main</string>
     <string name="phone_music_search">Cari muzik</string>
+    <string name="phone_music_synced">Lirik diselaraskan dengan baris ini</string>
+    <string name="phone_music_sync_hint">Tahan baris yang dinyanyikan untuk selaras</string>
 </resources>

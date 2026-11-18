@@ -117,29 +117,37 @@ final class PhoneLyrics {
             }
             queries.add(track);
         }
+        // The timed lyrics of the version closest in length to this video (the same recording, most likely: a version
+        // with another intro or ending puts every line off by that much)
         JSONObject plainOnly = null;
+        JSONObject best = null;
+        double bestDiff = Double.MAX_VALUE;
         for (String query : queries) {
             JSONArray results = search(query);
-            JSONObject best = null;
             for (int i = 0; results != null && i < results.length(); i++) {
                 JSONObject item = results.getJSONObject(i);
                 double seconds = item.optDouble("duration", 0);
-                boolean lengthFits = durationMs <= 0 || seconds <= 0 || Math.abs(seconds * 1000 - durationMs) < 8_000;
-                if (!lengthFits || item.optBoolean("instrumental", false)) {
+                double diff = durationMs <= 0 || seconds <= 0 ? 4_000 : Math.abs(seconds * 1000 - durationMs);
+                if (diff >= 8_000 || item.optBoolean("instrumental", false)) {
                     continue;
                 }
                 if (!TextUtils.isEmpty(item.optString("syncedLyrics", ""))) {
-                    best = item;
-                    break;
-                }
-                if (plainOnly == null && !TextUtils.isEmpty(item.optString("plainLyrics", ""))) {
+                    if (diff < bestDiff) {
+                        best = item;
+                        bestDiff = diff;
+                    }
+                } else if (plainOnly == null && !TextUtils.isEmpty(item.optString("plainLyrics", ""))) {
                     plainOnly = item;
                 }
             }
-            if (best != null) {
-                Log.d(TAG, "synced lyrics: " + best.optString("trackName") + " / " + best.optString("artistName"));
-                return parseSynced(best.optString("syncedLyrics"));
+            if (best != null && bestDiff < 1_500) {
+                break; // as good as it gets
             }
+        }
+        if (best != null) {
+            Log.d(TAG, "synced lyrics: " + best.optString("trackName") + " / " + best.optString("artistName")
+                    + ", length off by " + Math.round(bestDiff) + " ms");
+            return parseSynced(best.optString("syncedLyrics"));
         }
         if (plainOnly != null) {
             return parsePlain(plainOnly.optString("plainLyrics"));
