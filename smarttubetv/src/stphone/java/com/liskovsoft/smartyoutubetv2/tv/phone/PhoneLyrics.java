@@ -227,6 +227,7 @@ final class PhoneLyrics {
         long deadline = System.currentTimeMillis() + RUN_MS;
         List<Lyrics> answers = new ArrayList<>();
         List<Object[]> scripts = new ArrayList<>();
+        List<String> latin = new ArrayList<>(); // the words in Latin letters: English, or a song romanized
         for (int i = 0; i < asked.size(); i++) {
             Lyrics answer = await(asked.get(i), deadline);
             answer = answer != null && answer.synced && !answer.isEmpty() ? answer : null;
@@ -234,6 +235,9 @@ final class PhoneLyrics {
             if (answer != null) {
                 Object[] main = mainScript(text(answer));
                 scripts.add(main);
+                if (main[0] == Character.UnicodeScript.LATIN) {
+                    latin.add(text(answer));
+                }
                 Log.d(TAG, ORDER[i] + ": " + answer.lines.size() + " lines in " + main[0]
                         + (answer.lengthMs > 0 ? ", timed to " + answer.lengthMs / 1000 + " s" : ""));
             } else {
@@ -244,7 +248,12 @@ final class PhoneLyrics {
         if (versions == null) {
             versions = new ArrayList<>();
         }
-        Character.UnicodeScript language = songScript(title, song, versions, scripts);
+        for (Candidate candidate : versions) {
+            if (candidate.script == Character.UnicodeScript.LATIN) {
+                latin.add(candidate.lyrics);
+            }
+        }
+        Character.UnicodeScript language = songScript(title, song, versions, scripts, english(latin));
         Lyrics fromLrclib = pick(versions, language, false);
         answers.add(fromLrclib.synced ? fromLrclib : null);
         Log.d(TAG, "song in " + language + ", " + versions.size() + " LRCLIB versions");
@@ -342,8 +351,8 @@ final class PhoneLyrics {
     /**
      * The lyrics all in the song's script: Hindi film songs come with lines in Devanagari and in Gurmukhi (where the
      * words are Punjabi), and some versions of a Hindi song are wholly in Gurmukhi, or of a Punjabi song in
-     * Devanagari. The two scripts map letter for letter, so the lines are put in the song's. When the song's script
-     * isn't known, lines mixing the two go to Devanagari and lyrics wholly in Gurmukhi stay as they are.
+     * Devanagari. The two scripts map letter for letter, so every line is put in the one the listener reads
+     * (see readerScript), whichever source the lyrics came from.
      */
     static Lyrics oneScript(Lyrics lyrics) {
         int devanagari = 0;
@@ -358,17 +367,11 @@ final class PhoneLyrics {
                 }
             }
         }
-        int both = devanagari + gurmukhi;
-        boolean toGurmukhi;
-        if (lyrics.script == Character.UnicodeScript.DEVANAGARI) {
-            toGurmukhi = false;
-        } else if (lyrics.script == Character.UnicodeScript.GURMUKHI) {
-            toGurmukhi = true;
-        } else if (gurmukhi > 0 && devanagari >= both * 0.1) {
-            toGurmukhi = false;
-        } else {
+        if (devanagari == 0 && gurmukhi == 0) {
             return lyrics;
         }
+        // Whichever source they came from, in the script the listener reads (see readerScript)
+        boolean toGurmukhi = readerScript() == Character.UnicodeScript.GURMUKHI;
         if (toGurmukhi ? devanagari == 0 : gurmukhi == 0) {
             return lyrics;
         }
@@ -576,12 +579,16 @@ final class PhoneLyrics {
      * Gurmukhi more often than Punjabi ones in Devanagari.
      */
     private static Character.UnicodeScript songScript(String videoTitle, String song, List<Candidate> candidates,
-                                                      List<Object[]> answers) {
+                                                      List<Object[]> answers, boolean english) {
         for (String name : new String[] {song, videoTitle}) {
             Character.UnicodeScript titleScript = (Character.UnicodeScript) mainScript(name)[0];
             if (titleScript != Character.UnicodeScript.LATIN && titleScript != Character.UnicodeScript.COMMON) {
-                return titleScript;
+                return indic(titleScript) ? readerScript() : titleScript;
             }
+        }
+        if (english) {
+            // The words in Latin letters are English: an English song (a translation in another script isn't it)
+            return Character.UnicodeScript.LATIN;
         }
         Map<Character.UnicodeScript, Integer> votes = new HashMap<>();
         Map<Character.UnicodeScript, Integer> firstSeen = new HashMap<>();
@@ -605,7 +612,57 @@ final class PhoneLyrics {
                 bestVotes = count;
             }
         }
-        return best;
+        return indic(best) ? readerScript() : best;
+    }
+
+    /**
+     * Hindi and Punjabi songs, in the script their listener reads: the sources write the same song in either
+     * (a Hindi film song with Punjabi lines comes in Gurmukhi from one, Devanagari from another), so it's
+     * Devanagari, or Gurmukhi on a phone set to Punjabi. The two map letter for letter (see oneScript).
+     */
+    static Character.UnicodeScript readerScript() {
+        android.os.LocaleList locales = android.os.LocaleList.getDefault();
+        for (int i = 0; i < locales.size(); i++) {
+            if ("pa".equals(locales.get(i).getLanguage())) {
+                return Character.UnicodeScript.GURMUKHI;
+            }
+        }
+        return Character.UnicodeScript.DEVANAGARI;
+    }
+
+    private static final Set<String> ENGLISH = new java.util.HashSet<>(java.util.Arrays.asList(
+            "the", "and", "you", "i", "to", "me", "my", "of", "in", "is", "it", "your", "that", "we", "on", "for",
+            "be", "all", "with", "don't", "i'm", "just", "can", "so", "what", "when", "never", "like", "this", "are",
+            "was", "know", "but", "now", "oh", "baby", "want", "got", "get", "go", "up", "down", "out", "if", "she",
+            "he", "they", "her", "his", "our", "will", "feel", "let", "it's", "can't", "there", "every"));
+    private static final Set<String> ROMANIZED = new java.util.HashSet<>(java.util.Arrays.asList(
+            "hai", "hain", "main", "mein", "tu", "tum", "tera", "teri", "tere", "mera", "meri", "mere", "dil", "nahi",
+            "nahin", "na", "ke", "ki", "ka", "se", "ko", "ye", "yeh", "woh", "jo", "bhi", "kya", "hum", "ho", "mujhe",
+            "tujhe", "aaj", "sang", "da", "di", "de", "nu", "nu", "vich", "ve", "ni", "sanu", "tenu", "tainu", "ek",
+            "koi", "kar", "kabhi", "kadi", "pyaar", "ishq", "rab", "yaar", "jaan", "sajna", "mahi", "aa", "oye"));
+
+    /**
+     * Words in Latin letters that read as English (its little words make a tenth of them, twice as many as Hindi's
+     * or Punjabi's): a romanized Hindi song's would be "tu", "hai", "dil", "mera"
+     */
+    private static boolean english(List<String> texts) {
+        int english = 0;
+        int romanized = 0;
+        int words = 0;
+        for (String text : texts) {
+            for (String word : text.toLowerCase(java.util.Locale.ROOT).replace('’', '\'').split("[^a-z']+")) {
+                if (word.isEmpty()) {
+                    continue;
+                }
+                words++;
+                if (ENGLISH.contains(word)) {
+                    english++;
+                } else if (ROMANIZED.contains(word)) {
+                    romanized++;
+                }
+            }
+        }
+        return words >= 30 && english >= words * 0.1 && english > romanized * 2;
     }
 
     private static void vote(Map<Character.UnicodeScript, Integer> votes, Map<Character.UnicodeScript, Integer> firstSeen,
