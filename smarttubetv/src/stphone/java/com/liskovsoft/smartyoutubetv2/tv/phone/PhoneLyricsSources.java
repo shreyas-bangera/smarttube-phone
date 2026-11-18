@@ -105,6 +105,60 @@ final class PhoneLyricsSources {
         }
     }
 
+    private static final java.util.Map<String, String> AUDIO_VERSIONS = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+    private static final String NONE = "";
+
+    /**
+     * The song's recording (YouTube Music's "art track") for a music video: what YouTube Music plays in Song mode.
+     * Null when the video is the recording, or YouTube Music doesn't pair it with one. Remembered per video.
+     */
+    static String audioVersion(String videoId) {
+        String known = AUDIO_VERSIONS.get(videoId);
+        if (known != null) {
+            return known.isEmpty() ? null : known;
+        }
+        String found = null;
+        try {
+            JSONObject root = new JSONObject(post("https://music.youtube.com/youtubei/v1/next?prettyPrint=false",
+                    "{\"context\":" + WEB_REMIX + ",\"videoId\":\"" + videoId + "\",\"isAudioOnly\":true}"));
+            List<JSONObject> pairs = new ArrayList<>();
+            findAll(root, "playlistPanelVideoWrapperRenderer", pairs);
+            for (JSONObject pair : pairs) {
+                List<JSONObject> twins = new ArrayList<>();
+                JSONObject primary = pair.optJSONObject("primaryRenderer");
+                if (primary != null && primary.optJSONObject("playlistPanelVideoRenderer") != null) {
+                    twins.add(primary.optJSONObject("playlistPanelVideoRenderer"));
+                }
+                JSONArray counterparts = pair.optJSONArray("counterpart");
+                for (int i = 0; counterparts != null && i < counterparts.length(); i++) {
+                    JSONObject counterpart = counterparts.optJSONObject(i);
+                    JSONObject renderer = counterpart != null ? counterpart.optJSONObject("counterpartRenderer") : null;
+                    if (renderer != null && renderer.optJSONObject("playlistPanelVideoRenderer") != null) {
+                        twins.add(renderer.optJSONObject("playlistPanelVideoRenderer"));
+                    }
+                }
+                boolean ours = false;
+                for (JSONObject twin : twins) {
+                    ours |= videoId.equals(twin.optString("videoId"));
+                }
+                if (!ours) {
+                    continue;
+                }
+                for (JSONObject twin : twins) {
+                    String id = twin.optString("videoId");
+                    if (!id.isEmpty() && !id.equals(videoId) && twin.toString().contains("MUSIC_VIDEO_TYPE_ATV")) {
+                        found = id;
+                    }
+                }
+                break;
+            }
+            AUDIO_VERSIONS.put(videoId, found != null ? found : NONE);
+        } catch (Throwable e) {
+            Log.d(TAG, "audio version of " + videoId + ": " + e);
+        }
+        return found;
+    }
+
     /** YouTube Music's own lyrics (words only, no timing), or null */
     static PhoneLyrics.Lyrics youTubeMusicLyrics(String lyricsId) {
         if (lyricsId == null) {

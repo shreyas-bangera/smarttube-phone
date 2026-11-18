@@ -28,6 +28,8 @@ public class PhoneApplication extends MainApplication {
         PhoneRebrandBanner.init(this); // before the phone defaults: tells an update from SmartTube from a new install
         // Videos open faster: formats requested on tap, playback after 0.5 s of media, recommendations alongside
         com.liskovsoft.smartyoutubetv2.common.misc.FastStart.enable();
+        // The music player plays a song's recording, not its music video (see PhoneMusic.streamFor)
+        com.liskovsoft.smartyoutubetv2.common.misc.StreamRedirect.set(PhoneMusic::streamFor);
         // A missing seek preview strip is fetched once the video plays, not with one more request before it starts
         com.liskovsoft.youtubeapi.videoinfo.V2.VideoInfoService.setDeferStoryboardFix(true);
         setupPhoneViews();

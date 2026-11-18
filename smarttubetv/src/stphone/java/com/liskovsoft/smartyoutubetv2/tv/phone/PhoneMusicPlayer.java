@@ -118,6 +118,8 @@ final class PhoneMusicPlayer {
     /** How much later than their own times the lyrics show for this song (set by the user, kept per song) */
     private long mOffsetMs;
     private TextView mSyncLabel;
+    /** Behind the sync control and the little artwork: the panel's colour fading out, the lines slide under it */
+    private View mLyricsHeader;
     private int mColor = 0xFF3A3A3A;
     private ValueAnimator mPulse;
     /** After a swipe: the side the next artwork comes in from (1 from the right, -1 from the left), 0 none */
@@ -244,6 +246,9 @@ final class PhoneMusicPlayer {
         FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.END);
         backParams.setMargins(0, dp(12), dp(12), 0);
         mLyricsPanel.addView(mBackToArt, backParams);
+        mLyricsHeader = new View(context);
+        mLyricsPanel.addView(mLyricsHeader, mLyricsPanel.indexOfChild(mBackToArt),
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88), Gravity.TOP));
         FrameLayout.LayoutParams syncParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
         syncParams.setMargins(dp(12), dp(16), 0, 0); // level with the little artwork, top right
@@ -919,6 +924,11 @@ final class PhoneMusicPlayer {
         GradientDrawable panel = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[] {darken(color, 0.35f), darken(color, 0.62f)});
         mLyricsPanel.setBackground(panel);
+        if (mLyricsHeader != null) {
+            int top = darken(color, 0.35f);
+            mLyricsHeader.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[] {top, (top & 0x00FFFFFF) | 0xCC000000, top & 0x00FFFFFF}));
+        }
         // The lyric pill: tinted with it, its words in a light shade of it
         GradientDrawable chip = new GradientDrawable();
         chip.setCornerRadius(dp(18));

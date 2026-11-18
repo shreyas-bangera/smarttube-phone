@@ -164,19 +164,28 @@ final class PhoneLyrics {
      * against this video (see onThisVideo).
      */
     private static Lyrics find(String videoId, String title, String author, long durationMs) throws Exception {
-        PhoneLyricsSources.Track track = PhoneLyricsSources.track(videoId);
+        // In music, the recording plays for a music video (see PhoneMusic.streamFor): its timing is the one to match
+        String recording = PhoneMusic.wantsMusic() ? PhoneLyricsSources.audioVersion(videoId) : null;
+        PhoneLyricsSources.Track track = PhoneLyricsSources.track(recording != null ? recording : videoId);
         String song = track != null ? track.title : displayTitle(title);
         String artist = track != null && !TextUtils.isEmpty(track.artist) ? track.artist : cleanArtist(author);
-        long videoMs = durationMs > 0 ? durationMs : track != null ? track.seconds * 1000L : 0;
-        boolean audioTrack = track != null && track.audioTrack;
+        long videoMs = recording != null && track != null && track.seconds > 0 ? track.seconds * 1000L
+                : durationMs > 0 ? durationMs : track != null ? track.seconds * 1000L : 0;
+        boolean audioTrack = recording != null || (track != null && track.audioTrack);
         Log.d(TAG, "song: " + song + " / " + artist + (audioTrack ? " (art track)" : "") + ", " + videoMs / 1000 + " s");
 
         if (!TextUtils.isEmpty(artist)) {
-            PhoneLyricsSources.Recording recording = PhoneLyricsSources.identify(song, artist, (int) (videoMs / 1000));
-            Lyrics apple = PhoneLyricsSources.lrcRed(recording);
-            int seconds = recording != null ? recording.seconds : (int) (videoMs / 1000);
+            PhoneLyricsSources.Recording isrc = PhoneLyricsSources.identify(song, artist, (int) (videoMs / 1000));
+            Lyrics apple = PhoneLyricsSources.lrcRed(isrc);
+            int seconds = isrc != null ? isrc.seconds : (int) (videoMs / 1000);
             if (apple == null || !apple.synced) {
                 apple = PhoneLyricsSources.betterLyrics(song, artist, seconds);
+                if (apple != null && !mentionsTitle(apple, song)) {
+                    // Matched by name only (no recording to go by): another song came back (an English one for a
+                    // Hindi song); the song's own title would be in its words
+                    Log.d(TAG, "BetterLyrics answered another song for " + song);
+                    apple = null;
+                }
             }
             if (apple != null && apple.synced) {
                 apple.lengthMs = seconds * 1000L;
@@ -215,6 +224,25 @@ final class PhoneLyrics {
         return lyrics;
     }
 
+    /** The song's title (a word of it) is in its words: these lyrics are this song's */
+    private static boolean mentionsTitle(Lyrics lyrics, String title) {
+        StringBuilder all = new StringBuilder();
+        for (Line line : lyrics.lines) {
+            all.append(' ').append(line.text.toLowerCase(java.util.Locale.ROOT));
+        }
+        String words = all.toString().replaceAll("[^\\p{L}\\p{N}]+", " ");
+        for (String word : displayTitle(title).toLowerCase(java.util.Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (word.length() >= 3 && !COMMON_WORDS.contains(word) && words.contains(" " + word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final java.util.Set<String> COMMON_WORDS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "song", "the", "and", "from", "with", "official", "video", "audio", "full", "lyrical", "lyrics", "feat",
+            "version", "remix", "live", "music", "title", "track"));
+
     private static Lyrics lrclib(String title, String artist, long durationMs) throws Exception {
         List<String> tracks = trackNames(title);
         List<Candidate> candidates = new ArrayList<>();
@@ -224,7 +252,7 @@ final class PhoneLyrics {
             for (String track : tracks) {
                 JSONObject exact = get(track, artist, durationMs);
                 if (exact != null) {
-                    addCandidate(candidates, exact, durationMs, order++);
+                    addCandidate(candidates, exact, title, durationMs, order++);
                     break;
                 }
             }
@@ -240,7 +268,7 @@ final class PhoneLyrics {
         for (String query : queries) {
             JSONArray results = search(query);
             for (int i = 0; results != null && i < results.length(); i++) {
-                addCandidate(candidates, results.getJSONObject(i), durationMs, order++);
+                addCandidate(candidates, results.getJSONObject(i), title, durationMs, order++);
             }
             if (++queried >= 2 && countSynced(candidates) >= 3) {
                 break; // enough to choose from
@@ -275,9 +303,9 @@ final class PhoneLyrics {
         return lyrics;
     }
 
-    private static void addCandidate(List<Candidate> candidates, JSONObject item, long durationMs, int order) {
-        if (item.optBoolean("instrumental", false)) {
-            return;
+    private static void addCandidate(List<Candidate> candidates, JSONObject item, String title, long durationMs, int order) {
+        if (item.optBoolean("instrumental", false) || !PhoneLyricsSources.sameTitle(item.optString("trackName"), title)) {
+            return; // (a search also brings songs that only share a word with this one)
         }
         for (Candidate existing : candidates) {
             if (existing.item.optLong("id", -1) == item.optLong("id", -2)) {

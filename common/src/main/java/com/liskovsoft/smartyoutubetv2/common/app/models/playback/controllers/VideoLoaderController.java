@@ -272,7 +272,12 @@ public class VideoLoaderController extends BasePlayerController {
 
         ServiceManager service = YouTubeServiceManager.instance();
         MediaItemService mediaItemManager = service.getMediaItemService();
-        mFormatInfoAction = mediaItemManager.getFormatInfoObserve(video.videoId)
+        // Phones: the stream can be another video's (the music player plays a song's recording, see StreamRedirect)
+        io.reactivex.Observable<MediaItemFormatInfo> formats = com.liskovsoft.smartyoutubetv2.common.misc.StreamRedirect.isSet()
+                ? RxHelper.fromCallable(() -> com.liskovsoft.smartyoutubetv2.common.misc.StreamRedirect.resolve(video))
+                        .flatMap(mediaItemManager::getFormatInfoObserve)
+                : mediaItemManager.getFormatInfoObserve(video.videoId);
+        mFormatInfoAction = formats
                 .subscribe(this::processFormatInfo,
                            error -> {
                                getPlayer().showProgressBar(false);

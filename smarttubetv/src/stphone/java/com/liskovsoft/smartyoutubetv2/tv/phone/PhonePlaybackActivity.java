@@ -230,7 +230,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             @Override
             public void showVideo() {
                 mMusicMode = false;
+                PhoneMusic.setMusicMode(false);
                 mMusicPlayer.show(false);
+                Video video = currentVideo();
+                if (video != null && PhoneMusic.playingRecordingOf(video.videoId) != null) {
+                    reloadStream(); // the recording was playing: now the music video
+                }
             }
         });
         // Spinning circle over the thumbnail while the video loads, and while it buffers
@@ -2544,6 +2549,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         copyFrame(still -> handOffToCard(still, 16f / 9f));
     }
 
+    /** The same video again with the stream the music mode wants (its recording, or its own) */
+    private void reloadStream() {
+        com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController loader =
+                presenter().getController(com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController.class);
+        if (loader != null) {
+            loader.reloadVideo();
+        }
+    }
+
     /** For the music pill: the song playing */
     Video playingVideo() {
         return currentVideo();
@@ -2557,6 +2571,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private boolean mMusicMode;
 
     private void syncMusicPlayer() {
+        PhoneMusic.setMusicMode(mMusicMode); // songs play as their recordings while it's on (see PhoneMusic.streamFor)
         if (mMusicPlayer == null) {
             return;
         }
@@ -3311,6 +3326,21 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             } else if (buttonId == R.id.phone_action_listen) {
                 mMusicMode = true;
                 syncMusicPlayer();
+                // The song's recording instead of its music video, when YouTube Music has one
+                Video video = currentVideo();
+                String videoId = video != null ? video.videoId : null;
+                if (videoId != null) {
+                    new Thread(() -> {
+                        if (PhoneLyricsSources.audioVersion(videoId) != null) {
+                            runOnUiThread(() -> {
+                                Video now = currentVideo();
+                                if (mMusicMode && now != null && videoId.equals(now.videoId)) {
+                                    reloadStream();
+                                }
+                            });
+                        }
+                    }, "music-recording").start();
+                }
             } else {
                 clickButton(buttonId);
             }

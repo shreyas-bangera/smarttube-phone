@@ -54,6 +54,49 @@ final class PhoneMusic {
         return sSource;
     }
 
+    // The song's recording instead of its music video
+
+    private static volatile boolean sMusicMode;
+    /** The stream played for each video, when it's another video's (its recording) */
+    private static final java.util.Map<String, String> sStreams = java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+
+    /** The music player is showing (or about to): the songs play as their recordings */
+    static void setMusicMode(boolean on) {
+        sMusicMode = on;
+    }
+
+    /** Music now: a tap on the Music page (or a music search) just now, or the music player on */
+    static boolean wantsMusic() {
+        boolean fresh = !sConsumed && SystemClock.elapsedRealtime() - sClickAt < FRESH_MS;
+        return fresh ? sClickIsMusic : sMusicMode;
+    }
+
+    /**
+     * The stream to play for this video (off the main thread): in music, the song's recording (YouTube Music's
+     * "art track") when this is its music video; null for the video's own
+     */
+    static String streamFor(com.liskovsoft.smartyoutubetv2.common.app.models.data.Video video) {
+        if (video == null || video.videoId == null || video.isShorts || video.isLive || !wantsMusic()) {
+            if (video != null && video.videoId != null) {
+                sStreams.remove(video.videoId);
+            }
+            return null;
+        }
+        String recording = PhoneLyricsSources.audioVersion(video.videoId);
+        if (recording != null) {
+            sStreams.put(video.videoId, recording);
+            android.util.Log.d("PhoneLyrics", "plays the recording " + recording + " for " + video.videoId);
+        } else {
+            sStreams.remove(video.videoId);
+        }
+        return recording;
+    }
+
+    /** The recording being played for this video, or null when it plays its own stream */
+    static String playingRecordingOf(String videoId) {
+        return videoId != null ? sStreams.get(videoId) : null;
+    }
+
     // Music search: search results (songs, playlists) open in the music player. Kept until turned off.
 
     private static final String PREFS = "phone_music";
