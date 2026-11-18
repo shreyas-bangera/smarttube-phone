@@ -512,6 +512,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             }
         });
         findViewById(R.id.phone_logo).setOnClickListener(v -> scrollToTopOrRefresh());
+        setupPageBar();
     }
 
     // Bottom tabs as in the YouTube app: its icons (2px lines), the chosen tab's icon filled, all in the text colour
@@ -646,6 +647,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         // The You tab has none: its page lists its places, and Back (or the You tab) leads back to it.
         View settingsButton = findViewById(R.id.phone_settings_button);
         settingsButton.setVisibility(mCurrentTab == TAB_YOU && sectionById(MediaGroup.TYPE_SETTINGS) != null ? View.VISIBLE : View.GONE);
+        updatePageMode(); // a You page has its own top bar
         if ((sections.size() <= 1 && mCurrentTab != TAB_YOU) || isSubscriptionsFeed() || mCurrentTab == TAB_YOU) {
             mChipsScroll.setVisibility(View.GONE);
             return;
@@ -935,7 +937,88 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         mAdapter.setHeaderView(mYou.getView());
         mList.scrollToPosition(0);
         mYou.show();
+        updatePageMode();
     }
+
+    // region You's pages: History, Settings... open as pages of their own
+
+    private LinearLayout mPageBar;
+    private TextView mPageTitle;
+    private boolean mInPage;
+
+    /** In place of the logo: a back arrow and the page's name */
+    private void setupPageBar() {
+        View logo = findViewById(R.id.phone_logo);
+        ViewGroup row = (ViewGroup) logo.getParent();
+        mPageBar = new LinearLayout(this);
+        mPageBar.setGravity(Gravity.CENTER_VERTICAL);
+        mPageBar.setVisibility(View.GONE);
+        ImageView back = new ImageView(this);
+        back.setImageResource(R.drawable.ic_phone_back);
+        back.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
+        back.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        back.setPadding(dp(8), dp(8), dp(8), dp(8));
+        TypedValue ripple = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
+        back.setBackgroundResource(ripple.resourceId);
+        back.setContentDescription(getString(R.string.phone_back));
+        back.setOnClickListener(v -> onBackPressed());
+        mPageBar.addView(back, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        mPageTitle = new TextView(this);
+        mPageTitle.setTextColor(getResources().getColor(R.color.phone_text));
+        mPageTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        mPageTitle.setTypeface(PhoneUi.medium(this));
+        mPageTitle.setSingleLine(true);
+        mPageTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mPageTitle.setPadding(dp(12), 0, dp(8), 0);
+        mPageBar.addView(mPageTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(mPageBar, row.indexOfChild(logo) + 1, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        ((LinearLayout.LayoutParams) mPageBar.getLayoutParams()).setMarginStart(-dp(8));
+    }
+
+    /**
+     * A You section (History, Settings, Playlists...) is a page of its own: its name and a back arrow at the top, no
+     * profile above it; it slides in, and Back slides back to the You page.
+     */
+    private void updatePageMode() {
+        if (mPageBar == null) {
+            return;
+        }
+        boolean page = mCurrentTab == TAB_YOU && !mYouDashboard && mCurrentSection != null;
+        View logo = findViewById(R.id.phone_logo);
+        View spacer = ((ViewGroup) logo.getParent()).getChildAt(((ViewGroup) logo.getParent()).indexOfChild(mPageBar) + 1);
+        logo.setVisibility(page ? View.GONE : View.VISIBLE);
+        if (spacer != null && !(spacer instanceof ImageView)) {
+            spacer.setVisibility(page ? View.GONE : View.VISIBLE); // the page bar takes its room
+        }
+        mPageBar.setVisibility(page ? View.VISIBLE : View.GONE);
+        if (page) {
+            mPageTitle.setText(mCurrentSection.getTitle());
+            mAccountHeader.setVisibility(View.GONE);
+            findViewById(R.id.phone_settings_button).setVisibility(View.GONE);
+            findViewById(R.id.phone_incognito).setVisibility(View.GONE);
+            if (mTopAvatar != null) {
+                mTopAvatar.setVisibility(View.GONE);
+            }
+        } else {
+            refreshIncognito();
+            if (mTopAvatar != null) {
+                mTopAvatar.setVisibility(PhoneTweaks.youOnTop(this) ? View.VISIBLE : View.GONE);
+            }
+        }
+        if (page != mInPage) {
+            // In from the right, back from the left
+            mInPage = page;
+            float from = (page ? 1 : -1) * mList.getWidth() * 0.18f;
+            mList.animate().cancel();
+            mList.setTranslationX(from);
+            mList.setAlpha(0.4f);
+            mList.animate().translationX(0).alpha(1f).setDuration(220)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        }
+    }
+
+    // endregion
 
     private void selectTab(int tab) {
         if (tab == TAB_YOU) {
@@ -972,7 +1055,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         updateTabs();
         updateChips();
-        mAccountHeader.setVisibility(mCurrentTab == TAB_YOU ? View.VISIBLE : View.GONE);
+        mAccountHeader.setVisibility(View.GONE); // You's sections are pages of their own (see updatePageMode)
+        updatePageMode();
         hideMessage();
 
         BrowseSection load = section;
