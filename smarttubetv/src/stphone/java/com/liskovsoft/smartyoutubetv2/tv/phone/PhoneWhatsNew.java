@@ -24,7 +24,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  */
 final class PhoneWhatsNew {
     /** The newest release below: raise it with each new one */
-    static final int VERSION = 5;
+    static final int VERSION = 6;
 
     private static final String PREFS = "phone_whats_new";
     private static final String KEY_READ = "read";
@@ -55,15 +55,15 @@ final class PhoneWhatsNew {
     }
 
     static final Release[] RELEASES = {
-            new Release(5, "This update",
-                    new Feature(R.drawable.ic_phone_shorts, "Instant Shorts",
-                            "The next Short is already loaded while you watch, so it plays the moment you swipe. Made for endless scrolling."),
-                    new Feature(R.drawable.ic_phone_tune, "Customize, all in one place",
-                            "Settings › Customize gathers every way to change how StreamTube looks and works, each with a short explanation."),
-                    new Feature(R.drawable.ic_phone_account, "Your profile at the top or bottom",
-                            "Open You from the bottom bar, or move it to the top next to search. Pick one in Customize."),
-                    new Feature(R.drawable.ic_phone_info, "What's new",
-                            "This page. A dot in Settings tells you when there's something new to read."))
+            new Release(6, "This update",
+                    new Feature(R.drawable.ic_phone_music_note, "A new Music page",
+                            "Music now sits right after Home. Swipe through featured music videos, tap Play or Shuffle, and browse playlists and the top charts."),
+                    new Feature(R.drawable.ic_phone_headphones, "A real music player",
+                            "Songs from Music open in a player made for listening: big artwork, a background that glows in the song's colours, shuffle, repeat and like. Tap Video to watch instead."),
+                    new Feature(R.drawable.ic_phone_cc, "Lyrics as you listen",
+                            "The words show in time with the song, the current line lit up. Tap them to see all the lyrics, tap a line to jump to it."),
+                    new Feature(R.drawable.ic_phone_library, "Better playlists",
+                            "Playlists show their artwork, title and description at the top, with Play all, Shuffle and Share."))
     };
 
     private PhoneWhatsNew() {

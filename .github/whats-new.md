@@ -1,5 +1,3 @@
-- Settings › Customize: all the ways to change how StreamTube looks and works, on one page, each explained
-- Your profile (You) can sit at the top next to search, or in the bottom bar, never both
-- Settings › What's new: the latest features in plain words, with a dot until you've read them. After an update, a short summary shows once when you open the app
-- Shorts start instantly: the next one is already loaded while you watch, so it plays the moment you swipe, in its original language
-- Shorts no longer show a black screen while loading: you see the Short's picture until it plays
+- New Music page, second on Home: big featured music videos you can swipe through, Play and Shuffle buttons, playlists with their artwork and number of tracks, and the top charts
+- New music player for songs you open from Music: big artwork, a background that glows in the song's colours as it plays, shuffle, repeat, like, and the lyrics shown in time with the song (tap them to see all, tap a line to jump there). Tap "Video" to watch the video instead
+- Playlists look like YouTube's now: big artwork, title and description at the top, with Play all, Shuffle and Share
