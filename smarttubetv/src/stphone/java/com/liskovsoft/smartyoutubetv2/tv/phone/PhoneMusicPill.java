@@ -156,6 +156,7 @@ final class PhoneMusicPill extends FrameLayout {
         row.addView(next, nextParams);
 
         setupGestures();
+        setContentDescription(context.getString(R.string.phone_music_now_playing));
     }
 
     PhoneActivity host() {

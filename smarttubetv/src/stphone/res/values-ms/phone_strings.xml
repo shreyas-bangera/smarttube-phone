@@ -202,4 +202,7 @@
     <string name="phone_music_play_all">Main semua</string>
     <string name="phone_music_videos">Senarai main · %1$s</string>
     <string name="phone_music_share">Kongsi</string>
+    <string name="phone_music_minimize">Kecilkan</string>
+    <string name="phone_music_artwork">Karya seni, leret untuk lagu seterusnya</string>
+    <string name="phone_music_now_playing">Sedang dimainkan, buka pemain muzik</string>
 </resources>

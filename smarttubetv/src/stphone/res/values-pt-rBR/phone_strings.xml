@@ -209,4 +209,7 @@
     <string name="phone_music_play_all">Tocar tudo</string>
     <string name="phone_music_videos">Playlist · %1$s</string>
     <string name="phone_music_share">Compartilhar</string>
+    <string name="phone_music_minimize">Minimizar</string>
+    <string name="phone_music_artwork">Capa, deslize para a próxima música</string>
+    <string name="phone_music_now_playing">Tocando agora, abrir o player de música</string>
 </resources>

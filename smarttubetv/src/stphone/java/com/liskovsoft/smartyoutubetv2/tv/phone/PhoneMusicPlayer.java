@@ -172,6 +172,7 @@ final class PhoneMusicPlayer {
         top.setPadding(0, dp(8), 0, dp(8));
         ImageView down = icon(context, R.drawable.ic_phone_collapse, 26);
         down.setOnClickListener(v -> mHost.minimize());
+        down.setContentDescription(context.getString(R.string.phone_music_minimize));
         top.addView(down, new LinearLayout.LayoutParams(dp(44), dp(44)));
         LinearLayout playing = new LinearLayout(context);
         playing.setOrientation(LinearLayout.VERTICAL);
@@ -215,6 +216,7 @@ final class PhoneMusicPlayer {
         mArt.setBackgroundColor(0x22FFFFFF);
         mArtFrame.addView(mArt, match());
         mStage.addView(mArtFrame, match());
+        mArtFrame.setContentDescription(context.getString(R.string.phone_music_artwork));
         setupArtSwipe(scroll);
 
         mLyricsPanel = new FrameLayout(context);
@@ -273,6 +275,7 @@ final class PhoneMusicPlayer {
         mLyricChip.setPadding(dp(12), dp(9), dp(14), dp(9));
         mLyricChip.setVisibility(View.GONE);
         mLyricChip.setOnClickListener(v -> showLyrics(!mLyricsOpen));
+        mLyricChip.setContentDescription(context.getString(R.string.phone_music_lyrics));
         mChipBars = new Bars(context);
         mLyricChip.addView(mChipBars, new LinearLayout.LayoutParams(dp(16), dp(16)));
         mChipLine = text(context, 15, Color.WHITE, true);

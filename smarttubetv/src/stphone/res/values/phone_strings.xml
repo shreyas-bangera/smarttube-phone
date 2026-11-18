@@ -209,4 +209,7 @@
     <string name="phone_music_play_all">Play all</string>
     <string name="phone_music_videos">Playlist · %1$s</string>
     <string name="phone_music_share">Share</string>
+    <string name="phone_music_minimize">Minimize</string>
+    <string name="phone_music_artwork">Artwork, swipe for the next song</string>
+    <string name="phone_music_now_playing">Now playing, open the music player</string>
 </resources>
