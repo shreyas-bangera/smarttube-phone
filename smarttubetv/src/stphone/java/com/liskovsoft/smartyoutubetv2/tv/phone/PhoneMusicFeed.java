@@ -458,6 +458,14 @@ final class PhoneMusicFeed {
         sub.setTypeface(PhoneUi.regular(context));
         words.addView(sub);
         row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView search = new ImageView(context);
+        search.setId(R.id.phone_music_search_button);
+        search.setImageResource(R.drawable.ic_phone_search);
+        search.setImageTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.phone_text)));
+        search.setPadding(dp(context, 12), dp(context, 12), dp(context, 12), dp(context, 12));
+        search.setBackgroundResource(R.drawable.phone_circle_bg);
+        search.setContentDescription(context.getString(R.string.phone_music_search));
+        row.addView(search, new LinearLayout.LayoutParams(dp(context, 48), dp(context, 48)));
         root.addView(row);
 
         LinearLayout buttons = new LinearLayout(context);
@@ -514,6 +522,11 @@ final class PhoneMusicFeed {
             if (!pool.isEmpty()) {
                 listener.onVideoClicked(pool.get(0));
             }
+        });
+        // Search from the Music page: a music search (its results open in the music player)
+        view.findViewById(R.id.phone_music_search_button).setOnClickListener(v -> {
+            PhoneMusic.setMusicSearch(v.getContext(), true);
+            com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter.instance(v.getContext()).startSearch(null);
         });
         shuffle.setOnClickListener(v -> {
             if (!pool.isEmpty()) {

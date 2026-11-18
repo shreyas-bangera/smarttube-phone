@@ -105,6 +105,7 @@
 - A music player made for listening: big artwork (swipe it for the next song), a background that glows in the song's colours as it plays, shuffle, repeat and like
 - Lyrics in time with the song: the line being sung under the title; tap it to see all the lyrics in place of the artwork, tap a line to jump there
 - A music bar at the bottom of the app when you go small: artwork, title, play with the song's progress around it, and next
+- Search for music: a music switch in Search (and a search button on the Music page) opens the songs and playlists you find in the music player; **Listen** under any video switches it to the music player
 
 **No ads, and more**
 - No ads, and no tracking added by the app
@@ -291,6 +292,10 @@ Rotate back to portrait, or press Back, to leave full screen.
 - **Video** (top right) shows the video instead.
 
 **Lyrics.** Under the title, a coloured line with little moving bars shows the words being sung. Tap it: the lyrics take the artwork's place, the current line lit up and scrolling with the song; tap any line to jump there, and tap the small artwork in the corner (or Back) to return. Lyrics come from [LRCLIB](https://lrclib.net), a free and open lyrics database; songs it doesn't know show no lyrics line.
+
+**Search for music.** In Search, turn on the **music note** next to the filters (it lights up red): songs and playlists from the results open in the music player, and it stays on until you turn it off. The **search button** on the Music page opens Search with it already on.
+
+**Listen to any video.** Playing a video from anywhere else (Home, Subscriptions, a link)? Tap **Listen** under it to switch to the music player; the songs after it play there too.
 
 **The music bar.** Tap the **down arrow** at the top of the music player: it slides down into a bar at the bottom of the app with the artwork, title and artist, **Play/Pause** circled by the song's progress, and **Next**. Keep browsing while the music plays; tap the bar to open the player again, or swipe it away to stop.
 

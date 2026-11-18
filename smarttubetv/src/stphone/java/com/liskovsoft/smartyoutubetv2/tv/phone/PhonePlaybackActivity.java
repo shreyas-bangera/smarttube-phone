@@ -3244,6 +3244,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mHeader.findViewById(R.id.phone_player_subscribe).setOnClickListener(v -> clickButton(R.id.action_subscribe));
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
+        // Listen: this video (and the next ones) in the music player
+        addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
         addAction(actions, R.id.action_thumbs_up, R.drawable.ic_phone_like, getString(R.string.phone_like));
         addAction(actions, R.id.action_thumbs_down, R.drawable.ic_phone_dislike, ""); // Return YouTube Dislike count
         addAction(actions, R.id.action_chat, R.drawable.ic_phone_comments, getString(R.string.phone_comments));
@@ -3306,6 +3308,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 openSpeedMenu();
             } else if (buttonId == R.id.phone_action_download) {
                 PhoneDownloads.showOptions(this, currentVideo());
+            } else if (buttonId == R.id.phone_action_listen) {
+                mMusicMode = true;
+                syncMusicPlayer();
             } else {
                 clickButton(buttonId);
             }

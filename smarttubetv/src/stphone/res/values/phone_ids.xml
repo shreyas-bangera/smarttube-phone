@@ -6,4 +6,6 @@
     <item name="phone_music_dots" type="id"/>
     <item name="phone_music_play" type="id"/>
     <item name="phone_music_shuffle" type="id"/>
+    <item name="phone_action_listen" type="id"/>
+    <item name="phone_music_search_button" type="id"/>
 </resources>

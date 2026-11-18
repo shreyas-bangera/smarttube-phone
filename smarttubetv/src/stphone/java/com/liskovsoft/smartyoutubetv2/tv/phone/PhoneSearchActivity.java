@@ -12,6 +12,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -66,6 +67,7 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
         findViewById(R.id.phone_mic).setOnClickListener(v -> startVoiceRecognition());
         // Filters sheet: picking an option searches again with it
         findViewById(R.id.phone_filter).setOnClickListener(v -> mPresenter.onSearchSettingsClicked());
+        setupMusicSwitch();
         mClear.setOnClickListener(v -> {
             mQuery.setText("");
             showSuggestions(true);
@@ -131,6 +133,61 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
         super.finishReally();
         mPresenter.onFinish();
     }
+
+    // region Music search
+
+    private ImageView mMusicSwitch;
+
+    /**
+     * Next to the filters: the music switch. On (lit up in red), songs and playlists from the results open in the
+     * music player, and the box asks for songs, artists or playlists. It stays as it was left.
+     */
+    private void setupMusicSwitch() {
+        View filter = findViewById(R.id.phone_filter);
+        ViewGroup row = (ViewGroup) filter.getParent();
+        mMusicSwitch = new ImageView(this);
+        mMusicSwitch.setImageResource(R.drawable.ic_phone_music_note);
+        int pad = Math.round(10 * getResources().getDisplayMetrics().density);
+        mMusicSwitch.setPadding(pad, pad, pad, pad);
+        mMusicSwitch.setContentDescription(getString(R.string.phone_music_search_toggle));
+        mMusicSwitch.setOnClickListener(v -> {
+            boolean on = !PhoneMusic.isMusicSearch(this);
+            PhoneMusic.setMusicSearch(this, on);
+            showMusicSwitch();
+            android.widget.Toast.makeText(this, on ? R.string.phone_music_search_on : R.string.phone_music_search_off,
+                    android.widget.Toast.LENGTH_SHORT).show();
+        });
+        int size = Math.round(44 * getResources().getDisplayMetrics().density);
+        android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(size, size);
+        params.setMarginStart(Math.round(4 * getResources().getDisplayMetrics().density));
+        row.addView(mMusicSwitch, row.indexOfChild(filter), params);
+        showMusicSwitch();
+    }
+
+    private void showMusicSwitch() {
+        boolean on = PhoneMusic.isMusicSearch(this);
+        if (on) {
+            android.graphics.drawable.GradientDrawable lit = new android.graphics.drawable.GradientDrawable();
+            lit.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            lit.setColor(getResources().getColor(R.color.phone_accent));
+            mMusicSwitch.setBackground(lit);
+            mMusicSwitch.setImageTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE));
+        } else {
+            mMusicSwitch.setBackgroundResource(R.drawable.phone_circle_bg);
+            mMusicSwitch.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
+        }
+        mQuery.setHint(on ? R.string.phone_music_search_hint : R.string.phone_search_hint);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mMusicSwitch != null) {
+            showMusicSwitch(); // (turned on from the Music page meanwhile)
+        }
+    }
+
+    // endregion
 
     // region Search flow
 
@@ -263,6 +320,10 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
 
     @Override
     public void onVideoClicked(Video video) {
+        if (PhoneMusic.isMusicSearch(this)) {
+            // Music search: songs play in the music player, playlists open as music playlists
+            PhoneMusic.markMusic(PhoneMusicFeed.isPlaylist(video) ? video.getTitle() : getString(R.string.phone_music_search));
+        }
         PhoneUi.prepareExpandLaunch(video);
         mPresenter.onVideoItemSelected(video);
         mPresenter.onVideoItemClicked(video);

@@ -212,4 +212,10 @@
     <string name="phone_music_minimize">Minimizar</string>
     <string name="phone_music_artwork">Capa, deslize para a próxima música</string>
     <string name="phone_music_now_playing">Tocando agora, abrir o player de música</string>
+    <string name="phone_music_listen">Ouvir</string>
+    <string name="phone_music_search_toggle">Busca de música</string>
+    <string name="phone_music_search_on">Busca de música ativada: músicas e playlists abrem no player de música</string>
+    <string name="phone_music_search_off">Busca de música desativada: os resultados abrem como vídeos</string>
+    <string name="phone_music_search_hint">Busque músicas, artistas ou playlists</string>
+    <string name="phone_music_search">Buscar música</string>
 </resources>

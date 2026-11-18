@@ -62,6 +62,8 @@ final class PhoneWhatsNew {
                             "Songs from Music open in a player made for listening: big artwork that you swipe for the next song, a background that glows in the song's colours, shuffle, repeat and like. Go small and it becomes a music bar at the bottom of the app."),
                     new Feature(R.drawable.ic_phone_cc, "Lyrics as you listen",
                             "The line being sung shows under the song's name. Tap it and the lyrics take the artwork's place, the current line lit up; tap a line to jump to it."),
+                    new Feature(R.drawable.ic_phone_search, "Search for music",
+                            "Turn on the music note next to the search box (or search from the Music page): songs and playlists you find open in the music player. Any video can switch to it too: tap Listen under the video."),
                     new Feature(R.drawable.ic_phone_library, "Better playlists",
                             "Playlists show their artwork, title and description at the top, with Play all, Shuffle and Share."))
     };

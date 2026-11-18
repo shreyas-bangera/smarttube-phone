@@ -53,4 +53,17 @@ final class PhoneMusic {
     static String source() {
         return sSource;
     }
+
+    // Music search: search results (songs, playlists) open in the music player. Kept until turned off.
+
+    private static final String PREFS = "phone_music";
+    private static final String KEY_SEARCH = "music_search";
+
+    static boolean isMusicSearch(android.content.Context context) {
+        return context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getBoolean(KEY_SEARCH, false);
+    }
+
+    static void setMusicSearch(android.content.Context context, boolean on) {
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putBoolean(KEY_SEARCH, on).apply();
+    }
 }
