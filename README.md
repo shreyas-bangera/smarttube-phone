@@ -299,6 +299,12 @@ Rotate back to portrait, or press Back, to leave full screen.
 
 **A background that feels the song.** Behind the player, a faint, slow animation follows the song's mood, read from its title and lyrics: hearts drifting up for a love song, soft rain for a sad one, sparkles for a party song, aurora waves for a calm one, rings pulsing for an energetic one and embers rising for a devotional one. It pauses with the song and stays still when the phone's animations are off.
 
+<p align="center">
+  <img src="images/phone/22_music_mood.jpg" width="200" alt="A love song: faint hearts drifting up behind the music player">
+  <img src="images/phone/23_lyrics_hindi.jpg" width="200" alt="A Hindi song's lyrics in Hindi letters">
+  <img src="images/phone/24_lyrics_party.jpg" width="200" alt="A party song's lyrics, with soft circles of its colour behind">
+</p>
+
 **In the car.** Car and Bluetooth screens show the title and artist of what's playing, with its artwork (in the music player, the song's own name and singer).
 
 **Search for music.** In Search, turn on the **music note** next to the filters (it lights up red): songs and playlists from the results open in the music player, and it stays on until you turn it off. The **search button** on the Music page opens Search with it already on.
