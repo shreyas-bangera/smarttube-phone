@@ -20,6 +20,7 @@ This document covers the **F-Droid build** only. Other versions or "flavors" of 
 ## 4. Community-Driven Services & Third-Party APIs
 To provide core functionality and enhanced features, the application communicates with the following community-driven services:
 * **SponsorBlock:** The app sends the ID of the video being viewed to the SponsorBlock API to retrieve crowd-sourced skip segments.
+* **LRCLIB (lyrics):** When a song plays in the music player, the app searches the LRCLIB lyrics database (lrclib.net) with the song's title and artist to show its lyrics. Nothing about you or your account is sent.
 * **DeArrow:** The app sends the ID of the video being viewed to the DeArrow API to retrieve crowd-sourced titles.
 * **Return YouTube Dislike (RYD):** The app sends the Video ID to the RYD API to retrieve estimated dislike counts.
 * **Anonymous Metadata Requests:** These requests are "read-only" and do not include personal identifiers, Google account tokens, or user-specific profile data. 
