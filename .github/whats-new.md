@@ -3,6 +3,6 @@
 - Brightness set by swiping in full screen goes back to your phone's own brightness when you leave full screen
 - The top bar stays in place while you scroll Settings, Subscriptions and every other page, so search is always at hand; on Home it still tucks away as you scroll down and comes back as you scroll up
 - Up next in the music player: tap the bar under the controls to see the song playing and the songs coming after it, in the order they'll play (shuffle's pick first), and tap any of them to play it
-- The music player glows with the song: a living background of the artwork's own colours drifts slowly behind everything, soft lights circle the artwork and breathe while the song plays, and a glint of light sweeps across each new song's artwork
+- The music player glows with the song: a living background of the artwork's own colours drifts slowly behind everything, with beams of light falling from above, ribbons of light flowing near the bottom and soft specks of light rising, soft lights circle the artwork and breathe while the song plays, and a glint of light sweeps across each new song's artwork
 - Glowing controls: the play button glows in the song's colour and breathes with it, Previous and Next light up when pressed, and Shuffle and Repeat glow when they're on
 - A cleaner music player: music video thumbnails shown whole on a soft blurred backdrop (song covers still fill the frame), a shadow in the song's colour, and the lyric line without a box

@@ -7,8 +7,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.LinearGradient;
+import android.graphics.BitmapShader;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
@@ -237,9 +239,11 @@ final class PhoneMusicFx {
     }
 
     /**
-     * The player's sky: big soft clouds of the song's colours drifting slowly over a deep shade of them, the way
-     * light moves through a stage haze. While the song plays they drift and swell gently; paused, they slow almost to
-     * a stop. Darker towards the bottom, so the controls always read well. A new song's colours fade in.
+     * The player's sky, in layers, all in the song's colours: big soft clouds drifting slowly, the way light moves
+     * through a stage haze; beams of light falling from above and swaying; two ribbons of light flowing near the
+     * bottom; out-of-focus specks of light (bokeh) rising and twinkling; a fine film grain over all of it. While the
+     * song plays it all moves gently; paused, it slows almost to a stop. Darker towards the bottom, so the controls
+     * always read well. A new song's colours fade in.
      */
     static final class Sky extends View {
         private static final int COUNT = 5;
@@ -255,6 +259,30 @@ final class PhoneMusicFx {
         private final Paint mShadePaint = new Paint();
         private final Matrix mMatrix = new Matrix();
         private final Shader[] mClouds = new Shader[COUNT];
+        /** Beams: their angles (degrees from straight down), widths and strengths */
+        private static final float[] RAY_ANGLE = {-30f, -14f, -2f, 11f, 26f};
+        private static final float[] RAY_WIDTH = {0.09f, 0.14f, 0.07f, 0.12f, 0.08f};
+        private static final float[] RAY_STRENGTH = {0.55f, 0.8f, 0.6f, 0.75f, 0.5f};
+        private final Paint mRayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path mRay = new Path();
+        private Shader mRayShader;
+        /** Ribbons */
+        private final Paint mRibbonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path mRibbon = new Path();
+        private final Shader[] mRibbonShaders = new Shader[2];
+        /** Bokeh: where each speck is (fractions of the screen), its size (dp), speed, twinkle and colour */
+        private static final int SPECKS = 22;
+        private final java.util.Random mRandom = new java.util.Random(11);
+        private final float[] mBx = new float[SPECKS];
+        private final float[] mBy = new float[SPECKS];
+        private final float[] mBSize = new float[SPECKS];
+        private final float[] mBSpeed = new float[SPECKS];
+        private final float[] mBPhase = new float[SPECKS];
+        private final int[] mBColor = new int[SPECKS];
+        private final Shader[] mSpeckShaders = new Shader[3];
+        private final Paint mSpeckPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint mGrain = new Paint();
+        private final float mDp;
         private int[] mColors = {0xFF8899FF, 0xFFFF88CC, 0xFFCCDDFF};
         private int[] mFrom = mColors;
         private float mMix = 1f;
@@ -266,6 +294,30 @@ final class PhoneMusicFx {
         Sky(Context context) {
             super(context);
             setWillNotDraw(false);
+            mDp = context.getResources().getDisplayMetrics().density;
+            for (int i = 0; i < SPECKS; i++) {
+                spawn(i, mRandom.nextFloat());
+            }
+            // Film grain: a little tile of random light and dark dots, repeated
+            int size = 96;
+            int[] dots = new int[size * size];
+            for (int i = 0; i < dots.length; i++) {
+                int v = mRandom.nextInt(256);
+                dots[i] = 0x1A000000 | (v << 16) | (v << 8) | v;
+            }
+            Bitmap grain = Bitmap.createBitmap(dots, size, size, Bitmap.Config.ARGB_8888);
+            mGrain.setShader(new BitmapShader(grain, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT));
+            mGrain.setAlpha(110);
+        }
+
+        /** A speck starts (again) at the given height, somewhere across */
+        private void spawn(int i, float y) {
+            mBx[i] = mRandom.nextFloat();
+            mBy[i] = y;
+            mBSize[i] = 4f + mRandom.nextFloat() * mRandom.nextFloat() * 26f;
+            mBSpeed[i] = 0.008f + mRandom.nextFloat() * 0.02f;
+            mBPhase[i] = mRandom.nextFloat() * 6.28f;
+            mBColor[i] = mRandom.nextInt(3);
         }
 
         void setColors(int[] colors) {
@@ -294,6 +346,7 @@ final class PhoneMusicFx {
 
         @Override
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            mClouds[0] = null;
             // Darker towards the bottom (the controls), a little at the very top (the status bar)
             mShadePaint.setShader(new LinearGradient(0, 0, 0, h,
                     new int[] {0x47000000, 0x00000000, 0x33000000, 0xC7000000},
@@ -328,6 +381,22 @@ final class PhoneMusicFx {
                                     (c & 0x00FFFFFF) | 0x26000000, c & 0x00FFFFFF},
                             new float[] {0f, 0.3f, 0.65f, 1f}, Shader.TileMode.CLAMP);
                 }
+                int light = colors[2] & 0x00FFFFFF;
+                // A beam: brightest where it starts, fading out down the screen (drawn pointing down)
+                mRayShader = new LinearGradient(0, 0, 0, h * 1.15f, new int[] {light | 0x40000000, light | 0x14000000, light},
+                        new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP);
+                for (int i = 0; i < 2; i++) {
+                    int c = colors[i == 0 ? 0 : 1] & 0x00FFFFFF;
+                    float top = h * (i == 0 ? 0.70f : 0.80f);
+                    mRibbonShaders[i] = new LinearGradient(0, top, 0, top + h * 0.16f,
+                            new int[] {c | 0x33000000, c | 0x0D000000, c}, new float[] {0f, 0.4f, 1f}, Shader.TileMode.CLAMP);
+                }
+                for (int i = 0; i < 3; i++) {
+                    int c = PhoneMusicPlayer.blend(colors[i], Color.WHITE, 0.4f) & 0x00FFFFFF;
+                    // A speck out of focus: a soft disc with a slightly brighter rim, like a lens makes them
+                    mSpeckShaders[i] = new RadialGradient(0, 0, 1f, new int[] {c | 0x66000000, c | 0x80000000, c | 0x26000000, c},
+                            new float[] {0f, 0.72f, 0.86f, 1f}, Shader.TileMode.CLAMP);
+                }
             }
             float breathe = (float) Math.sin(mTime * 1.3f);
             for (int i = 0; i < COUNT; i++) {
@@ -344,9 +413,87 @@ final class PhoneMusicFx {
                 mPaint.setAlpha(Math.round(255 * STRENGTH[i] * (0.7f + 0.3f * mEnergy)));
                 canvas.drawCircle(x, y, radius, mPaint);
             }
+            drawRays(canvas, w, h);
+            drawRibbons(canvas, w, h);
+            drawSpecks(canvas, w, h, dt);
             canvas.drawRect(0, 0, w, h, mShadePaint);
+            canvas.drawRect(0, 0, w, h, mGrain);
             if ((mPlaying || mixing || Math.abs(target - mEnergy) > 0.01f) && isShown()) {
                 postInvalidateOnAnimation();
+            }
+        }
+
+        /** Beams of light from above the top of the screen, swaying slowly, each flickering a little */
+        private void drawRays(Canvas canvas, float w, float h) {
+            float ox = w * (0.5f + 0.12f * (float) Math.sin(mTime * 0.07f));
+            float oy = -h * 0.1f;
+            mRayPaint.setShader(mRayShader);
+            for (int i = 0; i < RAY_ANGLE.length; i++) {
+                float angle = RAY_ANGLE[i] + 5f * (float) Math.sin(mTime * 0.11f + i * 1.3f);
+                float half = w * RAY_WIDTH[i] * (1f + 0.25f * (float) Math.sin(mTime * 0.17f + i));
+                float flicker = 0.75f + 0.25f * (float) Math.sin(mTime * 0.5f + i * 2.1f);
+                mRay.rewind();
+                mRay.moveTo(-w * 0.012f, 0);
+                mRay.lineTo(w * 0.012f, 0);
+                mRay.lineTo(half, h * 1.15f);
+                mRay.lineTo(-half, h * 1.15f);
+                mRay.close();
+                mRayPaint.setAlpha(Math.round(255 * RAY_STRENGTH[i] * flicker * (0.6f + 0.4f * mEnergy)));
+                canvas.save();
+                canvas.translate(ox, oy);
+                canvas.rotate(angle);
+                canvas.drawPath(mRay, mRayPaint);
+                canvas.restore();
+            }
+        }
+
+        /** Two ribbons of light flowing across near the bottom, one behind the other */
+        private void drawRibbons(Canvas canvas, float w, float h) {
+            for (int r = 0; r < 2; r++) {
+                float base = h * (r == 0 ? 0.74f : 0.84f);
+                float amplitude = (r == 0 ? 26f : 18f) * mDp;
+                float length = w * (r == 0 ? 1.1f : 0.8f);
+                float phase = mTime * (r == 0 ? 0.6f : -0.45f);
+                mRibbon.rewind();
+                mRibbon.moveTo(0, h);
+                int steps = 32;
+                for (int i = 0; i <= steps; i++) {
+                    float x = w * i / steps;
+                    float y = base + amplitude * (float) Math.sin(x / length * 6.2832f + phase)
+                            + amplitude * 0.4f * (float) Math.sin(x / length * 13f - phase * 1.7f);
+                    mRibbon.lineTo(x, y);
+                }
+                mRibbon.lineTo(w, h);
+                mRibbon.close();
+                mRibbonPaint.setShader(mRibbonShaders[r]);
+                mRibbonPaint.setAlpha(Math.round(255 * (0.7f + 0.3f * mEnergy)));
+                canvas.drawPath(mRibbon, mRibbonPaint);
+            }
+        }
+
+        /** Specks of light out of focus, rising slowly, swaying and twinkling */
+        private void drawSpecks(Canvas canvas, float w, float h, float dt) {
+            float pace = 0.15f + 0.85f * mEnergy;
+            for (int i = 0; i < SPECKS; i++) {
+                mBy[i] -= dt * mBSpeed[i] * pace;
+                if (mBy[i] < -0.05f) {
+                    spawn(i, 1.05f);
+                }
+                float x = w * mBx[i] + 14f * mDp * (float) Math.sin(mTime * 0.4f + mBPhase[i]);
+                float y = h * mBy[i];
+                float radius = mBSize[i] * mDp;
+                float twinkle = 0.5f + 0.5f * (float) Math.sin(mTime * (0.6f + (i % 5) * 0.15f) + mBPhase[i]);
+                // Fade in from the bottom, out towards the top
+                float edge = Math.min(1f, Math.min(mBy[i] / 0.15f, (1.05f - mBy[i]) / 0.2f));
+                if (edge <= 0) {
+                    continue;
+                }
+                mMatrix.setScale(radius, radius);
+                mMatrix.postTranslate(x, y);
+                mSpeckShaders[mBColor[i]].setLocalMatrix(mMatrix);
+                mSpeckPaint.setShader(mSpeckShaders[mBColor[i]]);
+                mSpeckPaint.setAlpha(Math.round(255 * edge * (0.25f + 0.55f * twinkle)));
+                canvas.drawCircle(x, y, radius, mSpeckPaint);
             }
         }
     }

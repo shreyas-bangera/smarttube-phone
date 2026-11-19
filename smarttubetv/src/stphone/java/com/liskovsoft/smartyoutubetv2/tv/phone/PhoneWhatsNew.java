@@ -61,7 +61,7 @@ final class PhoneWhatsNew {
                     new Feature(R.drawable.ic_phone_playlist, "See what plays next",
                             "In the music player, tap Up next under the controls to see the songs coming after this one, in the order they'll play. Tap any of them to play it now."),
                     new Feature(R.drawable.ic_phone_headphones, "Lights that follow the song",
-                            "A living background of the artwork's own colours drifts slowly behind the music player, soft lights circle the artwork and breathe while the song plays, and the play button glows in the song's colour."),
+                            "A living background of the artwork's own colours drifts behind the music player, with beams of light, flowing ribbons and soft specks of light rising, soft lights circle the artwork and breathe while the song plays, and the play button glows in the song's colour."),
                     new Feature(R.drawable.ic_phone_collapse, "Swipe down to close menus",
                             "The player's menus (Settings, Quality, Speed, Captions and the rest) close with a swipe down, from the handle or the list, or with a tap outside them. They're smaller and neater too, and narrower in full screen."),
                     new Feature(R.drawable.ic_phone_music_note, "A cleaner music player",
