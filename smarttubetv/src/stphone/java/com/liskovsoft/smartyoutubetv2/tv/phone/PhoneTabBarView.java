@@ -271,7 +271,7 @@ public class PhoneTabBarView extends LinearLayout {
             @Override
             public void getOutline(View view, Outline outline) {
                 outline.setRoundRect(mSide, mRise, view.getWidth() - mSide, view.getHeight() - mBelow,
-                        (view.getHeight() - mBelow - mRise) / 2f);
+                        barCorner(view.getHeight() - mBelow - mRise));
                 outline.setAlpha(0.55f);
             }
         });
@@ -570,7 +570,7 @@ public class PhoneTabBarView extends LinearLayout {
             android.util.Log.d("PhoneTabBar", "first draw: style " + mStyle + ", bar " + mBar + ", bubble at " + mX
                     + " (" + mW + " wide), backdrop " + (mBackdrop != null) + ", hardware " + canvas.isHardwareAccelerated());
         }
-        float radius = mBar.height() / 2f;
+        float radius = barCorner(mBar.height());
         mBarPath.reset();
         mBarPath.addRoundRect(mBar, radius, radius, Path.Direction.CW);
         if (mStyle == PhoneTabBar.FLOATING) {
@@ -590,6 +590,11 @@ public class PhoneTabBarView extends LinearLayout {
         // It stays inside the bar
         float x = Math.max(mBar.left + inset + half, Math.min(mBar.right - inset - half, mX));
         return new RectF(x - half, mBar.centerY() - h / 2f, x + half, mBar.centerY() + h / 2f);
+    }
+
+    /** The bar's corners: a rounded rectangle, its curve the pill's (20 dp) plus the 4 dp between them */
+    private float barCorner(float height) {
+        return Math.min(24 * mD, height / 2f);
     }
 
     /** The pill's corners: a rounded square (not a circle), so the icon and the name both sit inside */
@@ -766,7 +771,7 @@ public class PhoneTabBarView extends LinearLayout {
             canvas.clipPath(shape);
             canvas.scale(magnify, magnify, mX, mBar.centerY());
             canvas.clipPath(mBarPath);
-            drawGlassBar(canvas, mBar.height() / 2f);
+            drawGlassBar(canvas, barCorner(mBar.height()));
             super.dispatchDraw(canvas);
             canvas.restore();
         }
@@ -804,7 +809,7 @@ public class PhoneTabBarView extends LinearLayout {
         recording.scale(magnify, magnify);
         recording.translate(-mX, -mBar.centerY());
         recording.clipPath(mBarPath);
-        drawGlassBar(recording, mBar.height() / 2f);
+        drawGlassBar(recording, barCorner(mBar.height()));
         super.dispatchDraw(recording);
         node.endRecording();
         Path shape = new Path();
@@ -865,7 +870,7 @@ public class PhoneTabBarView extends LinearLayout {
         RuntimeShader lens = mRefraction instanceof RuntimeShader ? (RuntimeShader) mRefraction : new RuntimeShader(REFRACTION_AGSL);
         mRefraction = lens;
         lens.setFloatUniform("size", w, h);
-        lens.setFloatUniform("radius", Math.min(w, h) / 2f);
+        lens.setFloatUniform("radius", barCorner(h));
         lens.setFloatUniform("refractionHeight", REFRACTION_DP * mD);
         lens.setFloatUniform("refractionAmount", -REFRACTION_DP * mD);
         lens.setFloatUniform("depthEffect", 1f);
