@@ -3,3 +3,4 @@
 - Shuffle in the music player really shuffles now: songs from Music or a search play in a random order, without repeating the ones you just heard
 - Repeat this song starts the song over when it ends, also from the music bar
 - Shuffle and Repeat show clearly when they're on: a soft circle behind the button and a dot under it
+- Press and hold a video to play it at 2x speed while you hold, like in the YouTube app; let go and it's back to normal. Works in Shorts and full screen too

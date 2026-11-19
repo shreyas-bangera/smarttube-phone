@@ -338,6 +338,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     protected void onPause() {
         super.onPause();
         mResumed = false;
+        mHandler.removeCallbacks(mHoldStart);
+        mHoldPending = false;
+        if (mHoldActive) {
+            stopHoldSpeed(); // left the app mid hold: its own speed again
+        }
         finishPageAnimation();
         mHandler.removeCallbacks(mTicker);
         mHandler.removeCallbacks(mAutoHide);
@@ -939,6 +944,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return super.dispatchTouchEvent(event);
         }
 
+        // Press and hold the video: 2x while held
+        if (handleHoldSpeed(event)) {
+            return true;
+        }
+
         // Full screen: pinch to fill the screen or fit the whole video
         if (!mPortrait && !mShortsMode && mPinchDetector != null) {
             mPinchDetector.onTouchEvent(event);
@@ -972,6 +982,134 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private float mDragStartY;
     private float mDragStartX;
     private long mDragStartTime;
+
+    // region Press and hold for 2x (like the YouTube app)
+
+    private static final float HOLD_SPEED = 2f;
+    private boolean mHoldPending;
+    private boolean mHoldActive;
+    private float mHoldX;
+    private float mHoldY;
+    private float mSpeedBeforeHold = 1f;
+    private TextView mHoldBadge;
+    private MotionEvent mHoldDown;
+    private final Runnable mHoldStart = this::startHoldSpeed;
+
+    /**
+     * A finger held still on the playing video (regular videos and Shorts, portrait or full screen): the video plays
+     * at 2x, "2x" showing at the top, until the finger lifts; then its own speed again. A tap, a double tap or a
+     * drag stays what it was: the hold only starts after a long press without moving, and then has the touch to
+     * itself.
+     */
+    private boolean handleHoldSpeed(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (mHoldActive) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_POINTER_DOWN) {
+                stopHoldSpeed();
+            }
+            return true; // the touch is the hold's now
+        }
+        if (action == MotionEvent.ACTION_DOWN) {
+            mHoldPending = false;
+            com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+            Rect box = new Rect();
+            mVideoBox.getGlobalVisibleRect(box);
+            boolean onVideo = box.contains((int) event.getRawX(), (int) event.getRawY());
+            boolean controls = mControls != null && mControls.getVisibility() == View.VISIBLE;
+            if (onVideo && !controls && exo != null && exo.getPlayWhenReady() && !mMinimized && !mMinimizing && !mPaging) {
+                mHoldPending = true;
+                mHoldX = event.getRawX();
+                mHoldY = event.getRawY();
+                if (mHoldDown != null) {
+                    mHoldDown.recycle();
+                }
+                mHoldDown = MotionEvent.obtain(event);
+                mHandler.postDelayed(mHoldStart, android.view.ViewConfiguration.getLongPressTimeout());
+            }
+            return false;
+        }
+        if (!mHoldPending) {
+            return false;
+        }
+        int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+        boolean moved = Math.abs(event.getRawX() - mHoldX) > slop || Math.abs(event.getRawY() - mHoldY) > slop;
+        if (moved || action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL
+                || action == MotionEvent.ACTION_POINTER_DOWN) {
+            mHoldPending = false;
+            mHandler.removeCallbacks(mHoldStart); // a tap, a drag or a pinch: not a hold
+        }
+        return false;
+    }
+
+    private void startHoldSpeed() {
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        if (!mHoldPending || exo == null || !exo.getPlayWhenReady()) {
+            mHoldPending = false;
+            return;
+        }
+        mHoldPending = false;
+        mHoldActive = true;
+        // Whatever had the touch (the player's tap, the Shorts page, a drag) lets go of it
+        if (mHoldDown != null) {
+            cancelRoutedTouch(mHoldDown);
+            mPaging = false;
+        }
+        mSpeedBeforeHold = exo.getPlaybackParameters().speed;
+        exo.setPlaybackParameters(new com.google.android.exoplayer2.PlaybackParameters(HOLD_SPEED, 1f));
+        mVideoBox.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        showHoldBadge(true);
+        android.util.Log.d("PhonePlayback", "hold: 2x (was " + mSpeedBeforeHold + "x)");
+    }
+
+    private void stopHoldSpeed() {
+        mHoldActive = false;
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        if (exo != null) {
+            exo.setPlaybackParameters(new com.google.android.exoplayer2.PlaybackParameters(mSpeedBeforeHold, 1f));
+        }
+        showHoldBadge(false);
+        android.util.Log.d("PhonePlayback", "hold: back to " + mSpeedBeforeHold + "x");
+    }
+
+    /** "2x ▸▸" in a dark pill at the top of the video while held */
+    private void showHoldBadge(boolean show) {
+        FrameLayout content = findViewById(android.R.id.content);
+        if (content == null) {
+            return;
+        }
+        if (mHoldBadge == null) {
+            mHoldBadge = new TextView(this);
+            mHoldBadge.setText(getString(R.string.phone_hold_speed));
+            mHoldBadge.setTextColor(Color.WHITE);
+            mHoldBadge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            mHoldBadge.setTypeface(PhoneUi.medium(this));
+            mHoldBadge.setPadding(dp(14), dp(6), dp(14), dp(6));
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setCornerRadius(dp(16));
+            pill.setColor(0x99000000);
+            mHoldBadge.setBackground(pill);
+            mHoldBadge.setElevation(dp(4));
+            mHoldBadge.setVisibility(View.GONE);
+            content.addView(mHoldBadge, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        }
+        mHoldBadge.animate().cancel();
+        if (show) {
+            Rect box = new Rect();
+            mVideoBox.getGlobalVisibleRect(box);
+            int[] origin = new int[2];
+            content.getLocationOnScreen(origin);
+            mHoldBadge.setTranslationY(box.top - origin[1] + dp(mPortrait && !mShortsMode ? 12 : 48));
+            mHoldBadge.bringToFront();
+            mHoldBadge.setAlpha(0f);
+            mHoldBadge.setVisibility(View.VISIBLE);
+            mHoldBadge.animate().alpha(1f).setDuration(120).start();
+        } else if (mHoldBadge.getVisibility() == View.VISIBLE) {
+            mHoldBadge.animate().alpha(0f).setDuration(150).withEndAction(() -> mHoldBadge.setVisibility(View.GONE)).start();
+        }
+    }
+
+    // endregion
 
     /** Whatever got this touch so far (the player, the controls, the list) stops handling it: a gesture took over */
     private void cancelRoutedTouch(MotionEvent event) {

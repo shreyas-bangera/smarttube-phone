@@ -58,6 +58,8 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(7, "This update",
+                    new Feature(R.drawable.ic_phone_speed, "Hold for 2x",
+                            "Press and hold a video to play it at 2x speed while you hold, like in the YouTube app. Let go and it's back to normal. Works in Shorts and full screen too."),
                     new Feature(R.drawable.ic_phone_search, "Search in Settings",
                             "Tap the search icon on the Settings page and type what you're looking for. It finds any setting, also the ones inside Player, Subtitles, SponsorBlock and the other pages, and shows where each one is. Tap a result to go straight to it."),
                     new Feature(R.drawable.ic_phone_mode_shuffle, "Shuffle that really shuffles",

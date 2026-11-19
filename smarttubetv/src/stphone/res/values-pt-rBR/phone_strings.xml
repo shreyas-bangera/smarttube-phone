@@ -217,4 +217,5 @@
     <string name="phone_settings_search_hint">Pesquisar configurações</string>
     <string name="phone_settings_search_none">Nenhuma configuração corresponde a “%1$s”</string>
     <string name="phone_settings_updates">Atualizações</string>
+    <string name="phone_hold_speed" translatable="false">2x ▸▸</string>
 </resources>
