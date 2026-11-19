@@ -8,7 +8,7 @@
 <p align="center">
   <b>Ad-free YouTube for Android phones.</b><br>
   A touch app that looks and feels like the official one: portrait player, an in-app mini player, instant swipeable Shorts,<br>
-  a music player with lyrics, comments you can write and delete, downloads, background play, SponsorBlock, and Dark or Light appearance.
+  a music player with lyrics and Cover Flow, comments you can write and delete, downloads, background play, SponsorBlock, and Dark or Light appearance.
 </p>
 
 <p align="center">
@@ -27,10 +27,14 @@
 </p>
 
 <p align="center">
-  <img src="images/phone/14_music.jpg" width="200" alt="The Music page">
   <img src="images/phone/15_music_player.jpg" width="200" alt="The music player">
   <img src="images/phone/16_music_lyrics.jpg" width="200" alt="Lyrics in the music player">
-  <img src="images/phone/17_music_bar.jpg" width="200" alt="The music bar">
+  <img src="images/phone/29_cover_flow.jpg" width="200" alt="Cover Flow">
+  <img src="images/phone/14_music.jpg" width="200" alt="The Music page">
+</p>
+
+<p align="center">
+  <img src="images/phone/30_cover_flow_landscape.jpg" width="820" alt="Cover Flow in landscape">
 </p>
 
 > [!NOTE]
@@ -102,7 +106,9 @@
 **Music**
 - A Music page, second on Home: featured music videos you swipe through, Play and Shuffle, playlists with their artwork and number of tracks, and the top charts
 - Playlists like YouTube's: big artwork, title and description, Play all, Shuffle and Share
-- A music player made for listening: big artwork (swipe it for the next song), a background that glows in the song's colours as it plays, shuffle, repeat and like
+- A music player made for listening: big artwork (swipe it for the next song), a living background made from the song's own colours and light, a different animated scene for every song, and glowing controls
+- Cover Flow: turn the phone sideways (or press and hold the artwork) to swipe through your songs as a row of covers
+- Up next: see the songs coming and tap one to play it
 - Lyrics in time with the song: the line being sung under the title; tap it to see all the lyrics in place of the artwork, tap a line to jump there
 - A music bar at the bottom of the app when you go small: artwork, title, play with the song's progress around it, and next
 - Search for music: a music switch in Search (and a search button on the Music page) opens the songs and playlists you find in the music player; **Listen** under any video switches it to the music player
@@ -271,11 +277,19 @@ Rotate back to portrait, or press Back, to leave full screen.
 
 ### Music
 
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="images/phone/15_music_player.jpg" alt="The music player: big artwork over a living background in the song's colours, the line being sung, glowing controls and Up next"><br><sub><b>The music player</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/16_music_lyrics.jpg" alt="The lyrics in place of the artwork, the line being sung lit up"><br><sub><b>Lyrics in time</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/29_cover_flow.jpg" alt="Cover Flow over the player: the songs as a row of covers"><br><sub><b>Cover Flow</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/31_cover_flow_2.jpg" alt="Cover Flow with hearts drifting behind"><br><sub><b>A scene for every song</b></sub></td>
+  </tr>
+</table>
+
 <p align="center">
-  <img src="images/phone/14_music.jpg" width="200" alt="The Music page: featured music videos, Play and Shuffle, shelves">
-  <img src="images/phone/15_music_player.jpg" width="200" alt="The music player, glowing in the colours of the song's artwork">
-  <img src="images/phone/16_music_lyrics.jpg" width="200" alt="The lyrics in place of the artwork">
-  <img src="images/phone/17_music_bar.jpg" width="200" alt="The music bar at the bottom of the app">
+  <img src="images/phone/30_cover_flow_landscape.jpg" width="49%" alt="Cover Flow in landscape: the covers in a row, the controls under them">
+  <img src="images/phone/32_cover_flow_landscape_2.jpg" width="49%" alt="Cover Flow in landscape with another song">
+  <br><sub><b>Turn the phone sideways: Cover Flow is the player</b></sub>
 </p>
 
 **The Music page.** Tap **Music**, the second chip on Home.
@@ -286,30 +300,23 @@ Rotate back to portrait, or press Back, to leave full screen.
 **Playlists.** Tap a playlist for its page: the artwork big on top over its own colours, the title, description and number of videos, then **Play all**, **Shuffle** and **Share**, and the songs below.
 
 **The music player.** Songs you open from Music play in a player made for listening:
-- The big artwork, with a background that glows in the song's colours and gently pulses while it plays.
-- **Swipe the artwork** left for the next song, right for the previous one (or use the buttons).
-- The seek bar, **Shuffle**, **Previous**, **Play/Pause**, **Next** and **Repeat**, and **Like** next to the title.
-- **Video** (top right) shows the video instead.
+- **The artwork**, big, with a soft glow of its own colours around it and a glint of light across it when a song starts. **Swipe it** left for the next song, right for the previous one.
+- **A living background** made from the song itself: its artwork blurred and slowly turning, clouds of its colours drifting, beams of light from above, flowing ribbons and rising specks of light. It moves with the song and rests when you pause.
+- **A scene for every song** on top of that: hearts, confetti, fireflies, soap bubbles, shooting stars, blossom petals, snow, lanterns, neon waves, a galaxy, butterflies, music notes, rainbow light and more. Each song keeps its own, and two songs in a row never share one.
+- **Glowing controls**: the seek bar, **Shuffle**, **Previous**, **Play/Pause** (glowing and breathing in the song's colour), **Next** and **Repeat**. **Video** (top right) shows the video instead.
+
+**Up next.** The bar under the controls shows the next song. Tap it for the queue: the song playing, then the songs after it in the order they'll play (shuffle's pick first). Tap any of them to play it now.
+
+**Cover Flow.**
+- **Turn your phone sideways**: the music player becomes a row of covers, the songs you played on the left, the one playing in the middle (a little bigger) and the ones to come on the right, turned towards it. Under them: the seek bar and times, the song, and Shuffle, Previous, Play and Next.
+- **In portrait**, press and hold the artwork for the same view over the player.
+- Swipe through the covers (a flick carries on), feel a tick on each one, and tap the middle cover to play it or a side one to bring it to the middle.
 
 **Song mode.** Songs in the music player play the song itself, like YouTube Music's Song mode: no music video intros or scenes. Tap **Video** to watch the music video.
 
-**Lyrics.** Under the title, a coloured line with little moving bars shows the words being sung. Tap it: the lyrics take the artwork's place, the current line lit up and scrolling with the song; tap any line to jump there, and tap the small artwork in the corner (or Back) to return.
+**Lyrics.** Under the title, a line with little moving bars shows the words being sung. Tap it: the lyrics take the artwork's place, the current line lit up and scrolling with the song; tap any line to jump there, and tap the small artwork in the corner (or Back) to return.
 - **In time with the song:** the first choice is YouTube Music's own timed lyrics for the song playing, then Apple Music's (through BetterLyrics, lrc.red and LyricsPlus), SimpMusic and [LRCLIB](https://lrclib.net). All of them are asked at once, so the lyrics appear within a few seconds. Songs none of them know show no lyrics line.
 - **In the song's language:** a Hindi or Punjabi song shows its lyrics in Hindi (Devanagari) letters, or in Gurmukhi on a phone set to Punjabi, whichever script the source wrote them in. An English song stays in English.
-
-**A background that feels the song.** Behind the player, a faint, slow animation follows the song's mood, read from its title and lyrics: hearts drifting up for a love song, soft rain for a sad one, sparkles for a party song, aurora waves for a calm one, rings pulsing for an energetic one and embers rising for a devotional one. It pauses with the song and stays still when the phone's animations are off.
-
-<p align="center">
-  <img src="images/phone/26_lyrics_love.jpg" width="200" alt="Perfect by Ed Sheeran: its lyrics, hearts drifting up behind">
-  <img src="images/phone/27_mood_love.jpg" width="200" alt="Perfect in the music player: the line being sung under the title, hearts drifting up behind">
-</p>
-
-<p align="center">
-  <img src="images/phone/22_lyrics_sad.jpg" width="200" alt="Fix You by Coldplay: its lyrics, the line being sung lit up, soft rain behind">
-  <img src="images/phone/23_mood_sad.jpg" width="200" alt="Fix You in the music player: the line being sung under the title, soft rain falling behind">
-  <img src="images/phone/24_lyrics_party.jpg" width="200" alt="Party Rock Anthem by LMFAO: its lyrics, sparkles twinkling behind">
-  <img src="images/phone/25_mood_party.jpg" width="200" alt="Party Rock Anthem in the music player, with sparkles behind">
-</p>
 
 **In the car.** Car and Bluetooth screens show the title and artist of what's playing, with its artwork (in the music player, the song's own name and singer).
 
@@ -317,12 +324,14 @@ Rotate back to portrait, or press Back, to leave full screen.
 
 **Listen to any video.** Playing a video from anywhere else (Home, Subscriptions, a link)? Tap **Listen** under it to switch to the music player; the songs after it play there too.
 
-<p align="center">
-  <img src="images/phone/18_music_search.jpg" width="200" alt="Search with the music switch on">
-  <img src="images/phone/19_music_search_player.jpg" width="200" alt="A song from the search, in the music player">
-  <img src="images/phone/20_listen.jpg" width="200" alt="Listen under a video">
-  <img src="images/phone/21_music_page_search.jpg" width="200" alt="The search button on the Music page">
-</p>
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="images/phone/14_music.jpg" alt="The Music page: featured music videos, Play and Shuffle, shelves"><br><sub><b>The Music page</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/18_music_search.jpg" alt="Search with the music switch on"><br><sub><b>Music search</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/20_listen.jpg" alt="Listen under a video"><br><sub><b>Listen to any video</b></sub></td>
+    <td align="center" width="25%"><img src="images/phone/17_music_bar.jpg" alt="The music bar at the bottom of the app"><br><sub><b>The music bar</b></sub></td>
+  </tr>
+</table>
 
 **The music bar.** Tap the **down arrow** at the top of the music player: it slides down into a bar at the bottom of the app with the artwork, title and artist, **Play/Pause** circled by the song's progress, and **Next**. Keep browsing while the music plays; tap the bar to open the player again, or swipe it away to stop.
 
