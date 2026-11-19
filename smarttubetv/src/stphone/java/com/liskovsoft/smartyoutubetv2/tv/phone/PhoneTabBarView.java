@@ -109,6 +109,8 @@ public class PhoneTabBarView extends LinearLayout {
         mStyle = style;
         mDark = PhoneTabBar.isDark(getContext());
         if (style == PhoneTabBar.CLASSIC) {
+            setScaleX(1f);
+            setScaleY(1f);
             setBackgroundResource(R.drawable.phone_bottom_bar_bg);
             setPadding(0, 0, 0, navInset);
             setElevation(0);
@@ -130,6 +132,7 @@ public class PhoneTabBarView extends LinearLayout {
             }
         });
         setElevation(8 * mD);
+        setPivotY(getHeight() - mBelow); // it swells from its bottom edge
         invalidateOutline();
         invalidate();
     }
@@ -183,14 +186,21 @@ public class PhoneTabBarView extends LinearLayout {
             long now = System.nanoTime();
             float dt = mLastFrame == 0 ? 1 / 60f : Math.min(1 / 30f, (now - mLastFrame) / 1e9f);
             mLastFrame = now;
-            // A spring a little under critical damping: it arrives with a small, soft overshoot
-            float stiffness = mDragging ? 900 : 420;
-            float damping = 2 * (float) Math.sqrt(stiffness) * (mDragging ? 0.95f : 0.72f);
+            // Apple's springs: settling in about 0.35 s with a damping of 0.8 (one soft settle, no bounce); while
+            // the finger leads, tighter (0.18 s, 0.9) so the lens stays right under it
+            float response = mDragging ? 0.18f : 0.35f;
+            float ratio = mDragging ? 0.9f : 0.8f;
+            float stiffness = (float) Math.pow(2 * Math.PI / response, 2);
+            float damping = 4 * (float) Math.PI * ratio / response;
             float accel = stiffness * (mTargetX - mX) - damping * mVelocity;
             mVelocity += accel * dt;
             mX += mVelocity * dt;
             mW += (mTargetW - mW) * Math.min(1f, dt * 14);
             mLift += (mLiftTarget - mLift) * Math.min(1f, dt * 12);
+            // Held or slid along, the whole bar swells a little, as on iOS
+            float swell = 1f + 0.035f * mLift;
+            setScaleX(swell);
+            setScaleY(swell);
             invalidate();
             boolean settled = Math.abs(mTargetX - mX) < 0.5f && Math.abs(mVelocity) < 5
                     && Math.abs(mLiftTarget - mLift) < 0.01f && Math.abs(mTargetW - mW) < 0.5f;
@@ -312,7 +322,8 @@ public class PhoneTabBarView extends LinearLayout {
         mTargetX = Math.max(min, Math.min(max, x));
         if (nearest != mHovered) {
             mHovered = nearest;
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); // a tick at each tab
+            // A light, crisp tick at each tab
+            performHapticFeedback(Build.VERSION.SDK_INT >= 34 ? HapticFeedbackConstants.SEGMENT_TICK : HapticFeedbackConstants.CLOCK_TICK);
         }
         startAnimation();
     }
@@ -347,6 +358,8 @@ public class PhoneTabBarView extends LinearLayout {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        setPivotX(w / 2f);
+        setPivotY(h - mBelow); // it swells from its bottom edge
         if (mChosen != null) {
             post(() -> select(mChosen, false));
         }
@@ -380,7 +393,7 @@ public class PhoneTabBarView extends LinearLayout {
             return null;
         }
         float speed = Math.min(1f, Math.abs(mVelocity) / 2600f);
-        float width = mW * (1f + 0.32f * speed + 0.10f * mLift);
+        float width = mW * (1f + 0.22f * speed + 0.12f * mLift);
         float inset = mStyle == PhoneTabBar.GLASS ? 2 * mD : 5 * mD;
         float top = mBar.top + inset - mLift * (mStyle == PhoneTabBar.GLASS ? mRise + 2 * mD : 3 * mD) + speed * 2 * mD;
         float bottom = mBar.bottom - inset + mLift * (mStyle == PhoneTabBar.GLASS ? 6 * mD : 3 * mD) - speed * 2 * mD;
