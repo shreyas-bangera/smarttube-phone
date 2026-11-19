@@ -26,8 +26,11 @@ final class PhoneTweaks {
 
     /** The bottom tabs' look: Classic, Floating or Liquid glass (see PhoneTabBar) */
     static int tabStyle(Context context) {
-        return prefs(context).getInt(KEY_TAB_STYLE, PhoneTabBar.CLASSIC);
+        return TAB_STYLES_SHOWN ? prefs(context).getInt(KEY_TAB_STYLE, PhoneTabBar.CLASSIC) : PhoneTabBar.CLASSIC;
     }
+
+    /** Customize > Tab bar is hidden for now: the bar is Classic (the Floating and Liquid glass bars stay in the code) */
+    static final boolean TAB_STYLES_SHOWN = false;
 
     static void setTabStyle(Context context, int style) {
         prefs(context).edit().putInt(KEY_TAB_STYLE, style).apply();

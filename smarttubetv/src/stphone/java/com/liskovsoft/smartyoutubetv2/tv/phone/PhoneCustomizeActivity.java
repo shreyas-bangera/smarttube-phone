@@ -68,9 +68,11 @@ public class PhoneCustomizeActivity extends PhoneActivity {
                 ? R.string.phone_tweak_you_top : R.string.phone_tweak_you_bottom), R.drawable.ic_phone_account, this::pickYouPlace)
                 .summary(getString(R.string.phone_tweak_you_summary)));
 
-        int tabs = PhoneTweaks.tabStyle(this);
-        row(PhoneSetting.dropDown(getString(R.string.phone_tabs), getString(PhoneTabBar.nameRes(tabs)),
-                R.drawable.ic_phone_tab_home, this::pickTabStyle).summary(getString(R.string.phone_tabs_summary)));
+        if (PhoneTweaks.TAB_STYLES_SHOWN) {
+            int tabs = PhoneTweaks.tabStyle(this);
+            row(PhoneSetting.dropDown(getString(R.string.phone_tabs), getString(PhoneTabBar.nameRes(tabs)),
+                    R.drawable.ic_phone_tab_home, this::pickTabStyle).summary(getString(R.string.phone_tabs_summary)));
+        }
 
         header(R.string.phone_customize_player);
         row(PhoneSetting.toggle(getString(R.string.phone_tweak_prev_next), PhoneTweaks.prevNextButtons(this), R.drawable.ic_phone_next, () -> {

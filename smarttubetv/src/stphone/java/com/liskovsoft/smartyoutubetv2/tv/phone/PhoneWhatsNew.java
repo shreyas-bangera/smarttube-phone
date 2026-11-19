@@ -58,8 +58,6 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(7, "This update",
-                    new Feature(R.drawable.ic_phone_tab_home, "A new look for the tabs",
-                            "Settings > Customize > Tab bar: Floating, a dark glass capsule with a YouTube red bubble, or Liquid glass, iOS-style glass with a clear lens that glides between the tabs. Slide a finger along the bar to glide across them."),
                     new Feature(R.drawable.ic_phone_speed, "Hold for 2x",
                             "Press and hold a video to play it at 2x speed while you hold, like in the YouTube app. Let go and it's back to normal. Works in Shorts and full screen too."),
                     new Feature(R.drawable.ic_phone_search, "Search in Settings",

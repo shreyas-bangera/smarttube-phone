@@ -4,4 +4,3 @@
 - Repeat this song starts the song over when it ends, also from the music bar
 - Shuffle and Repeat show clearly when they're on: a soft circle behind the button and a dot under it
 - Press and hold a video to play it at 2x speed while you hold, like in the YouTube app; let go and it's back to normal. Works in Shorts and full screen too
-- Choose how the tabs at the bottom look, in Settings > Customize > Tab bar: Classic, Floating (a dark glass capsule over the feed with a YouTube red bubble on the chosen tab) or Liquid glass (iOS-style glass that bends what's behind it, with a clear lens that glides between the tabs, magnifying them). Slide a finger along the bar to glide across the tabs
