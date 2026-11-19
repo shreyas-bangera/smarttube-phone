@@ -76,6 +76,9 @@ final class PhoneMusicPlayer {
 
         /** "Video": back to the video player for this song */
         void showVideo();
+
+        /** Shuffle or repeat was turned on or off */
+        void onModesChanged();
     }
 
     private static final long TICK_MS = 200;
@@ -347,6 +350,7 @@ final class PhoneMusicPlayer {
         controls.setGravity(Gravity.CENTER_VERTICAL);
         controls.setPadding(0, dp(14), 0, dp(10));
         mShuffle = icon(context, R.drawable.ic_phone_mode_shuffle, 24);
+        mShuffle.setContentDescription(context.getString(R.string.phone_music_shuffle));
         mShuffle.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_SHUFFLE));
         ImageView previous = icon(context, R.drawable.ic_phone_prev, 36);
         previous.setOnClickListener(v -> change(-1));
@@ -364,6 +368,7 @@ final class PhoneMusicPlayer {
         ImageView next = icon(context, R.drawable.ic_phone_next, 36);
         next.setOnClickListener(v -> change(1));
         mRepeat = icon(context, R.drawable.ic_phone_mode_repeat_one, 24);
+        mRepeat.setContentDescription(context.getString(R.string.phone_music_repeat_one));
         mRepeat.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_ONE));
         controls.addView(mShuffle, new LinearLayout.LayoutParams(0, dp(48), 1f));
         controls.addView(previous, new LinearLayout.LayoutParams(0, dp(56), 1f));
@@ -676,8 +681,12 @@ final class PhoneMusicPlayer {
     private void toggleMode(int target) {
         PlayerData data = PlayerData.instance(mActivity);
         int mode = data.getPlaybackMode();
-        data.setPlaybackMode(mode == target ? PlayerConstants.PLAYBACK_MODE_ALL : target);
+        int now = mode == target ? PlayerConstants.PLAYBACK_MODE_ALL : target;
+        data.setPlaybackMode(now);
+        android.util.Log.d("PhoneMusic", "mode: " + (now == PlayerConstants.PLAYBACK_MODE_SHUFFLE ? "shuffle"
+                : now == PlayerConstants.PLAYBACK_MODE_ONE ? "repeat one" : "in order"));
         updateModes();
+        mHost.onModesChanged();
     }
 
     private void updateModes() {

@@ -192,6 +192,7 @@
     <string name="phone_music_playing_from">Dimainkan dari</string>
     <string name="phone_music_video">Video</string>
     <string name="phone_music_lyrics">Lirik</string>
+    <string name="phone_music_repeat_one">Ulang lagu ini</string>
     <string name="phone_music_lyrics_loading">Mencari lirik…</string>
     <string name="phone_music_lyrics_none">Tiada lirik untuk lagu ini</string>
     <string name="phone_music_play_all">Main semua</string>

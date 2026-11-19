@@ -199,6 +199,7 @@
     <string name="phone_music_playing_from">Tocando de</string>
     <string name="phone_music_video">Vídeo</string>
     <string name="phone_music_lyrics">Letra</string>
+    <string name="phone_music_repeat_one">Repetir esta música</string>
     <string name="phone_music_lyrics_loading">Procurando a letra…</string>
     <string name="phone_music_lyrics_none">Sem letra para esta música</string>
     <string name="phone_music_play_all">Tocar tudo</string>

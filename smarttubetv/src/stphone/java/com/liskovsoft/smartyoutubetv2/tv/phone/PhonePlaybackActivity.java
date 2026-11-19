@@ -193,6 +193,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public void onModesChanged() {
+                applyShuffle(true);
+            }
+
+            @Override
             public void togglePlay() {
                 PhonePlaybackActivity.this.togglePlay();
             }
@@ -2568,6 +2573,92 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     void playNext() {
         presenter().onNextClicked();
     }
+
+    // region Shuffle and repeat in the music player
+
+    /** The songs after this one (the first list of suggestions): shuffle picks from them */
+    private VideoGroup mMusicQueue;
+    private String mQueueFor;
+    /** The song the next one was picked for, and the next one it had before (back when shuffle goes off) */
+    private String mShuffledFor;
+    private com.liskovsoft.mediaserviceinterfaces.data.MediaItem mUnshuffledNext;
+    /** Songs shuffle played lately: not again soon */
+    private final java.util.LinkedList<String> mShufflePlayed = new java.util.LinkedList<>();
+    private Object mEndWatchedOn;
+
+    /**
+     * Shuffle: the next song (the Next button's and the one after this ends) is a random one of the songs after
+     * this, not the one in line. SmartTube shuffles only playlists of your own, so songs from Music or a search
+     * never were.
+     */
+    private void applyShuffle(boolean modeChanged) {
+        Video current = currentVideo();
+        if (current == null) {
+            return;
+        }
+        boolean shuffle = mMusicMode && com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this)
+                .getPlaybackMode() == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
+        if (!shuffle) {
+            if (current.videoId != null && current.videoId.equals(mShuffledFor)) {
+                current.nextMediaItem = mUnshuffledNext; // in order again
+                current.isShuffled = false;
+                mShuffledFor = null;
+            }
+            return;
+        }
+        if (mMusicQueue == null || (!modeChanged && current.videoId != null && current.videoId.equals(mShuffledFor))) {
+            return;
+        }
+        java.util.List<Video> songs = new java.util.ArrayList<>();
+        java.util.List<Video> fresh = new java.util.ArrayList<>();
+        for (Video video : mMusicQueue.getVideos()) {
+            if (video != null && video.videoId != null && !video.videoId.equals(current.videoId) && !isShort(video)) {
+                songs.add(video);
+                if (!mShufflePlayed.contains(video.videoId)) {
+                    fresh.add(video);
+                }
+            }
+        }
+        java.util.List<Video> from = !fresh.isEmpty() ? fresh : songs;
+        if (from.isEmpty()) {
+            return;
+        }
+        Video pick = from.get(new java.util.Random().nextInt(from.size()));
+        if (!current.videoId.equals(mShuffledFor)) {
+            mUnshuffledNext = current.nextMediaItem;
+        }
+        current.nextMediaItem = com.liskovsoft.smartyoutubetv2.common.app.models.data.SimpleMediaItem.from(pick);
+        current.isShuffled = true;
+        mShuffledFor = current.videoId;
+        android.util.Log.d("PhoneMusic", "shuffle: after " + current.videoId + " comes " + pick.videoId
+                + " (of " + from.size() + " songs)");
+    }
+
+    /**
+     * Repeat one: the song starts over when it ends (also from the music bar and with the screen off), whatever
+     * else would load next
+     */
+    private void watchSongEnd() {
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        if (exo == null || exo == mEndWatchedOn) {
+            return;
+        }
+        mEndWatchedOn = exo;
+        exo.addListener(new com.google.android.exoplayer2.Player.EventListener() {
+            @Override
+            public void onPlayerStateChanged(boolean playWhenReady, int state) {
+                if (state == com.google.android.exoplayer2.Player.STATE_ENDED && mMusicMode
+                        && com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(PhonePlaybackActivity.this)
+                        .getPlaybackMode() == PlayerConstants.PLAYBACK_MODE_ONE) {
+                    android.util.Log.d("PhoneMusic", "repeat one: from the start");
+                    exo.seekTo(0);
+                    exo.setPlayWhenReady(true);
+                }
+            }
+        });
+    }
+
+    // endregion
     /** Songs opened from the Music page play in the music player (until a video is opened from elsewhere) */
     private boolean mMusicMode;
 
@@ -3498,6 +3589,17 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (music != null) {
             mMusicMode = music;
         }
+        if (video != null && video.videoId != null && !video.videoId.equals(mQueueFor)) {
+            mQueueFor = video.videoId;
+            mMusicQueue = null; // this song's suggestions are on their way
+            if (mShufflePlayed.isEmpty() || !video.videoId.equals(mShufflePlayed.getLast())) {
+                mShufflePlayed.add(video.videoId);
+                while (mShufflePlayed.size() > 30) {
+                    mShufflePlayed.removeFirst();
+                }
+            }
+        }
+        watchSongEnd();
         syncMusicPlayer();
         refreshDetails();
         if (mShortsMode) {
@@ -3518,6 +3620,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         Video playing = currentVideo();
         mAdapter.setExcludedVideoId(playing != null ? playing.videoId : null);
         mAdapter.update(group);
+        if (mMusicQueue == null) {
+            mMusicQueue = group;
+            applyShuffle(false);
+        }
         if (mShortsMode) {
             preloadNextShorts();
         }
