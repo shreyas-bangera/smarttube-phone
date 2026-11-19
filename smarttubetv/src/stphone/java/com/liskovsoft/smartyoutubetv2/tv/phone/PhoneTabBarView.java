@@ -340,9 +340,18 @@ public class PhoneTabBarView extends LinearLayout {
             float stiffness = mDragging ? 1500f : 1000f;
             float ratio = mDragging ? 0.95f : 0.82f;
             float damping = 2 * ratio * (float) Math.sqrt(stiffness);
-            float accel = stiffness * (mTargetX - mX) - damping * mVelocity;
-            mVelocity += accel * dt;
-            mX += mVelocity * dt;
+            // In small fixed steps: one big step on a slow frame made the spring blow up (the bubble flew off to
+            // infinity and the glow couldn't be drawn)
+            for (float left = dt; left > 0; left -= 0.004f) {
+                float h = Math.min(0.004f, left);
+                float accel = stiffness * (mTargetX - mX) - damping * mVelocity;
+                mVelocity += accel * h;
+                mX += mVelocity * h;
+            }
+            if (Float.isNaN(mX) || Float.isInfinite(mX) || Float.isNaN(mVelocity) || Float.isInfinite(mVelocity)) {
+                mX = mTargetX;
+                mVelocity = 0;
+            }
             mW += (mTargetW - mW) * Math.min(1f, dt * 16);
             mLift += (mLiftTarget - mLift) * Math.min(1f, dt * 14);
             // The lens: swells in ~90 ms while moving or held, settles back into the pill in ~140 ms
@@ -573,7 +582,7 @@ public class PhoneTabBarView extends LinearLayout {
 
     /** The bubble on the chosen tab (or under the finger): wide enough for the tab's name, the bar's height less 4 dp each side */
     private RectF pill(float inset) {
-        if (mX < 0 || mW <= 0) {
+        if (mX < 0 || mW <= 0 || Float.isNaN(mX) || Float.isInfinite(mX)) {
             return null;
         }
         float h = mBar.height() - 2 * inset;
