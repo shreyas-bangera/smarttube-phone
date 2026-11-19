@@ -238,7 +238,7 @@
         android:background="@color/phone_bg"
         android:importantForAccessibility="no" />
 
-    <LinearLayout
+    <com.liskovsoft.smartyoutubetv2.tv.phone.PhoneTabBarView
         android:id="@+id/phone_bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

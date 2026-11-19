@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of Customize > Tab bar, from the real app: Home with each tab bar style (Classic, Floating, Liquid
+# Emulator test of Customize > Tab bar (run 2: glass, lens and sliding), from the real app: Home with each tab bar style (Classic, Floating, Liquid
 # glass), the drop-down, and a tab switch (the pill or lens moving). Each step is a screenshot in the log (base64 JPEG
 # between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -55,6 +55,19 @@ shot tabs_floating_subs
 
 style "Liquid glass"
 shot tabs_glass
+# Slide a finger along the bar: the lens follows it, lifted and magnifying
+HY=$(center 'text="Home"' | awk '{print $2}'); HX=$(center 'text="Home"' | awk '{print $1}')
+SX=$(center 'text="Subscriptions"' | awk '{print $1}')
+echo "bar at y=$HY, Home x=$HX, Subscriptions x=$SX"
+if [ -n "$HY" ]; then
+  adb shell input motionevent DOWN $HX $HY
+  for x in $(seq $HX 40 $SX); do adb shell input motionevent MOVE $x $HY; done
+  sleep 0.6
+  shot tabs_glass_dragging
+  adb shell input motionevent UP $SX $HY
+  sleep 2
+  shot tabs_glass_after_drag
+fi
 tap 'text="You"'
 sleep 0.2
 shot tabs_glass_moving

@@ -641,6 +641,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
     private void applyTabStyle() {
         mTabStyle = PhoneTweaks.tabStyle(this);
+        if (mBottomBar instanceof PhoneTabBarView) {
+            ((PhoneTabBarView) mBottomBar).setBackdrop(mList); // the feed shows through the glass
+        }
         PhoneTabBar.apply(mBottomBar, mTabStyle, mNavInset);
         boolean floating = mTabStyle != PhoneTabBar.CLASSIC;
         for (View tab : mTabViews) {
