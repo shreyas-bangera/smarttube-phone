@@ -161,6 +161,7 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
         mBack.setOnClickListener(v -> goBack());
 
         View sheet = findViewById(R.id.phone_sheet);
+        ((PhoneSheetLayout) sheet).setOnDismiss(this::finish); // swiped down: closed
 
         final int sheetBottom = sheet.getPaddingBottom();
         findViewById(R.id.phone_dialog_root).setOnApplyWindowInsetsListener((v, insets) -> {

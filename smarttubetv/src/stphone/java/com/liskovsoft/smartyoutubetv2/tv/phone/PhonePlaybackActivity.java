@@ -464,6 +464,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean portrait = newConfig.orientation != Configuration.ORIENTATION_LANDSCAPE;
         if (portrait != mPortrait) {
             mPortrait = portrait;
+            if (portrait) {
+                resetBrightness(); // the brightness set in full screen was for full screen only
+            }
             if (mVideoBox != null) {
                 // A swipe into or out of full screen may still be letting the video settle
                 mVideoBox.animate().cancel();
@@ -2071,6 +2074,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                     android.provider.Settings.System.SCREEN_BRIGHTNESS) / 255f;
         } catch (Exception e) {
             return 0.5f;
+        }
+    }
+
+    /** Back to the phone's own brightness (the full screen swipe set one for the player's window only) */
+    private void resetBrightness() {
+        WindowManager.LayoutParams attrs = getWindow().getAttributes();
+        if (attrs.screenBrightness != WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) {
+            attrs.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+            getWindow().setAttributes(attrs);
         }
     }
 

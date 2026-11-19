@@ -349,8 +349,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     // region UI setup
 
     /**
-     * The feed scrolls under the top and bottom bars. The top bar slides away while scrolling down
-     * (like the YouTube app); in Liquid Glass mode both bars are translucent.
+     * The feed scrolls under the top and bottom bars. The top bar stays fixed, so search (YouTube's, or Settings')
+     * and the page's name are always at hand, also at the bottom of a long page.
      */
     private void setupBars() {
         View topBar = findViewById(R.id.phone_top_bar);
@@ -361,22 +361,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         topBar.addOnLayoutChangeListener(sync);
         mBottomBar.addOnLayoutChangeListener(sync);
 
-        mList.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {
-                int hideable = topBar.getHeight() - topBar.getPaddingTop(); // keep the status bar area
-                float y = Math.max(-hideable, Math.min(0, topBar.getTranslationY() - dy));
-                if (!recyclerView.canScrollVertically(-1)) {
-                    y = 0;
-                }
-                topBar.setTranslationY(y);
-                // The loading line sits under the top bar: move it with the bar
-                View progress = findViewById(R.id.phone_progress_bar);
-                if (progress != null) {
-                    progress.setTranslationY(y);
-                }
-            }
-        });
+        // The top bar stays put while the page scrolls (search and the page's name always at hand)
     }
 
     private void setupPullToRefresh() {

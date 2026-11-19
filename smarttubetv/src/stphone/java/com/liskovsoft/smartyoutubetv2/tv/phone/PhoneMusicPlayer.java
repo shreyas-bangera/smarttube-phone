@@ -96,6 +96,8 @@ final class PhoneMusicPlayer {
     private final FrameLayout mStage;
     private final FrameLayout mArtFrame;
     private final ImageView mArt;
+    /** Behind a music video's thumbnail (shown whole): the same picture, blurred, filling the square */
+    private final ImageView mArtFill;
     private final FrameLayout mLyricsPanel;
     private final ScrollView mLyricsScroll;
     private final LinearLayout mLyricsList;
@@ -221,11 +223,21 @@ final class PhoneMusicPlayer {
         mColumn.addView(mStage, stageParams);
 
         mArtFrame = new FrameLayout(context);
-        mArtFrame.setElevation(dp(18));
-        rounded(mArtFrame, dp(18));
+        mArtFrame.setElevation(dp(24));
+        rounded(mArtFrame, dp(14));
+        mArtFrame.setBackgroundColor(0x22FFFFFF);
+        mArtFill = new ImageView(context);
+        mArtFill.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        mArtFill.setVisibility(View.GONE);
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            mArtFill.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(28), dp(28), android.graphics.Shader.TileMode.CLAMP));
+            mArtFill.setAlpha(0.85f);
+        } else {
+            mArtFill.setAlpha(0.35f);
+        }
+        mArtFrame.addView(mArtFill, match());
         mArt = new ImageView(context);
         mArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        mArt.setBackgroundColor(0x22FFFFFF);
         mArtFrame.addView(mArt, match());
         mStage.addView(mArtFrame, match());
         mArtFrame.setContentDescription(context.getString(R.string.phone_music_artwork));
@@ -233,8 +245,8 @@ final class PhoneMusicPlayer {
 
         mLyricsPanel = new FrameLayout(context);
         mLyricsPanel.setVisibility(View.GONE);
-        mLyricsPanel.setElevation(dp(18));
-        rounded(mLyricsPanel, dp(18));
+        mLyricsPanel.setElevation(dp(24));
+        rounded(mLyricsPanel, dp(14));
         mLyricsScroll = new ScrollView(context);
         mLyricsScroll.setVerticalScrollBarEnabled(false);
         mLyricsScroll.setVerticalFadingEdgeEnabled(true);
@@ -261,19 +273,19 @@ final class PhoneMusicPlayer {
         // Title, artist, like
         LinearLayout titleRow = new LinearLayout(context);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        titleRow.setPadding(0, dp(26), 0, 0);
+        titleRow.setPadding(dp(2), dp(28), 0, 0);
         LinearLayout words = new LinearLayout(context);
         words.setOrientation(LinearLayout.VERTICAL);
-        mTitle = text(context, 24, Color.WHITE, true);
+        mTitle = text(context, 22, Color.WHITE, true);
         mTitle.setSingleLine(true);
         mTitle.setEllipsize(TextUtils.TruncateAt.MARQUEE);
         mTitle.setMarqueeRepeatLimit(-1);
         mTitle.setSelected(true);
         words.addView(mTitle);
-        mArtist = text(context, 16, 0xB3FFFFFF, false);
+        mArtist = text(context, 15, 0xB3FFFFFF, false);
         mArtist.setSingleLine(true);
         mArtist.setEllipsize(TextUtils.TruncateAt.END);
-        mArtist.setPadding(0, dp(4), 0, 0);
+        mArtist.setPadding(0, dp(2), 0, 0);
         words.addView(mArtist);
         titleRow.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         mLike = icon(context, R.drawable.ic_phone_like, 26);
@@ -287,19 +299,19 @@ final class PhoneMusicPlayer {
         // The line being sung: a coloured pill with little moving bars (tap: all the lyrics)
         mLyricChip = new LinearLayout(context);
         mLyricChip.setGravity(Gravity.CENTER_VERTICAL);
-        mLyricChip.setPadding(dp(12), dp(9), dp(14), dp(9));
+        mLyricChip.setPadding(dp(2), dp(6), 0, dp(6));
         mLyricChip.setVisibility(View.GONE);
         mLyricChip.setOnClickListener(v -> showLyrics(!mLyricsOpen));
         mLyricChip.setContentDescription(context.getString(R.string.phone_music_lyrics));
         mChipBars = new Bars(context);
         mLyricChip.addView(mChipBars, new LinearLayout.LayoutParams(dp(16), dp(16)));
-        mChipLine = text(context, 15, Color.WHITE, true);
+        mChipLine = text(context, 14, Color.WHITE, false);
         mChipLine.setSingleLine(true);
         mChipLine.setEllipsize(TextUtils.TruncateAt.END);
         mChipLine.setPadding(dp(10), 0, 0, 0);
         mLyricChip.addView(mChipLine, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        chipParams.topMargin = dp(12);
+        chipParams.topMargin = dp(4);
         mColumn.addView(mLyricChip, chipParams);
 
         // Seek bar and times
@@ -348,7 +360,7 @@ final class PhoneMusicPlayer {
         // Shuffle, previous, play, next, repeat
         LinearLayout controls = new LinearLayout(context);
         controls.setGravity(Gravity.CENTER_VERTICAL);
-        controls.setPadding(0, dp(14), 0, dp(10));
+        controls.setPadding(0, dp(10), 0, dp(6));
         mShuffle = icon(context, R.drawable.ic_phone_mode_shuffle, 24);
         mShuffle.setContentDescription(context.getString(R.string.phone_music_shuffle));
         mShuffle.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_SHUFFLE));
@@ -372,7 +384,7 @@ final class PhoneMusicPlayer {
         mRepeat.setOnClickListener(v -> toggleMode(PlayerConstants.PLAYBACK_MODE_ONE));
         controls.addView(mShuffle, new LinearLayout.LayoutParams(0, dp(48), 1f));
         controls.addView(previous, new LinearLayout.LayoutParams(0, dp(56), 1f));
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(76), dp(76));
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(70), dp(70));
         playParams.setMargins(dp(8), 0, dp(8), 0);
         controls.addView(mPlay, playParams);
         controls.addView(next, new LinearLayout.LayoutParams(0, dp(56), 1f));
@@ -476,14 +488,18 @@ final class PhoneMusicPlayer {
 
         if (PhoneUi.isAlive(mActivity)) {
             String id = video.videoId;
+            mArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            mArtFill.setVisibility(View.GONE);
             Glide.with(mActivity)
                     .load("https://i.ytimg.com/vi/" + id + "/maxresdefault.jpg")
-                    .centerCrop()
                     // No full size picture: the 16:9 one (the 4:3 one last, it has black bars)
-                    .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hq720.jpg").centerCrop()
+                    .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hq720.jpg")
                             .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg").centerCrop()))
                     .transition(DrawableTransitionOptions.withCrossFade(250))
                     .into(mArt);
+            Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hq720.jpg")
+                    .error(Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"))
+                    .into(mArtFill);
             Glide.with(mActivity).load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").centerCrop().into(mBackToArt);
             // The colours come from a small copy of the artwork
             Glide.with(mActivity).asBitmap().load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").override(48, 27)
@@ -492,6 +508,7 @@ final class PhoneMusicPlayer {
                         public void onResourceReady(@NonNull Bitmap bitmap, @Nullable Transition<? super Bitmap> transition) {
                             if (id.equals(mVideoId)) {
                                 animateColor(vibrant(bitmap));
+                                frameArt(bitmap);
                             }
                         }
 
@@ -934,13 +951,15 @@ final class PhoneMusicPlayer {
             mLyricsHeader.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[] {top, (top & 0x00FFFFFF) | 0xCC000000, top & 0x00FFFFFF}));
         }
-        // The lyric pill: tinted with it, its words in a light shade of it
-        GradientDrawable chip = new GradientDrawable();
-        chip.setCornerRadius(dp(18));
-        chip.setColor((lighten(color) & 0x00FFFFFF) | 0x33000000);
-        chip.setStroke(dp(1), (lighten(color) & 0x00FFFFFF) | 0x55000000);
-        mLyricChip.setBackground(chip);
-        int words = blend(color, Color.WHITE, 0.7f);
+        // The lyric line: no box, its words in a light shade of the song's colour
+        mLyricChip.setBackground(null);
+        int words = blend(color, Color.WHITE, 0.72f);
+        // The artwork's shadow in the song's colour, not grey
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            mArtFrame.setOutlineSpotShadowColor(lighten(color));
+            mArtFrame.setOutlineAmbientShadowColor(color);
+            mLyricsPanel.setOutlineSpotShadowColor(lighten(color));
+        }
         mChipLine.setTextColor(words);
         mChipBars.setColor(words);
         updateModes();
@@ -990,6 +1009,45 @@ final class PhoneMusicPlayer {
         mGlow.animate().scaleX(1f).scaleY(1f).alpha(0.6f).setDuration(400).start();
         mGlow2.animate().translationX(0).translationY(0).alpha(0.5f).setDuration(400).start();
         mStage.animate().scaleX(0.94f).scaleY(0.94f).setDuration(300).start(); // paused: the artwork steps back
+    }
+
+    /**
+     * How the artwork sits in its square: a song's cover (a square picture padded out to 16:9 with plain sides) fills
+     * it; a music video's thumbnail is shown whole, over a blurred copy of itself filling the rest
+     */
+    private void frameArt(Bitmap small) {
+        boolean cover = plainSides(small);
+        mArt.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
+        mArtFill.setVisibility(cover ? View.GONE : View.VISIBLE);
+    }
+
+    /** The outer eighths of the picture are (nearly) one colour each: padding around a square cover */
+    private static boolean plainSides(Bitmap bitmap) {
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+        if (w < 8 || h < 4 || w < h * 1.3f) {
+            return true; // already square-ish: fill
+        }
+        int strip = Math.max(1, w / 8);
+        return spread(bitmap, 0, strip, h) < 18 && spread(bitmap, w - strip, w, h) < 18;
+    }
+
+    /** How much the colours vary in columns [from, to): the standard deviation of their brightness */
+    private static double spread(Bitmap bitmap, int from, int to, int h) {
+        double sum = 0;
+        double squares = 0;
+        int n = 0;
+        for (int x = from; x < to; x++) {
+            for (int y = 0; y < h; y++) {
+                int c = bitmap.getPixel(x, y);
+                double v = 0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c);
+                sum += v;
+                squares += v * v;
+                n++;
+            }
+        }
+        double mean = sum / n;
+        return Math.sqrt(Math.max(0, squares / n - mean * mean));
     }
 
     /** The most colourful bright-enough tone of the artwork */

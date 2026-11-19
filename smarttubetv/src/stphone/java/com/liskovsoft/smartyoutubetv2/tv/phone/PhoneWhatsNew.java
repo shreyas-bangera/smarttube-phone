@@ -24,7 +24,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  */
 final class PhoneWhatsNew {
     /** The newest release below: raise it with each new one */
-    static final int VERSION = 7;
+    static final int VERSION = 8;
 
     private static final String PREFS = "phone_whats_new";
     private static final String KEY_READ = "read";
@@ -57,7 +57,16 @@ final class PhoneWhatsNew {
     }
 
     static final Release[] RELEASES = {
-            new Release(7, "This update",
+            new Release(8, "This update",
+                    new Feature(R.drawable.ic_phone_collapse, "Swipe down to close menus",
+                            "The player's menus (Settings, Quality, Speed, Captions and the rest) close with a swipe down, from the handle or the list, or with a tap outside them. They're smaller and neater too, and narrower in full screen."),
+                    new Feature(R.drawable.ic_phone_music_note, "A cleaner music player",
+                            "Music video thumbnails show whole on a soft blurred backdrop, song covers still fill the frame, the artwork casts a shadow in the song's colour, and the lyric line has no box around it."),
+                    new Feature(R.drawable.ic_phone_search, "Search always at hand",
+                            "The top bar stays in place while you scroll Home, Settings and every other page."),
+                    new Feature(R.drawable.ic_phone_brightness, "Brightness back to normal",
+                            "Brightness set by swiping in full screen goes back to your phone's own when you leave full screen.")),
+            new Release(7, "Earlier",
                     new Feature(R.drawable.ic_phone_speed, "Hold for 2x",
                             "Press and hold a video to play it at 2x speed while you hold, like in the YouTube app. Let go and it's back to normal. Works in Shorts and full screen too."),
                     new Feature(R.drawable.ic_phone_search, "Search in Settings",

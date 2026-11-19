@@ -208,10 +208,12 @@ final class PhonePlayerSheet {
             mDialog = new Dialog(activity);
             mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-            LinearLayout root = new LinearLayout(activity);
+            PhoneSheetLayout root = new PhoneSheetLayout(activity);
             root.setOrientation(LinearLayout.VERTICAL);
             root.setBackgroundResource(R.drawable.phone_sheet_bg);
-            root.setPadding(0, dp(10), 0, dp(12));
+            root.setPadding(0, dp(8), 0, dp(10));
+            root.setClickable(true);
+            root.setOnDismiss(mDialog::dismiss); // swiped down: closed
 
             View handle = new View(activity);
             handle.setBackgroundResource(R.drawable.phone_handle);
@@ -224,8 +226,8 @@ final class PhonePlayerSheet {
                 TextView heading = new TextView(activity);
                 heading.setText(title);
                 heading.setTextColor(color(R.color.phone_text));
-                heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-                heading.setPadding(dp(24), dp(10), dp(24), dp(14));
+                heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                heading.setPadding(dp(24), dp(6), dp(24), dp(10));
                 root.addView(heading);
                 View divider = new View(activity);
                 divider.setBackgroundColor(color(R.color.phone_divider));
@@ -238,7 +240,13 @@ final class PhonePlayerSheet {
             scroll.addView(mRows);
             root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            mDialog.setContentView(root);
+            // Around the sheet (its sides in landscape): a tap there closes it
+            android.widget.FrameLayout frame = new android.widget.FrameLayout(activity);
+            frame.setOnClickListener(v -> mDialog.dismiss());
+            frame.addView(root, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+            mDialog.setContentView(frame);
+            mDialog.setCanceledOnTouchOutside(true);
             Window window = mDialog.getWindow();
             if (window != null) {
                 window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -256,7 +264,7 @@ final class PhonePlayerSheet {
         void addRow(int icon, String text, String value, boolean selected, Runnable onClick) {
             LinearLayout row = new LinearLayout(mActivity);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinimumHeight(dp(56));
+            row.setMinimumHeight(dp(48));
             row.setPadding(dp(24), 0, dp(24), 0);
             row.setBackgroundResource(R.drawable.phone_ripple);
             row.setOnClickListener(v -> onClick.run());
@@ -270,7 +278,7 @@ final class PhonePlayerSheet {
             TextView label = new TextView(mActivity);
             label.setText(text);
             label.setTextColor(color(R.color.phone_text));
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             labelParams.setMarginStart(dp(32));
             row.addView(label, labelParams);
