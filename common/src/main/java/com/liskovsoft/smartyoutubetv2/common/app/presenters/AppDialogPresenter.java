@@ -121,7 +121,28 @@ public class AppDialogPresenter extends BasePresenter<AppDialogView> {
         showDialog(null, onFinish);
     }
 
+    /** Settings search: dialogs built while capturing are kept here instead of shown */
+    private static List<OptionCategory> sCapture;
+
+    /** From now on a dialog is kept (see stopCapture), not shown: the phone's settings search reads the pages */
+    public static void startCapture() {
+        sCapture = new ArrayList<>();
+    }
+
+    /** The categories of the dialogs built since startCapture; dialogs show again */
+    public static List<OptionCategory> stopCapture() {
+        List<OptionCategory> captured = sCapture;
+        sCapture = null;
+        return captured != null ? captured : new ArrayList<>();
+    }
+
     public void showDialog(CharSequence dialogTitle, Runnable onFinish) {
+        if (sCapture != null) {
+            sCapture.addAll(mCategories);
+            resetData();
+            mOnFinish.clear();
+            return;
+        }
         mTitle = dialogTitle;
         mOnFinish.add(onFinish);
         

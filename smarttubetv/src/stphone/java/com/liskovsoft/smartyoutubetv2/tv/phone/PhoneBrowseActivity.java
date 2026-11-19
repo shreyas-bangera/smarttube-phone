@@ -285,6 +285,10 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
     @Override
     public void onBackPressed() {
+        if (mSettingsQuery != null && mSettingsQuery.getVisibility() == View.VISIBLE) {
+            endSettingsSearch();
+            return;
+        }
         if (isSection(MediaGroup.TYPE_CHANNEL_UPLOADS) && sectionById(MediaGroup.TYPE_SUBSCRIPTIONS) != null) {
             // All channels was opened from the Subscriptions feed: go back to it
             focusSection(sectionById(MediaGroup.TYPE_SUBSCRIPTIONS));
@@ -445,7 +449,13 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     }
 
     private void setupTopBar() {
-        findViewById(R.id.phone_search).setOnClickListener(v -> SearchPresenter.instance(this).startSearch(null));
+        findViewById(R.id.phone_search).setOnClickListener(v -> {
+            if (isSettingsPage()) {
+                startSettingsSearch(); // on the Settings page: its own search
+            } else {
+                SearchPresenter.instance(this).startSearch(null);
+            }
+        });
         findViewById(R.id.phone_settings_button).setOnClickListener(v -> {
             BrowseSection settings = sectionById(MediaGroup.TYPE_SETTINGS);
             if (settings != null) {
@@ -984,6 +994,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             return;
         }
         boolean page = mCurrentTab == TAB_YOU && !mYouDashboard && mCurrentSection != null;
+        if (!isSettingsPage()) {
+            endSettingsSearch();
+        }
         View logo = findViewById(R.id.phone_logo);
         View spacer = ((ViewGroup) logo.getParent()).getChildAt(((ViewGroup) logo.getParent()).indexOfChild(mPageBar) + 1);
         logo.setVisibility(page ? View.GONE : View.VISIBLE);
@@ -1320,8 +1333,115 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             return; // late result: Settings was left for the You page
         }
         hideMessage();
+        if (mSettingsQuery != null && mSettingsQuery.getVisibility() == View.VISIBLE) {
+            mSettingsSearch = null; // values changed: read again
+            showSettingsResults();
+            return;
+        }
         mAdapter.setSettings(groupedSettings(group));
     }
+
+    // region Search in Settings
+
+    private android.widget.EditText mSettingsQuery;
+    private PhoneSettingsSearch mSettingsSearch;
+
+    private boolean isSettingsPage() {
+        return mCurrentTab == TAB_YOU && !mYouDashboard && mCurrentSection != null
+                && mCurrentSection.getId() == MediaGroup.TYPE_SETTINGS;
+    }
+
+    /** The page's name gives its place to a search box; the list shows what matches as it's typed */
+    private void startSettingsSearch() {
+        if (mPageBar == null || mSettingsGroup == null) {
+            return;
+        }
+        if (mSettingsQuery == null) {
+            mSettingsQuery = new android.widget.EditText(this);
+            mSettingsQuery.setHint(R.string.phone_settings_search_hint);
+            mSettingsQuery.setTextColor(getResources().getColor(R.color.phone_text));
+            mSettingsQuery.setHintTextColor(getResources().getColor(R.color.phone_text_2));
+            mSettingsQuery.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+            mSettingsQuery.setSingleLine(true);
+            mSettingsQuery.setBackground(null);
+            mSettingsQuery.setPadding(dp(12), 0, dp(8), 0);
+            mSettingsQuery.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+            mSettingsQuery.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence text, int start, int before, int count) {
+                    showSettingsResults();
+                }
+
+                @Override
+                public void afterTextChanged(android.text.Editable text) {
+                }
+            });
+            mSettingsQuery.setOnEditorActionListener((view, action, event) -> {
+                hideKeyboard();
+                return true;
+            });
+            mPageBar.addView(mSettingsQuery, mPageBar.indexOfChild(mPageTitle) + 1,
+                    new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        }
+        mSettingsSearch = null;
+        mPageTitle.setVisibility(View.GONE);
+        mSettingsQuery.setText("");
+        mSettingsQuery.setVisibility(View.VISIBLE);
+        mSettingsQuery.requestFocus();
+        android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) {
+            keyboard.showSoftInput(mSettingsQuery, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    private void showSettingsResults() {
+        if (mSettingsQuery == null || mSettingsGroup == null) {
+            return;
+        }
+        String query = mSettingsQuery.getText().toString().trim();
+        if (query.isEmpty()) {
+            mAdapter.setSettings(groupedSettings(mSettingsGroup));
+            return;
+        }
+        if (mSettingsSearch == null) {
+            mSettingsSearch = new PhoneSettingsSearch(this, groupedSettings(mSettingsGroup));
+        }
+        java.util.List<com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem> found = mSettingsSearch.find(query);
+        if (found.isEmpty()) {
+            found.add(PhoneSetting.header(getString(R.string.phone_settings_search_none, query)));
+        }
+        mAdapter.setSettings(found);
+        mList.scrollToPosition(0);
+    }
+
+    /** Back (or leaving Settings): the page's name and the whole list again */
+    private void endSettingsSearch() {
+        if (mSettingsQuery == null || mSettingsQuery.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        hideKeyboard();
+        mSettingsQuery.setVisibility(View.GONE);
+        mPageTitle.setVisibility(View.VISIBLE);
+        mSettingsSearch = null;
+        if (isSettingsPage() && mSettingsGroup != null) {
+            mAdapter.setSettings(groupedSettings(mSettingsGroup));
+        }
+    }
+
+    private void hideKeyboard() {
+        android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null && mSettingsQuery != null) {
+            keyboard.hideSoftInputFromWindow(mSettingsQuery.getWindowToken(), 0);
+        }
+    }
+
+    // endregion
 
     /**
      * The Settings list in groups with headings: SmartTube's settings pages (found by their titles) next to the
@@ -1341,11 +1461,6 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         engine.remove(getString(R.string.settings_about));
 
         java.util.List<com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem> items = new ArrayList<>();
-
-        // Always first: the app updates itself from here
-        items.add(PhoneSetting.row(PhoneUpdater.settingsTitle(this), R.drawable.ic_phone_update, () -> PhoneUpdater.open(this)));
-        items.add(PhoneSetting.row(getString(R.string.phone_whats_new), R.drawable.ic_phone_info, () -> PhoneWhatsNewActivity.open(this))
-                .summary(getString(R.string.phone_whats_new_summary)).badge(PhoneWhatsNew.hasUnread(this)));
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_account)));
         addEngineSetting(items, engine, R.string.settings_accounts);
@@ -1400,6 +1515,12 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             items.add(PhoneSetting.header(getString(R.string.phone_settings_more)));
             items.addAll(engine.values());
         }
+
+        // Last: what's new in this version, and the app updating itself
+        items.add(PhoneSetting.header(getString(R.string.phone_settings_updates)));
+        items.add(PhoneSetting.row(getString(R.string.phone_whats_new), R.drawable.ic_phone_info, () -> PhoneWhatsNewActivity.open(this))
+                .summary(getString(R.string.phone_whats_new_summary)).badge(PhoneWhatsNew.hasUnread(this)));
+        items.add(PhoneSetting.row(PhoneUpdater.settingsTitle(this), R.drawable.ic_phone_update, () -> PhoneUpdater.open(this)));
 
         // A heading with no rows under it (its pages are missing in this SmartTube version) is dropped
         for (int i = items.size() - 1; i >= 0; i--) {

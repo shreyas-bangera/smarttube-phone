@@ -207,4 +207,7 @@
     <string name="phone_music_search_off">Carian muzik dimatikan: hasil dibuka sebagai video</string>
     <string name="phone_music_search_hint">Cari lagu, artis atau senarai main</string>
     <string name="phone_music_search">Cari muzik</string>
+    <string name="phone_settings_search_hint">Cari tetapan</string>
+    <string name="phone_settings_search_none">Tiada tetapan sepadan dengan “%1$s”</string>
+    <string name="phone_settings_updates">Kemas kini</string>
 </resources>

@@ -230,6 +230,24 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
         }
     }
 
+    /** The group the next settings page opens on (a settings search result's), or null */
+    private static String sFocus;
+
+    static void focusCategory(String title) {
+        sFocus = title;
+    }
+
+    private static OptionCategory find(List<OptionCategory> categories, String title) {
+        for (OptionCategory category : categories) {
+            boolean list = category.type == OptionCategory.TYPE_RADIO_LIST || category.type == OptionCategory.TYPE_CHECKBOX_LIST
+                    || category.type == OptionCategory.TYPE_STRING_LIST;
+            if (list && category.options != null && category.title != null && title.contentEquals(category.title)) {
+                return category;
+            }
+        }
+        return null;
+    }
+
     // region AppDialogView
 
     @Override
@@ -259,7 +277,14 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
                     : categoryPage(category, category.title != null ? category.title : title);
         } else {
             page = rootPage(categories, title);
+            // Opened from a settings search result: straight on its group (Back shows the page)
+            OptionCategory focus = sFocus != null && categories != null ? find(categories, sFocus) : null;
+            if (focus != null) {
+                mStack.add(page);
+                page = categoryPage(focus, focus.title);
+            }
         }
+        sFocus = null;
 
         mStack.add(page);
         render();
