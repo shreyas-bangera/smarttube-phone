@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of the music player's lights and Up next (run 2: brighter lights, solid panel), from the real app: the player (lights around the artwork),
+# Emulator test of the music player's lights and Up next (run 3: the living background, glowing buttons), from the real app: the player (lights around the artwork),
 # the Up next bar, the queue panel, a song picked from it, and the panel swiped down. Each step is a screenshot in the
 # log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -27,6 +27,13 @@ log() { echo "---- $1"; adb logcat -d -s PhoneMusic:D PhoneLyrics:D | grep -E "m
 adb logcat -c
 adb shell am start -n "$PKG/$SPLASH"
 sleep 45
+# Home: the top bar tucks away while scrolling down
+adb shell input swipe 540 1800 540 900 400
+sleep 2
+shot h1_home_scrolled
+adb shell input swipe 540 900 540 1300 300
+sleep 2
+shot h2_home_back_up
 tap 'content-desc="Search YouTube"'
 sleep 4
 tap 'content-desc="Music search"'
@@ -37,7 +44,9 @@ sleep 15
 adb shell input tap 540 700
 sleep 40
 shot m1_player
-sleep 2
+# Play (the emulator starts it paused): the lights move
+adb shell input tap 540 1936
+sleep 6
 shot m2_player_later
 echo "Up next bar: $(bounds 'text="Up next"')"
 tap 'text="Up next"' || tap 'text="UP NEXT"' || { adb shell input swipe 540 1800 540 1200 300; sleep 2; tap 'text="Up next"'; }

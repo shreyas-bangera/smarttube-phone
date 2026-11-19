@@ -349,8 +349,10 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     // region UI setup
 
     /**
-     * The feed scrolls under the top and bottom bars. The top bar stays fixed, so search (YouTube's, or Settings')
-     * and the page's name are always at hand, also at the bottom of a long page.
+     * The feed scrolls under the top and bottom bars. On Home the top bar slides away while scrolling down and comes
+     * back on the way up (like the YouTube app), its content hidden under a strip of the page's colour behind the
+     * status bar; on every other page it stays fixed, so search (YouTube's, or Settings') and the page's name are
+     * always at hand, also at the bottom of a long page.
      */
     private void setupBars() {
         View topBar = findViewById(R.id.phone_top_bar);
@@ -361,7 +363,58 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         topBar.addOnLayoutChangeListener(sync);
         mBottomBar.addOnLayoutChangeListener(sync);
 
-        // The top bar stays put while the page scrolls (search and the page's name always at hand)
+        // Behind the status bar: the bar's content slides under this, not under the clock and icons
+        ViewGroup root = (ViewGroup) topBar.getParent();
+        View statusStrip = new View(this);
+        statusStrip.setBackgroundResource(R.color.phone_bg);
+        statusStrip.setVisibility(View.GONE);
+        root.addView(statusStrip, root.indexOfChild(topBar) + 1,
+                new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, android.view.Gravity.TOP));
+        topBar.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            ViewGroup.LayoutParams params = statusStrip.getLayoutParams();
+            if (params.height != v.getPaddingTop()) {
+                params.height = v.getPaddingTop();
+                statusStrip.setLayoutParams(params);
+            }
+        });
+        mTopBar = topBar;
+        mStatusStrip = statusStrip;
+
+        mList.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {
+                if (!isSection(MediaGroup.TYPE_HOME) || mYouDashboard) {
+                    showTopBar(); // the other pages: fixed
+                    return;
+                }
+                int hideable = topBar.getHeight() - topBar.getPaddingTop(); // the status bar area stays
+                float y = Math.max(-hideable, Math.min(0, topBar.getTranslationY() - dy));
+                if (!recyclerView.canScrollVertically(-1)) {
+                    y = 0;
+                }
+                moveTopBar(y);
+            }
+        });
+    }
+
+    private View mTopBar;
+    private View mStatusStrip;
+
+    /** Home's top bar back in place (another page opened, or the top reached) */
+    private void showTopBar() {
+        if (mTopBar != null && mTopBar.getTranslationY() != 0) {
+            moveTopBar(0);
+        }
+    }
+
+    private void moveTopBar(float y) {
+        mTopBar.setTranslationY(y);
+        mStatusStrip.setVisibility(y < 0 ? View.VISIBLE : View.GONE);
+        // The loading line sits under the top bar: move it with the bar
+        View progress = findViewById(R.id.phone_progress_bar);
+        if (progress != null) {
+            progress.setTranslationY(y);
+        }
     }
 
     private void setupPullToRefresh() {
@@ -967,6 +1020,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     private void showYouDashboard() {
         clearSubscriptionsChannel();
         mYouDashboard = true;
+        showTopBar();
         mCurrentTab = TAB_YOU;
         mCurrentSection = null;
         mLoadedSection = null;
@@ -1096,6 +1150,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         clearSubscriptionsChannel();
         mYouDashboard = false;
         mCurrentSection = section;
+        showTopBar();
         mCurrentTab = tabOf(section);
         mTabSectionIds[mCurrentTab] = section.getId();
 
