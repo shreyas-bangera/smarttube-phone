@@ -272,10 +272,10 @@ final class PhoneMusicFlow {
 
         int cover;
         if (mLandscape) {
-            cover = Math.round(Math.min(height * 0.56f, width * 0.27f));
+            cover = Math.round(Math.min(height * 0.52f, width * 0.25f));
             mFlow.setCoverSize(cover);
-            column.setPadding(0, Math.round(height * 0.07f), 0, 0);
-            column.addView(mFlow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.round(cover * 1.12f)));
+            column.setPadding(0, Math.round(height * 0.08f), 0, 0);
+            column.addView(mFlow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.round(cover * 1.2f)));
             mScreen.addView(column, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
             mScreen.addView(controlBar(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -290,7 +290,7 @@ final class PhoneMusicFlow {
         } else {
             cover = Math.round(Math.min(width * 0.5f, height * 0.32f));
             mFlow.setCoverSize(cover);
-            column.addView(mFlow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.round(cover * 1.15f)));
+            column.addView(mFlow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.round(cover * 1.25f)));
             LinearLayout words = labels(Gravity.CENTER_HORIZONTAL, 20);
             LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -593,7 +593,7 @@ final class PhoneMusicFlow {
 
         /** Every cover where it belongs for the position now */
         private void place() {
-            float gap = mSize * (mWide ? 0.64f : 0.58f); // from the middle to the first cover on a side
+            float gap = mSize * (mWide ? 0.7f : 0.64f); // from the middle to the first cover on a side
             float step = mSize * (mWide ? 0.2f : 0.15f); // between the side covers
             for (int i = 0; i < mCards.size(); i++) {
                 FrameLayout card = mCards.get(i);
@@ -608,7 +608,7 @@ final class PhoneMusicFlow {
                 float x = a <= 1 ? d * gap : Math.signum(d) * (gap + (a - 1) * step);
                 card.setTranslationX(x);
                 card.setRotationY(-Math.signum(d) * near * 64f);
-                float scale = 1f - 0.16f * near;
+                float scale = 1.12f - 0.28f * near; // the middle one a little bigger than the rest
                 card.setScaleX(scale);
                 card.setScaleY(scale);
                 card.setTranslationZ((SIDE + 2 - a) * mD); // the nearer the middle, the more on top
