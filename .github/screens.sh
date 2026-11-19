@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of the music player's lights and Up next, from the real app: the player (lights around the artwork),
+# Emulator test of the music player's lights and Up next (run 2: brighter lights, solid panel), from the real app: the player (lights around the artwork),
 # the Up next bar, the queue panel, a song picked from it, and the panel swiped down. Each step is a screenshot in the
 # log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens).
 set -x

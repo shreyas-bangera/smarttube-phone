@@ -142,7 +142,7 @@ final class PhoneMusicFx {
             long now = SystemClock.uptimeMillis();
             float dt = mLast == 0 ? 0 : Math.min(0.05f, (now - mLast) / 1000f);
             mLast = now;
-            float target = mPlaying ? 1f : 0.25f;
+            float target = mPlaying ? 1f : 0.45f;
             mEnergy += (target - mEnergy) * Math.min(1f, dt * 2f);
             mTime += dt * (0.25f + 0.55f * mEnergy);
             boolean mixing = mMix < 1f;
@@ -154,19 +154,19 @@ final class PhoneMusicFx {
             if (size <= 0) {
                 return;
             }
-            float radius = size * 0.42f;
+            float radius = size * 0.30f;
             if (mLights[0] == null) {
                 int[] colors = current();
                 for (int i = 0; i < 3; i++) {
                     int c = colors[i];
                     mLights[i] = new RadialGradient(0, 0, radius,
-                            new int[] {(c & 0x00FFFFFF) | 0xA6000000, (c & 0x00FFFFFF) | 0x40000000, c & 0x00FFFFFF},
-                            new float[] {0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+                            new int[] {(c & 0x00FFFFFF) | 0xCC000000, (c & 0x00FFFFFF) | 0x66000000, c & 0x00FFFFFF},
+                            new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP);
                 }
             }
             float cx = getWidth() / 2f;
             float cy = getHeight() / 2f;
-            float orbit = size * 0.12f;
+            float orbit = size * 0.18f; // out to the artwork's edges: the lights peek round it as they circle
             float breathe = 0.82f + 0.18f * (float) Math.sin(mTime * 2.1f);
             for (int i = 0; i < 3; i++) {
                 double angle = mTime * (i == 1 ? -0.9 : 0.7) + i * Math.PI * 2 / 3;
@@ -177,7 +177,7 @@ final class PhoneMusicFx {
                 mMatrix.postTranslate(x, y);
                 mLights[i].setLocalMatrix(mMatrix);
                 mPaint.setShader(mLights[i]);
-                mPaint.setAlpha(Math.round(255 * (0.45f + 0.5f * mEnergy) * (i == 2 ? 0.6f : 1f)));
+                mPaint.setAlpha(Math.round(255 * (0.55f + 0.45f * mEnergy) * (i == 2 ? 0.7f : 1f)));
                 canvas.drawCircle(x, y, radius * scale, mPaint);
             }
             if ((mPlaying || mixing || Math.abs(target - mEnergy) > 0.01f) && isShown()) {

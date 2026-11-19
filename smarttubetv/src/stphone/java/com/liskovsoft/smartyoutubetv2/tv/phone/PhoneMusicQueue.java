@@ -107,7 +107,7 @@ final class PhoneMusicQueue {
         mPanel.setClickable(true);
         mPanel.setOnDismiss(this::dismissed);
         GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] {(PhoneMusicPlayer.darken(color, 0.42f) & 0x00FFFFFF) | 0xF2000000, 0xF70B0B0D});
+                new int[] {PhoneMusicPlayer.darken(color, 0.42f) | 0xFF000000, 0xFF0B0B0D});
         glass.setCornerRadii(new float[] {dp(26), dp(26), dp(26), dp(26), 0, 0, 0, 0});
         glass.setStroke(Math.max(1, dp(1) / 2), (PhoneMusicPlayer.lighten(color) & 0x00FFFFFF) | 0x33000000);
         mPanel.setBackground(glass);

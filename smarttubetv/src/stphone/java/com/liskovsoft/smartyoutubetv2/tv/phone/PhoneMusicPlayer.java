@@ -239,7 +239,7 @@ final class PhoneMusicPlayer {
         mColumn.setClipChildren(false);
         mColumn.setClipToPadding(false);
         mAura = new PhoneMusicFx.Aura(context);
-        int auraSize = Math.round(stageSize * 1.5f);
+        int auraSize = Math.round(stageSize * 1.8f);
         mStage.addView(mAura, new FrameLayout.LayoutParams(auraSize, auraSize, Gravity.CENTER));
 
         mArtFrame = new FrameLayout(context);
@@ -419,7 +419,9 @@ final class PhoneMusicPlayer {
         mUpNext.setClickable(true);
         mUpNext.setForeground(context.getDrawable(R.drawable.phone_ripple));
         rounded(mUpNext, dp(18));
-        ImageView queueIcon = icon(context, R.drawable.ic_phone_playlist, 20);
+        ImageView queueIcon = new ImageView(context);
+        queueIcon.setImageResource(R.drawable.ic_phone_playlist);
+        queueIcon.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         mUpNext.addView(queueIcon, new LinearLayout.LayoutParams(dp(22), dp(22)));
         LinearLayout upWords = new LinearLayout(context);
         upWords.setOrientation(LinearLayout.VERTICAL);
@@ -435,7 +437,9 @@ final class PhoneMusicPlayer {
         LinearLayout.LayoutParams upWordsParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         upWordsParams.setMarginStart(dp(12));
         mUpNext.addView(upWords, upWordsParams);
-        ImageView open = icon(context, R.drawable.ic_phone_collapse, 20);
+        ImageView open = new ImageView(context);
+        open.setImageResource(R.drawable.ic_phone_collapse);
+        open.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         open.setRotation(180f);
         open.setAlpha(0.7f);
         mUpNext.addView(open, new LinearLayout.LayoutParams(dp(22), dp(22)));
