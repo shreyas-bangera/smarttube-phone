@@ -203,6 +203,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public java.util.List<Video> before() {
+                return musicBefore();
+            }
+
+            @Override
             public void play(Video video) {
                 presenter().onSuggestionItemClicked(video);
             }
@@ -2752,6 +2757,32 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (songs.size() < 2 && mMusicQueue != null && current != null && current.videoId != null
                 && current.videoId.equals(mQueueFor)) {
             addSongs(songs, seen, mMusicQueue.getVideos());
+        }
+        return songs;
+    }
+
+    /** The songs played before this one in the queue, oldest first, at most 20 (Cover Flow's left side) */
+    private java.util.List<Video> musicBefore() {
+        java.util.List<Video> songs = new java.util.ArrayList<>();
+        Video current = currentVideo();
+        if (current == null || current.videoId == null) {
+            return songs;
+        }
+        java.util.List<Video> all = new java.util.ArrayList<>(
+                com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().getAll());
+        int at = -1;
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i) != null && current.videoId.equals(all.get(i).videoId)) {
+                at = i;
+            }
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        seen.add(current.videoId);
+        for (int i = Math.max(0, at - 20); i < at; i++) {
+            Video video = all.get(i);
+            if (video != null && video.videoId != null && !isShort(video) && seen.add(video.videoId)) {
+                songs.add(video);
+            }
         }
         return songs;
     }

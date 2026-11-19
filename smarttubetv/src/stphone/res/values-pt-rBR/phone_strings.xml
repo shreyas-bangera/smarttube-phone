@@ -227,4 +227,6 @@
     <string name="phone_music_queue_now">Tocando agora</string>
     <string name="phone_music_queue_next">Próximas</string>
     <string name="phone_music_up_next_none">Nada na fila depois desta música ainda</string>
+    <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
+    <string name="phone_music_flow_close">Fechar Cover Flow</string>
 </resources>

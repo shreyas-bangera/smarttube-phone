@@ -58,6 +58,8 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(8, "This update",
+                    new Feature(R.drawable.ic_phone_playlist, "Cover Flow",
+                            "Turn your phone sideways in the music player to see your songs as a row of covers. Swipe through them and tap one to play it. In portrait, press and hold the artwork for the same view."),
                     new Feature(R.drawable.ic_phone_music_note, "A new animation for every song",
                             "Behind the music player, each song now gets its own animation: confetti, fireflies, soap bubbles, shooting stars, blossom petals, snow, lanterns, neon waves, a galaxy, butterflies, music notes, rainbow light and more."),
                     new Feature(R.drawable.ic_phone_playlist, "See what plays next",

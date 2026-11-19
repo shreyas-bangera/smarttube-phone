@@ -227,4 +227,6 @@
     <string name="phone_music_queue_now">Now playing</string>
     <string name="phone_music_queue_next">Next</string>
     <string name="phone_music_up_next_none">Nothing lined up after this song yet</string>
+    <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
+    <string name="phone_music_flow_close">Close Cover Flow</string>
 </resources>

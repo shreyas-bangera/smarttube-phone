@@ -79,6 +79,9 @@ final class PhoneMusicPlayer {
         /** The songs that play after this one, in order (shuffle's pick first) */
         List<Video> upNext();
 
+        /** The songs played before this one, oldest first (Cover Flow's left side) */
+        List<Video> before();
+
         /** A song picked in Up next */
         void play(Video video);
     }
@@ -131,6 +134,9 @@ final class PhoneMusicPlayer {
     private final LinearLayout mUpNext;
     private final TextView mUpNextTitle;
     private final PhoneMusicQueue mQueue;
+    /** Cover Flow: the player in landscape, and over it in portrait from a long press on the artwork */
+    private final PhoneMusicFlow mFlow;
+    private final ScrollView mScroll;
     private int mUpNextTicks;
 
     private boolean mShown;
@@ -198,6 +204,7 @@ final class PhoneMusicPlayer {
         mRoot.addView(mMood, match());
 
         ScrollView scroll = new ScrollView(context);
+        mScroll = scroll;
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -470,6 +477,70 @@ final class PhoneMusicPlayer {
         upNextParams.topMargin = dp(8);
         mColumn.addView(mUpNext, upNextParams);
 
+        mFlow = new PhoneMusicFlow(activity, mRoot, new PhoneMusicFlow.Host() {
+            @Override
+            public Video playing() {
+                return mHost.video();
+            }
+
+            @Override
+            public List<Video> before() {
+                return mHost.before();
+            }
+
+            @Override
+            public List<Video> upNext() {
+                return mHost.upNext();
+            }
+
+            @Override
+            public void play(Video video) {
+                mHost.play(video);
+            }
+
+            @Override
+            public SimpleExoPlayer exo() {
+                return mHost.exo();
+            }
+
+            @Override
+            public void togglePlay() {
+                mHost.togglePlay();
+                mHandler.postDelayed(PhoneMusicPlayer.this::update, 50);
+            }
+
+            @Override
+            public void next() {
+                mHost.next();
+            }
+
+            @Override
+            public void previous() {
+                mHost.previous();
+            }
+
+            @Override
+            public void toggleShuffle() {
+                toggleMode(PlayerConstants.PLAYBACK_MODE_SHUFFLE);
+            }
+
+            @Override
+            public boolean shuffle() {
+                return PlayerData.instance(mActivity).getPlaybackMode() == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
+            }
+
+            @Override
+            public void minimize() {
+                mHost.minimize();
+            }
+        });
+        // Turned sideways: Cover Flow is the player
+        mRoot.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) {
+                v.post(this::applyOrientation);
+            }
+        });
+
         mQueue = new PhoneMusicQueue(activity, mRoot, new PhoneMusicQueue.Source() {
             @Override
             public Video playing() {
@@ -522,9 +593,12 @@ final class PhoneMusicPlayer {
             bindVideo();
             mHandler.removeCallbacks(mTick);
             mHandler.post(mTick);
+            mRoot.post(this::applyOrientation);
         } else {
             mRoot.animate().cancel();
             mQueue.close();
+            mFlow.hide();
+            mScroll.setVisibility(View.VISIBLE);
             mRoot.setVisibility(View.GONE);
             stopPulse();
             mHandler.removeCallbacks(mTick);
@@ -553,6 +627,10 @@ final class PhoneMusicPlayer {
 
     /** Back pressed: the lyrics give the artwork its place back first */
     boolean onBack() {
+        if (mShown && mFlow.isShown() && !mFlow.isLandscape()) {
+            mFlow.hide();
+            return true;
+        }
         if (mShown && mQueue.isOpen()) {
             mQueue.close();
             return true;
@@ -562,6 +640,37 @@ final class PhoneMusicPlayer {
             return true;
         }
         return false;
+    }
+
+    // endregion
+
+    // region Cover Flow
+
+    /** Landscape: Cover Flow is the player (the portrait one hides); portrait: the usual player */
+    private void applyOrientation() {
+        if (!mShown || mRoot.getWidth() == 0) {
+            return;
+        }
+        boolean wide = mRoot.getWidth() > mRoot.getHeight();
+        if (wide && !mFlow.isLandscape()) {
+            mQueue.close();
+            mFlow.show(true);
+            mFlow.setColor(mColor);
+            mScroll.setVisibility(View.INVISIBLE);
+        } else if (!wide && mFlow.isLandscape()) {
+            mFlow.hide();
+            mScroll.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /** A long press on the artwork: Cover Flow over the player, to pick a song */
+    private void openFlow() {
+        if (mFlow.isShown()) {
+            return;
+        }
+        mArtFrame.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        mFlow.show(false);
+        mFlow.setColor(mColor);
     }
 
     // endregion
@@ -710,7 +819,9 @@ final class PhoneMusicPlayer {
         if (mUpNextTicks-- <= 0) {
             mUpNextTicks = 10;
             refreshUpNext();
+            mFlow.refresh(false);
         }
+        mFlow.update(playing, moving);
         updateModes();
         updateLyrics(false);
     }
@@ -770,6 +881,14 @@ final class PhoneMusicPlayer {
         boolean[] dragging = {false};
         android.view.VelocityTracker[] velocity = {null};
         int slop = android.view.ViewConfiguration.get(mActivity).getScaledTouchSlop();
+        boolean[] held = {false};
+        Runnable longPress = () -> {
+            if (!dragging[0]) {
+                held[0] = true;
+                mArtFrame.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+                openFlow();
+            }
+        };
         mArtFrame.setOnTouchListener((v, event) -> {
             int width = mStage.getWidth() > 0 ? mStage.getWidth() : dp(300);
             switch (event.getActionMasked()) {
@@ -777,19 +896,30 @@ final class PhoneMusicPlayer {
                     down[0] = event.getRawX();
                     down[1] = event.getRawY();
                     dragging[0] = false;
+                    held[0] = false;
                     if (velocity[0] != null) {
                         velocity[0].recycle();
                     }
                     velocity[0] = android.view.VelocityTracker.obtain();
                     velocity[0].addMovement(event);
                     mArtFrame.animate().cancel();
+                    // Held: it sinks in a little, then Cover Flow opens
+                    mArtFrame.animate().scaleX(0.97f).scaleY(0.97f).setStartDelay(120).setDuration(300).start();
+                    mHandler.postDelayed(longPress, android.view.ViewConfiguration.getLongPressTimeout());
                     return true;
                 case MotionEvent.ACTION_MOVE: {
                     velocity[0].addMovement(event);
                     float dx = event.getRawX() - down[0];
                     float dy = event.getRawY() - down[1];
+                    if (held[0]) {
+                        return true; // Cover Flow is open: this touch is done
+                    }
+                    if (Math.abs(dx) > slop || Math.abs(dy) > slop) {
+                        mHandler.removeCallbacks(longPress);
+                    }
                     if (!dragging[0] && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
                         dragging[0] = true;
+                        mArtFrame.animate().cancel();
                         scroll.requestDisallowInterceptTouchEvent(true);
                     }
                     if (dragging[0]) {
@@ -805,12 +935,17 @@ final class PhoneMusicPlayer {
                 }
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL: {
+                    mHandler.removeCallbacks(longPress);
+                    if (held[0]) {
+                        held[0] = false;
+                        return true;
+                    }
                     float dx = event.getRawX() - down[0];
                     velocity[0].addMovement(event);
                     velocity[0].computeCurrentVelocity(1000);
                     float vx = velocity[0].getXVelocity();
                     boolean fling = Math.abs(vx) > dp(900) && Math.signum(vx) == Math.signum(dx);
-                    mArtFrame.animate().scaleX(1f).scaleY(1f).setDuration(200).start();
+                    mArtFrame.animate().setStartDelay(0).scaleX(1f).scaleY(1f).setDuration(200).start();
                     if (dragging[0] && event.getActionMasked() == MotionEvent.ACTION_UP
                             && (Math.abs(dx) > width * 0.28f || fling)) {
                         change(dx < 0 ? 1 : -1); // swiped left: the next song
@@ -1089,6 +1224,9 @@ final class PhoneMusicPlayer {
         mBackground.setBackground(background);
         int light = lighten(color);
         mPlayHalo.setColor(light);
+        if (mFlow != null) {
+            mFlow.setColor(color);
+        }
         for (android.graphics.drawable.RippleDrawable glow : mPressGlows) {
             glow.setColor(android.content.res.ColorStateList.valueOf((light & 0x00FFFFFF) | 0x73000000));
         }
