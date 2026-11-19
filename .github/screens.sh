@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of the music player's Shuffle and Repeat buttons (issue #61), from the real app (run 2: Next with the queue):
+# Emulator test of the music player's Shuffle and Repeat buttons (issue #61), from the real app (run 3: Next with the queue, on marks):
 # screenshot in the log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens), and the app's own
 # log lines (PhoneMusic) say what the buttons did.
 set -x

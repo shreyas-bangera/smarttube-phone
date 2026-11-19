@@ -693,10 +693,57 @@ final class PhoneMusicPlayer {
         int mode = PlayerData.instance(mActivity).getPlaybackMode();
         boolean shuffle = mode == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
         boolean one = mode == PlayerConstants.PLAYBACK_MODE_ONE;
-        mShuffle.setAlpha(shuffle ? 1f : 0.55f);
-        mShuffle.setImageTintList(android.content.res.ColorStateList.valueOf(shuffle ? lighten(mColor) : Color.WHITE));
-        mRepeat.setAlpha(one ? 1f : 0.55f);
-        mRepeat.setImageTintList(android.content.res.ColorStateList.valueOf(one ? lighten(mColor) : Color.WHITE));
+        showMode(mShuffle, shuffle);
+        showMode(mRepeat, one);
+    }
+
+    /**
+     * On: the icon bright in the song's light colour, a soft circle of it behind and a dot under it (as music apps
+     * show it). Off: a dim white icon, nothing behind.
+     */
+    private void showMode(ImageView button, boolean on) {
+        int light = lighten(mColor);
+        button.setAlpha(on ? 1f : 0.5f);
+        button.setImageTintList(android.content.res.ColorStateList.valueOf(on ? light : Color.WHITE));
+        button.setBackground(on ? new ModeMark(light, dp(17), dp(2)) : null);
+        button.setSelected(on);
+    }
+
+    /** The "on" mark of Shuffle and Repeat: a circle of the colour behind the icon and a dot under it */
+    private static final class ModeMark extends Drawable {
+        private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int mColor;
+        private final float mRadius;
+        private final float mDot;
+
+        ModeMark(int color, float radius, float dot) {
+            mColor = color;
+            mRadius = radius;
+            mDot = dot;
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            float cx = getBounds().exactCenterX();
+            float cy = getBounds().exactCenterY();
+            mPaint.setColor((mColor & 0x00FFFFFF) | 0x2E000000);
+            canvas.drawCircle(cx, cy, mRadius, mPaint);
+            mPaint.setColor(mColor);
+            canvas.drawCircle(cx, cy + mRadius + mDot * 1.5f, mDot, mPaint); // (inside the 48 dp button)
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+        }
+
+        @Override
+        public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
     }
 
     // endregion
