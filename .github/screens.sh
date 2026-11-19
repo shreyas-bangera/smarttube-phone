@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of Search in Settings, from the real app: Settings (with What's new and Check for updates at the
+# Emulator test of Search in Settings (run 2: the gear opens Settings), from the real app: Settings (with What's new and Check for updates at the
 # bottom), the search icon there, results for a few words, and a result opening its page. Each step is a screenshot
 # in the log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -28,7 +28,7 @@ adb shell am start -n "$PKG/$SPLASH"
 sleep 40
 tap 'text="You"' || tap 'content-desc="You"'
 sleep 5
-tap 'text="Settings"'
+tap 'content-desc="Settings"' || tap 'text="Settings"'
 sleep 6
 shot s1_settings
 # The bottom: Updates (What's new, Check for updates)
