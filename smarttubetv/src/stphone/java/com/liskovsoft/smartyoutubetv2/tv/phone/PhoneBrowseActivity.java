@@ -101,6 +101,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         setupBars();
         setupTopBar();
         setupTabs();
+        applyTabStyle();
 
         MediaServiceManager.instance().addAccountListener(this);
 
@@ -181,6 +182,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         }, 2500);
         if (!mIsFirstResume) {
             mPresenter.onViewResumed();
+        }
+        if (mTabStyle != PhoneTweaks.tabStyle(this)) {
+            applyTabStyle(); // changed in Customize
         }
         if (mBackToYou) {
             if (!mYouDashboard || mCurrentTab != TAB_YOU) {
@@ -615,6 +619,41 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         updateTabs();
     }
 
+    // region The tab bar's look (Customize > Tab bar, see PhoneTabBar)
+
+    private int mTabStyle = -1;
+    private int mNavInset;
+    private boolean mTabsDrawn;
+
+    @Override
+    protected boolean onBottomInset(View bottomBar, int bottom) {
+        if (bottomBar != mBottomBar) {
+            return false;
+        }
+        mNavInset = bottom;
+        if (mTabStyle >= 0) {
+            PhoneTabBar.apply(mBottomBar, mTabStyle, bottom);
+            mTabsDrawn = false;
+            updateTabs();
+        }
+        return true;
+    }
+
+    private void applyTabStyle() {
+        mTabStyle = PhoneTweaks.tabStyle(this);
+        PhoneTabBar.apply(mBottomBar, mTabStyle, mNavInset);
+        boolean floating = mTabStyle != PhoneTabBar.CLASSIC;
+        for (View tab : mTabViews) {
+            if (tab != null) {
+                tab.setPadding(0, dp(floating ? 6 : 9), 0, dp(floating ? 5 : 7));
+            }
+        }
+        mTabsDrawn = false;
+        updateTabs();
+    }
+
+    // endregion
+
     private void updateTabs() {
         if (mTopAvatar != null) {
             // Customize > You: the account picture next to search opens the You page
@@ -630,7 +669,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
                     : i == TAB_NOTIFICATIONS || hasTab(i);
             tab.setVisibility(visible ? View.VISIBLE : View.GONE);
             boolean selected = i == mCurrentTab;
-            int color = getResources().getColor(R.color.phone_text);
+            int color = PhoneTabBar.tabColor(this, Math.max(0, mTabStyle), selected);
             LinearLayout layout = (LinearLayout) tab;
             ImageView icon = (ImageView) layout.getChildAt(0);
             // The You tab shows the account picture untinted
@@ -644,7 +683,14 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             }
             TextView label = (TextView) layout.getChildAt(1);
             label.setTextColor(color);
-            label.setTypeface(PhoneUi.regular(label.getContext())); // the filled icon marks the chosen tab
+            label.setTypeface(selected && mTabStyle > PhoneTabBar.CLASSIC ? PhoneUi.medium(label.getContext())
+                    : PhoneUi.regular(label.getContext())); // the filled icon marks the chosen tab
+        }
+        // The floating bars: the pill or the glass lens goes to the chosen tab
+        View chosen = mCurrentTab >= 0 && mCurrentTab < TAB_COUNT ? mTabViews[mCurrentTab] : null;
+        if (chosen != null && chosen.getVisibility() == View.VISIBLE) {
+            PhoneTabBar.select(mBottomBar, chosen, mTabsDrawn);
+            mTabsDrawn = true;
         }
     }
 

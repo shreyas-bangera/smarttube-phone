@@ -218,4 +218,9 @@
     <string name="phone_settings_search_none">Nenhuma configuração corresponde a “%1$s”</string>
     <string name="phone_settings_updates">Atualizações</string>
     <string name="phone_hold_speed" translatable="false">2x ▸▸</string>
+    <string name="phone_tabs">Barra de abas</string>
+    <string name="phone_tabs_summary">A aparência das abas na parte de baixo</string>
+    <string name="phone_tabs_classic">Clássica</string>
+    <string name="phone_tabs_floating">Flutuante</string>
+    <string name="phone_tabs_glass">Vidro líquido</string>
 </resources>

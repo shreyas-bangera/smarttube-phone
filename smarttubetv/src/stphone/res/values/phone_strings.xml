@@ -218,4 +218,9 @@
     <string name="phone_settings_search_none">No settings match “%1$s”</string>
     <string name="phone_settings_updates">Updates</string>
     <string name="phone_hold_speed" translatable="false">2x ▸▸</string>
+    <string name="phone_tabs">Tab bar</string>
+    <string name="phone_tabs_summary">How the tabs at the bottom look</string>
+    <string name="phone_tabs_classic">Classic</string>
+    <string name="phone_tabs_floating">Floating</string>
+    <string name="phone_tabs_glass">Liquid glass</string>
 </resources>

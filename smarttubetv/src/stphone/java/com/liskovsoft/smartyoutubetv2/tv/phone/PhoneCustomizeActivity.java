@@ -68,6 +68,10 @@ public class PhoneCustomizeActivity extends PhoneActivity {
                 ? R.string.phone_tweak_you_top : R.string.phone_tweak_you_bottom), R.drawable.ic_phone_account, this::pickYouPlace)
                 .summary(getString(R.string.phone_tweak_you_summary)));
 
+        int tabs = PhoneTweaks.tabStyle(this);
+        row(PhoneSetting.dropDown(getString(R.string.phone_tabs), getString(PhoneTabBar.nameRes(tabs)),
+                R.drawable.ic_phone_tab_home, this::pickTabStyle).summary(getString(R.string.phone_tabs_summary)));
+
         header(R.string.phone_customize_player);
         row(PhoneSetting.toggle(getString(R.string.phone_tweak_prev_next), PhoneTweaks.prevNextButtons(this), R.drawable.ic_phone_next, () -> {
             PhoneTweaks.setPrevNextButtons(this, !PhoneTweaks.prevNextButtons(this));
@@ -85,6 +89,25 @@ public class PhoneCustomizeActivity extends PhoneActivity {
         View view = LayoutInflater.from(this).inflate(R.layout.phone_item_setting, mContent, false);
         FeedAdapter.bindSetting(view, setting);
         mContent.addView(view);
+    }
+
+    private void pickTabStyle(View anchor) {
+        int current = PhoneTweaks.tabStyle(this);
+        int[] styles = {PhoneTabBar.CLASSIC, PhoneTabBar.FLOATING, PhoneTabBar.GLASS};
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor, Gravity.END);
+        for (int i = 0; i < styles.length; i++) {
+            menu.getMenu().add(0, i, i, PhoneTabBar.nameRes(styles[i])).setCheckable(true).setChecked(styles[i] == current);
+        }
+        menu.getMenu().setGroupCheckable(0, true, true);
+        menu.setOnMenuItemClickListener(item -> {
+            int style = styles[item.getItemId()];
+            if (style != current) {
+                PhoneTweaks.setTabStyle(this, style); // Home picks it up when it comes back to the front
+                build();
+            }
+            return true;
+        });
+        menu.show();
     }
 
     private void pickYouPlace(View anchor) {

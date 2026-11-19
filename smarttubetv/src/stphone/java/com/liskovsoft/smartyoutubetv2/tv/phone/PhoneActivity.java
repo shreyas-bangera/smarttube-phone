@@ -170,6 +170,11 @@ public abstract class PhoneActivity extends MotherActivity {
      * Pads the top bar below the status bar and the bottom view (or the list) above the navigation bar.
      */
     @SuppressWarnings("deprecation")
+    /** The navigation bar's height under the bottom view; true when the activity lays the view out itself */
+    protected boolean onBottomInset(View bottomBar, int bottom) {
+        return false;
+    }
+
     protected void applyInsets(View root, View topBar, View bottomBar) {
         final int topBase = topBar != null ? topBar.getPaddingTop() : 0;
         final int bottomBase = bottomBar != null ? bottomBar.getPaddingBottom() : 0;
@@ -186,7 +191,7 @@ public abstract class PhoneActivity extends MotherActivity {
                 topBar.setPadding(topBar.getPaddingLeft(), topBase + top, topBar.getPaddingRight(), topBar.getPaddingBottom());
             }
 
-            if (bottomBar != null) {
+            if (bottomBar != null && !onBottomInset(bottomBar, bottom)) {
                 bottomBar.setPadding(bottomBar.getPaddingLeft(), bottomBar.getPaddingTop(), bottomBar.getPaddingRight(), bottomBase + bottom);
             }
 

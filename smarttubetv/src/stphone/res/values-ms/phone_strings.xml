@@ -211,4 +211,9 @@
     <string name="phone_settings_search_none">Tiada tetapan sepadan dengan “%1$s”</string>
     <string name="phone_settings_updates">Kemas kini</string>
     <string name="phone_hold_speed" translatable="false">2x ▸▸</string>
+    <string name="phone_tabs">Bar tab</string>
+    <string name="phone_tabs_summary">Rupa tab di bahagian bawah</string>
+    <string name="phone_tabs_classic">Klasik</string>
+    <string name="phone_tabs_floating">Terapung</string>
+    <string name="phone_tabs_glass">Kaca cecair</string>
 </resources>
