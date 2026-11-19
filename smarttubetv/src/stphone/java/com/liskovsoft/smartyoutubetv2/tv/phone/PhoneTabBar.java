@@ -29,9 +29,8 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  * The bottom tabs' look (Customize > Tab bar):
  * <ul>
  *     <li>Classic: across the bottom, as in the YouTube app.</li>
- *     <li>Floating: a rounded bar floating over the feed, the chosen tab on a tinted pill in the app's red.</li>
- *     <li>Liquid glass: a see-through glass bar with a light edge, the chosen tab under a glossy lens (a soft
- *     highlight, a rim catching the colours) that glides to the next tab, stretching on the way like a drop.</li>
+ *     <li>Floating: a capsule of dark glass over the feed (after Nuvio's), the chosen tab in a bubble of YouTube red.</li>
+ *     <li>Liquid glass: iOS 26's glass (after MeeTube's), a clear lens gliding between the tabs.</li>
  * </ul>
  * The bar draws itself: see {@link PhoneTabBarView}.
  */
@@ -70,10 +69,11 @@ final class PhoneTabBar {
     static int tabColor(Context context, int style, boolean selected) {
         boolean dark = isDark(context);
         if (style == FLOATING) {
-            return selected ? context.getResources().getColor(R.color.phone_accent) : (dark ? 0xFFB3B3B3 : 0xFF5F5F5F);
+            // White (YouTube's near black in light theme); the chosen tab turns YouTube red inside its bubble
+            return dark ? Color.WHITE : 0xFF0F0F0F;
         }
         if (style == GLASS) {
-            return dark ? (selected ? Color.WHITE : 0xD9FFFFFF) : (selected ? 0xFF000000 : 0xCC1C1C1E);
+            return dark ? Color.WHITE : 0xFF0F0F0F;
         }
         return context.getResources().getColor(R.color.phone_text);
     }

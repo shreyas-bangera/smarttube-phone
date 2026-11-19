@@ -648,7 +648,7 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         boolean floating = mTabStyle != PhoneTabBar.CLASSIC;
         for (View tab : mTabViews) {
             if (tab != null) {
-                tab.setPadding(0, dp(floating ? 6 : 9), 0, dp(floating ? 5 : 7));
+                tab.setPadding(0, dp(floating ? 8 : 9), 0, dp(floating ? 6 : 7)); // floating: a 64 dp capsule
             }
         }
         mTabsDrawn = false;

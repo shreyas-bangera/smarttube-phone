@@ -420,4 +420,4 @@ StreamTube is an independent project, not affiliated with YouTube or Google. Ple
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Third-party code and its licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

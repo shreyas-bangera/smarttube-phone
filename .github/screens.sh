@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of Customize > Tab bar (run 2: glass, lens and sliding), from the real app: Home with each tab bar style (Classic, Floating, Liquid
+# Emulator test of Customize > Tab bar (run 3: Nuvio-style floating, MeeTube-style liquid glass), from the real app: Home with each tab bar style (Classic, Floating, Liquid
 # glass), the drop-down, and a tab switch (the pill or lens moving). Each step is a screenshot in the log (base64 JPEG
 # between ==IMG name== and ==END==, also kept in ./screens).
 set -x

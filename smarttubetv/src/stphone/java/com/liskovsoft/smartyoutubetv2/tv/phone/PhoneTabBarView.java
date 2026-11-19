@@ -1,18 +1,29 @@
 package com.liskovsoft.smartyoutubetv2.tv.phone;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
+import android.graphics.BlendMode;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.LinearGradient;
 import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.RenderEffect;
 import android.graphics.RenderNode;
+import android.graphics.RuntimeShader;
 import android.graphics.Shader;
-import android.graphics.SweepGradient;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.HapticFeedbackConstants;
@@ -21,44 +32,169 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewOutlineProvider;
 import android.view.ViewTreeObserver;
+import android.view.animation.LinearInterpolator;
 import android.widget.LinearLayout;
 
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
+import java.util.Random;
+
 /**
- * The bottom tabs (Customize > Tab bar, see PhoneTabBar). Classic is a plain bar. The two floating looks are a bar of
- * glass over the feed: what scrolls behind it shows through, blurred (Android 12 and up; a frosted tint before), with
- * a sheen on top and an edge catching the light. A bubble sits on the chosen tab:
- * <ul>
- *     <li>Floating: a bubble of the app's red.</li>
- *     <li>Liquid glass: a clear lens, rising a little out of the bar, the tab under it magnified, a soft highlight and
- *     a rim catching prism colours.</li>
- * </ul>
- * The bubble moves on a spring, stretching sideways the faster it goes, like a drop. Slide a finger along the bar and
- * it follows the finger, swelling while it's held, ticking at each tab; let go and the tab under it opens.
+ * The bottom tabs (Customize > Tab bar, see PhoneTabBar). Classic is a plain bar; the two others float over the feed:
+ *
+ * <p><b>Floating</b> (after Nuvio's tab bar, in YouTube's colours): a capsule of dark glass, the feed blurred behind
+ * it, a fine light edge. The chosen tab sits in a bubble of YouTube red, and its red glows faintly across the bar.
+ * Inside the bubble the tab is red, outside it white: as the bubble glides over a tab, the colour changes right at its
+ * edge.
+ *
+ * <p><b>Liquid glass</b> (after MeeTube's, iOS 26's): glass that bends what's behind it - saturated, lightly
+ * blurred and refracted along its rim with a rainbow of dispersion (Android 13+), a dark tint, fine grain and a
+ * specular rim lit from the top left. The chosen tab sits on a soft pill. When the tab changes, or while a finger
+ * slides along the bar, the pill swells into a clear lens taller than the bar: the bar shows through it magnified and
+ * refracted, the lens stretching with its speed; then it settles back into the pill, and the bar wobbles toward the
+ * new tab.
+ *
+ * <p>The glass shaders are Kyant's backdrop (github.com/Kyant0/backdrop, Copyright 2025 Kyant, Apache License 2.0),
+ * as MeeTube (github.com/yashoncode/meetube, MIT) ported them; the lens and the wobble follow MeeTube's numbers.
+ * The bubble moves on a spring; slide a finger along the bar and it follows the finger, ticking at each tab, and the
+ * tab under it opens when the finger lifts.
  */
 public class PhoneTabBarView extends LinearLayout {
+    /** YouTube's red */
+    static final int YOUTUBE_RED = 0xFFFF0033;
+
+    // Kyant's backdrop: the refraction (rounded-rect lens with dispersion) and the specular highlight
+    private static final String ROUNDED_RECT_SDF =
+            "float sdRoundedRect(float2 coord, float2 halfSize, float radius) {\n"
+            + "    float2 cornerCoord = abs(coord) - (halfSize - float2(radius));\n"
+            + "    float outside = length(max(cornerCoord, 0.0)) - radius;\n"
+            + "    float inside = min(max(cornerCoord.x, cornerCoord.y), 0.0);\n"
+            + "    return outside + inside;\n"
+            + "}\n"
+            + "float2 gradSdRoundedRect(float2 coord, float2 halfSize, float radius) {\n"
+            + "    float2 cornerCoord = abs(coord) - (halfSize - float2(radius));\n"
+            + "    if (cornerCoord.x >= 0.0 || cornerCoord.y >= 0.0) {\n"
+            + "        return sign(coord) * normalize(max(cornerCoord, 0.0));\n"
+            + "    } else {\n"
+            + "        float gradX = step(cornerCoord.y, cornerCoord.x);\n"
+            + "        return sign(coord) * float2(gradX, 1.0 - gradX);\n"
+            + "    }\n"
+            + "}\n";
+
+    private static final String REFRACTION_AGSL =
+            "uniform shader content;\n"
+            + "uniform float2 size;\n"
+            + "uniform float radius;\n"
+            + "uniform float refractionHeight;\n"
+            + "uniform float refractionAmount;\n"
+            + "uniform float depthEffect;\n"
+            + "uniform float chromaticAberration;\n"
+            + ROUNDED_RECT_SDF
+            + "float circleMap(float x) {\n"
+            + "    return 1.0 - sqrt(1.0 - x * x);\n"
+            + "}\n"
+            + "half4 main(float2 coord) {\n"
+            + "    float2 halfSize = size * 0.5;\n"
+            + "    float2 centeredCoord = coord - halfSize;\n"
+            + "    float sd = sdRoundedRect(centeredCoord, halfSize, radius);\n"
+            + "    if (-sd >= refractionHeight) {\n"
+            + "        return content.eval(coord);\n"
+            + "    }\n"
+            + "    sd = min(sd, 0.0);\n"
+            + "    float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;\n"
+            + "    float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));\n"
+            + "    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius)"
+            + " + depthEffect * normalize(centeredCoord));\n"
+            + "    float2 refractedCoord = coord + d * grad;\n"
+            + "    float dispersionIntensity = chromaticAberration"
+            + " * ((centeredCoord.x * centeredCoord.y) / (halfSize.x * halfSize.y));\n"
+            + "    float2 dispersedCoord = d * grad * dispersionIntensity;\n"
+            + "    half4 color = half4(0.0);\n"
+            + "    half4 red = content.eval(refractedCoord + dispersedCoord);\n"
+            + "    color.r += red.r / 3.5;\n"
+            + "    color.a += red.a / 7.0;\n"
+            + "    half4 orange = content.eval(refractedCoord + dispersedCoord * (2.0 / 3.0));\n"
+            + "    color.r += orange.r / 3.5;\n"
+            + "    color.g += orange.g / 7.0;\n"
+            + "    color.a += orange.a / 7.0;\n"
+            + "    half4 yellow = content.eval(refractedCoord + dispersedCoord * (1.0 / 3.0));\n"
+            + "    color.r += yellow.r / 3.5;\n"
+            + "    color.g += yellow.g / 3.5;\n"
+            + "    color.a += yellow.a / 7.0;\n"
+            + "    half4 green = content.eval(refractedCoord);\n"
+            + "    color.g += green.g / 3.5;\n"
+            + "    color.a += green.a / 7.0;\n"
+            + "    half4 cyan = content.eval(refractedCoord - dispersedCoord * (1.0 / 3.0));\n"
+            + "    color.g += cyan.g / 3.5;\n"
+            + "    color.b += cyan.b / 3.0;\n"
+            + "    color.a += cyan.a / 7.0;\n"
+            + "    half4 blue = content.eval(refractedCoord - dispersedCoord * (2.0 / 3.0));\n"
+            + "    color.b += blue.b / 3.0;\n"
+            + "    color.a += blue.a / 7.0;\n"
+            + "    half4 purple = content.eval(refractedCoord - dispersedCoord);\n"
+            + "    color.r += purple.r / 7.0;\n"
+            + "    color.b += purple.b / 3.0;\n"
+            + "    color.a += purple.a / 7.0;\n"
+            + "    return color;\n"
+            + "}\n";
+
+    private static final String HIGHLIGHT_AGSL =
+            "uniform float2 size;\n"
+            + "uniform float radius;\n"
+            + "layout(color) uniform half4 color;\n"
+            + "uniform float angle;\n"
+            + "uniform float falloff;\n"
+            + ROUNDED_RECT_SDF
+            + "half4 main(float2 coord) {\n"
+            + "    float2 halfSize = size * 0.5;\n"
+            + "    float2 centeredCoord = coord - halfSize;\n"
+            + "    float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));\n"
+            + "    float2 grad = gradSdRoundedRect(centeredCoord, halfSize, gradRadius);\n"
+            + "    float2 normal = float2(cos(angle), sin(angle));\n"
+            + "    float d = dot(grad, normal);\n"
+            + "    float intensity = pow(abs(d), falloff);\n"
+            + "    return color * intensity;\n"
+            + "}\n";
+
+    // MeeTube's glass and lens numbers
+    private static final float BLUR_DP = 8f;
+    private static final float SATURATION = 1.5f;
+    private static final float REFRACTION_DP = 24f;
+    private static final float LENS_REFRACTION_DP = 16f;
+    private static final float MAGNIFY = 1.12f;
+    private static final float LENS_GROW_W_DP = 12f;
+    private static final float LENS_GROW_H_DP = 6f;
+    private static final float STRETCH = 0.26f;
+
+    private static Bitmap sNoise;
+
     private int mStyle = PhoneTabBar.CLASSIC;
+    private boolean mDark = true;
+    private final float mD;
     private int mSide;
     private int mBelow;
     private int mRise;
-    private boolean mDark;
-    private final float mD;
-    private final int mAccent;
 
     private final RectF mBar = new RectF();
     private final Path mBarPath = new Path();
-    private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint mStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mRim = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mNoise = new Paint();
+    private final Paint mRedText = new Paint();
 
-    /** What scrolls behind the bar (the feed), drawn blurred into it */
     private View mBackdrop;
-    private Object mBlurNode;
-    private Object mLensNode;
-    private final Paint mRed = new Paint();
-    private final Paint mCyan = new Paint();
     private final int[] mHere = new int[2];
     private final int[] mThere = new int[2];
+    private Object mBarNode;
+    private Object mLensNode;
+    private Object mRefraction;
+    private Object mLensRefraction;
+    private Object mHighlight;
+    private Object mLensHighlight;
+    private int mEffectW;
+    private int mEffectH;
+    private int mEffectStyle = -1;
     private final ViewTreeObserver.OnPreDrawListener mFollowBackdrop = () -> {
         if (mStyle != PhoneTabBar.CLASSIC) {
             invalidate(); // the feed moved or changed: the glass shows it
@@ -66,19 +202,20 @@ public class PhoneTabBarView extends LinearLayout {
         return true;
     };
 
-    // The bubble: where it is, where it's going, its speed; how far it's lifted (held or dragged)
+    // The bubble on a spring; how much of a lens it is (glass), how far it's lifted (held, dragged)
     private View mChosen;
     private float mX = -1;
     private float mW;
     private float mTargetX;
     private float mTargetW;
     private float mVelocity;
+    private float mPresence;
     private float mLift;
     private float mLiftTarget;
     private long mLastFrame;
     private boolean mAnimating;
+    private ValueAnimator mWobble;
 
-    // A finger sliding along the bar
     private boolean mDragging;
     private float mDownX;
     private View mHovered;
@@ -90,27 +227,32 @@ public class PhoneTabBarView extends LinearLayout {
     public PhoneTabBarView(Context context, AttributeSet attrs) {
         super(context, attrs);
         mD = context.getResources().getDisplayMetrics().density;
-        mAccent = context.getResources().getColor(R.color.phone_accent);
-        mStroke.setStyle(Paint.Style.STROKE);
-        // The lens's colour fringes: the red and the green-blue of what's under its rim, a little apart
-        mRed.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[] {
-                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}));
-        mRed.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.ADD));
-        mCyan.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[] {
-                0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0}));
-        mCyan.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.ADD));
+        mEdge.setStyle(Paint.Style.STROKE);
+        mRim.setStyle(Paint.Style.STROKE);
+        mRim.setStrokeWidth(mD);
+        mRim.setMaskFilter(new BlurMaskFilter(0.25f * mD, BlurMaskFilter.Blur.NORMAL));
+        if (Build.VERSION.SDK_INT >= 29) {
+            mRim.setBlendMode(BlendMode.PLUS);
+        }
+        mNoise.setShader(new BitmapShader(noise(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT));
+        mNoise.setAlpha(10);
+        mRedText.setColorFilter(new PorterDuffColorFilter(YOUTUBE_RED, PorterDuff.Mode.SRC_IN));
         setWillNotDraw(false);
         setClipChildren(false);
         setClipToPadding(false);
     }
 
+    // region Setup
+
     /** The look, and the navigation bar's height under the bar */
     void setStyle(int style, int navInset) {
         mStyle = style;
         mDark = PhoneTabBar.isDark(getContext());
+        mEffectStyle = -1;
+        setScaleX(1f);
+        setScaleY(1f);
+        setTranslationX(0);
         if (style == PhoneTabBar.CLASSIC) {
-            setScaleX(1f);
-            setScaleY(1f);
             setBackgroundResource(R.drawable.phone_bottom_bar_bg);
             setPadding(0, 0, 0, navInset);
             setElevation(0);
@@ -118,21 +260,20 @@ public class PhoneTabBarView extends LinearLayout {
             invalidate();
             return;
         }
-        mSide = Math.round(16 * mD);
-        mBelow = navInset + Math.round(10 * mD);
-        mRise = Math.round(7 * mD); // room above the bar for the lens rising out of it
+        mSide = Math.round(22 * mD);
+        mBelow = navInset + Math.round(12 * mD);
+        mRise = Math.round(5 * mD); // room above the bar for the lens rising out of it
         setBackground(null);
-        setPadding(mSide + Math.round(6 * mD), mRise + Math.round(7 * mD), mSide + Math.round(6 * mD), mBelow + Math.round(7 * mD));
+        setPadding(mSide + Math.round(4 * mD), mRise + Math.round(4 * mD), mSide + Math.round(4 * mD), mBelow + Math.round(4 * mD));
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
                 outline.setRoundRect(mSide, mRise, view.getWidth() - mSide, view.getHeight() - mBelow,
                         (view.getHeight() - mBelow - mRise) / 2f);
-                outline.setAlpha(0.6f);
+                outline.setAlpha(0.55f);
             }
         });
-        setElevation(8 * mD);
-        setPivotY(getHeight() - mBelow); // it swells from its bottom edge
+        setElevation(10 * mD);
         invalidateOutline();
         invalidate();
     }
@@ -150,6 +291,7 @@ public class PhoneTabBarView extends LinearLayout {
 
     /** The chosen tab: the bubble glides to it (or is there at once) */
     void select(View tab, boolean animate) {
+        View before = mChosen;
         mChosen = tab;
         if (tab == null || mStyle == PhoneTabBar.CLASSIC) {
             return;
@@ -164,13 +306,19 @@ public class PhoneTabBarView extends LinearLayout {
             mX = mTargetX;
             mW = mTargetW;
             mVelocity = 0;
+            mPresence = 0;
             invalidate();
             return;
+        }
+        if (before != null && before != tab && !mDragging) {
+            wobble(mTargetX > mX ? 1 : -1);
         }
         startAnimation();
     }
 
-    // region The spring
+    // endregion
+
+    // region Motion
 
     private void startAnimation() {
         if (!mAnimating) {
@@ -186,29 +334,28 @@ public class PhoneTabBarView extends LinearLayout {
             long now = System.nanoTime();
             float dt = mLastFrame == 0 ? 1 / 60f : Math.min(1 / 30f, (now - mLastFrame) / 1e9f);
             mLastFrame = now;
-            // Apple's springs: settling in about 0.35 s with a damping of 0.8 (one soft settle, no bounce); while
-            // the finger leads, tighter (0.18 s, 0.9) so the lens stays right under it
-            float response = mDragging ? 0.18f : 0.35f;
-            float ratio = mDragging ? 0.9f : 0.8f;
-            float stiffness = (float) Math.pow(2 * Math.PI / response, 2);
-            float damping = 4 * (float) Math.PI * ratio / response;
+            // MeeTube's glide: stiffness 1000, damping 0.82 (a ~1% overshoot as it lands); tighter under a finger
+            float stiffness = mDragging ? 1500f : 1000f;
+            float ratio = mDragging ? 0.95f : 0.82f;
+            float damping = 2 * ratio * (float) Math.sqrt(stiffness);
             float accel = stiffness * (mTargetX - mX) - damping * mVelocity;
             mVelocity += accel * dt;
             mX += mVelocity * dt;
-            mW += (mTargetW - mW) * Math.min(1f, dt * 14);
-            mLift += (mLiftTarget - mLift) * Math.min(1f, dt * 12);
-            // Held or slid along, the whole bar swells a little, as on iOS
-            float swell = 1f + 0.035f * mLift;
-            setScaleX(swell);
-            setScaleY(swell);
+            mW += (mTargetW - mW) * Math.min(1f, dt * 16);
+            mLift += (mLiftTarget - mLift) * Math.min(1f, dt * 14);
+            // The lens: swells in ~90 ms while moving or held, settles back into the pill in ~140 ms
+            boolean moving = Math.abs(mTargetX - mX) > 1.5f * mD || Math.abs(mVelocity) > 40 * mD;
+            float want = mDragging || moving ? 1f : 0f;
+            mPresence += (want - mPresence) * Math.min(1f, dt * (want > mPresence ? 11f : 7f));
             invalidate();
-            boolean settled = Math.abs(mTargetX - mX) < 0.5f && Math.abs(mVelocity) < 5
-                    && Math.abs(mLiftTarget - mLift) < 0.01f && Math.abs(mTargetW - mW) < 0.5f;
-            if (settled && !mDragging) {
+            boolean settled = !moving && !mDragging && Math.abs(mLiftTarget - mLift) < 0.01f && mPresence < 0.01f
+                    && Math.abs(mTargetW - mW) < 0.5f;
+            if (settled) {
                 mX = mTargetX;
                 mW = mTargetW;
                 mVelocity = 0;
                 mLift = mLiftTarget;
+                mPresence = 0;
                 mAnimating = false;
                 invalidate();
                 return;
@@ -216,6 +363,36 @@ public class PhoneTabBarView extends LinearLayout {
             postOnAnimation(this);
         }
     };
+
+    /**
+     * MeeTube's jelly wobble on a switch: the bar leans toward the new tab and wobbles - wider and flatter, then
+     * narrower and taller - settling in 0.7 s
+     */
+    private void wobble(int direction) {
+        if (mWobble != null) {
+            mWobble.cancel();
+        }
+        float lean = 6 * mD * direction;
+        mWobble = ValueAnimator.ofFloat(0f, 1f);
+        mWobble.setDuration(700);
+        mWobble.setInterpolator(new LinearInterpolator());
+        mWobble.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            float w = (float) (Math.exp(-4.2 * t) * Math.sin(2 * Math.PI * 2.25 * t));
+            setScaleX(1f + 0.028f * w);
+            setScaleY(1f - 0.04f * w);
+            setTranslationX(lean * (float) (Math.exp(-3.5 * t) * Math.sin(2 * Math.PI * 1.4 * t)));
+        });
+        mWobble.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                setScaleX(1f);
+                setScaleY(1f);
+                setTranslationX(0);
+            }
+        });
+        mWobble.start();
+    }
 
     // endregion
 
@@ -229,13 +406,11 @@ public class PhoneTabBarView extends LinearLayout {
                 mDownX = event.getX();
                 mDragging = false;
                 mHovered = null;
-                mLiftTarget = 0.45f; // a press: the bubble swells a little
+                mLiftTarget = 1f;
                 startAnimation();
-            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                if (!mDragging) {
-                    mLiftTarget = 0;
-                    startAnimation();
-                }
+            } else if ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) && !mDragging) {
+                mLiftTarget = 0;
+                startAnimation();
             }
         }
         return super.dispatchTouchEvent(event);
@@ -322,7 +497,6 @@ public class PhoneTabBarView extends LinearLayout {
         mTargetX = Math.max(min, Math.min(max, x));
         if (nearest != mHovered) {
             mHovered = nearest;
-            // A light, crisp tick at each tab
             performHapticFeedback(Build.VERSION.SDK_INT >= 34 ? HapticFeedbackConstants.SEGMENT_TICK : HapticFeedbackConstants.CLOCK_TICK);
         }
         startAnimation();
@@ -340,12 +514,16 @@ public class PhoneTabBarView extends LinearLayout {
         }
         startAnimation();
         if (open && tab != null) {
+            View chosen = mChosen;
             tab.performClick();
             postDelayed(() -> {
                 if (mChosen != null && mChosen != tab && !mDragging) {
-                    select(mChosen, true); // Shorts or Notifications opened over this screen
+                    select(mChosen, true); // Shorts or Notifications opened a screen of their own
                 }
             }, 350);
+            if (chosen != tab && mChosen == tab) {
+                wobble(tab.getLeft() > (chosen != null ? chosen.getLeft() : 0) ? 1 : -1);
+            }
         } else if (mChosen != null) {
             select(mChosen, true);
         }
@@ -358,8 +536,7 @@ public class PhoneTabBarView extends LinearLayout {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        setPivotX(w / 2f);
-        setPivotY(h - mBelow); // it swells from its bottom edge
+        mEffectStyle = -1;
         if (mChosen != null) {
             post(() -> select(mChosen, false));
         }
@@ -375,186 +552,299 @@ public class PhoneTabBarView extends LinearLayout {
         float radius = mBar.height() / 2f;
         mBarPath.reset();
         mBarPath.addRoundRect(mBar, radius, radius, Path.Direction.CW);
-
-        drawGlass(canvas, mBarPath, mBar, radius, false);
-        RectF bubble = bubble();
-        if (bubble != null && mStyle == PhoneTabBar.FLOATING) {
-            drawRedBubble(canvas, bubble);
-        }
-        super.dispatchDraw(canvas);
-        if (bubble != null && mStyle == PhoneTabBar.GLASS) {
-            drawLens(canvas, bubble);
+        if (mStyle == PhoneTabBar.FLOATING) {
+            drawFloating(canvas, radius);
+        } else {
+            drawLiquid(canvas, radius);
         }
     }
 
-    /** The bubble's shape now: on the chosen tab (or under the finger), wider while it moves, bigger while held */
-    private RectF bubble() {
+    /** The bubble on the chosen tab (or under the finger): the tab's width, the bar's height less 4 dp each side */
+    private RectF pill(float inset) {
         if (mX < 0 || mW <= 0) {
             return null;
         }
-        float speed = Math.min(1f, Math.abs(mVelocity) / 2600f);
-        float width = mW * (1f + 0.22f * speed + 0.12f * mLift);
-        float inset = mStyle == PhoneTabBar.GLASS ? 2 * mD : 5 * mD;
-        float top = mBar.top + inset - mLift * (mStyle == PhoneTabBar.GLASS ? mRise + 2 * mD : 3 * mD) + speed * 2 * mD;
-        float bottom = mBar.bottom - inset + mLift * (mStyle == PhoneTabBar.GLASS ? 6 * mD : 3 * mD) - speed * 2 * mD;
-        return new RectF(mX - width / 2f, top, mX + width / 2f, bottom);
+        float h = mBar.height() - 2 * inset;
+        float w = mW - (mStyle == PhoneTabBar.GLASS ? 4 * mD : 0);
+        return new RectF(mX - w / 2f, mBar.centerY() - h / 2f, mX + w / 2f, mBar.centerY() + h / 2f);
     }
 
-    /** The feed behind, blurred, inside the shape; then the glass's tint, sheen and edge */
-    private void drawGlass(Canvas canvas, Path shape, RectF bounds, float radius, boolean lens) {
-        boolean blurred = drawBackdrop(canvas, shape, lens ? 6 : 28);
-        mPaint.setShader(new LinearGradient(0, bounds.top, 0, bounds.bottom,
-                mDark ? (blurred ? 0x59202024 : 0xD91C1C1F) : (blurred ? 0x66FFFFFF : 0xE6F7F7F9),
-                mDark ? (blurred ? 0x80101012 : 0xE6101012) : (blurred ? 0x80F2F2F7 : 0xF2F2F2F7), Shader.TileMode.CLAMP));
-        canvas.drawPath(shape, mPaint);
-        if (mStyle == PhoneTabBar.FLOATING && !lens) {
-            // A hint of the app's red in the glass, as in the reference
-            mPaint.setShader(new LinearGradient(bounds.left, 0, bounds.right, 0,
-                    (mAccent & 0x00FFFFFF) | 0x14000000, 0x00000000, Shader.TileMode.CLAMP));
-            canvas.drawPath(shape, mPaint);
+    // Floating: Nuvio's look, YouTube's colours
+
+    private void drawFloating(Canvas canvas, float radius) {
+        boolean blurred = drawBackdrop(canvas, mBarPath, false);
+        // Dark glass: YouTube's near black, see-through where the feed shows
+        mFill.setShader(null);
+        mFill.setColor(mDark ? (blurred ? 0x8C0F0F0F : 0xD60F0F0F) : (blurred ? 0x9EFFFFFF : 0xEBFFFFFF));
+        canvas.drawPath(mBarPath, mFill);
+        RectF pill = pill(4 * mD);
+        float speed = Math.min(1f, Math.abs(mVelocity) / (1800 * mD));
+        if (pill != null) {
+            // The jelly: a little wider and flatter while it moves, a little bigger while pressed
+            float grow = pill.width() * (0.18f * speed + 0.04f * mLift);
+            pill.inset(-grow / 2f, -1.5f * mD * mLift);
+            pill.inset(0, 1.5f * mD * speed);
+            // YouTube red glowing faintly across the bar from the bubble
+            canvas.save();
+            canvas.clipPath(mBarPath);
+            drawGlow(canvas, pill, 0.15f);
+            canvas.restore();
         }
-        mPaint.setShader(new LinearGradient(0, bounds.top, 0, bounds.centerY(),
-                mDark ? 0x1AFFFFFF : 0x59FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
-        canvas.drawPath(shape, mPaint);
-        mPaint.setShader(null);
-        mStroke.setStrokeWidth(1.1f * mD);
-        mStroke.setShader(new LinearGradient(0, bounds.top, 0, bounds.bottom,
-                mDark ? 0x5CFFFFFF : 0xB3FFFFFF, mDark ? 0x12FFFFFF : 0x1F000000, Shader.TileMode.CLAMP));
-        RectF edge = new RectF(bounds);
-        edge.inset(0.55f * mD, 0.55f * mD);
-        canvas.drawRoundRect(edge, radius, radius, mStroke);
-        mStroke.setShader(null);
+        // A fine light edge, bright at the top
+        mEdge.setStrokeWidth(0.75f * mD);
+        mEdge.setShader(new LinearGradient(0, mBar.top, 0, mBar.bottom,
+                mDark ? 0x45FFFFFF : 0x1F000000, mDark ? 0x05FFFFFF : 0x08000000, Shader.TileMode.CLAMP));
+        RectF edge = new RectF(mBar);
+        edge.inset(0.375f * mD, 0.375f * mD);
+        canvas.drawRoundRect(edge, radius, radius, mEdge);
+        mEdge.setShader(null);
+        if (pill == null) {
+            super.dispatchDraw(canvas);
+            return;
+        }
+        float r = Math.min(pill.height(), pill.width()) / 2f;
+        Path bubble = new Path();
+        bubble.addRoundRect(pill, r, r, Path.Direction.CW);
+        // Outside the bubble: the tabs as they are (white)
+        canvas.save();
+        canvas.clipOutPath(bubble);
+        super.dispatchDraw(canvas);
+        canvas.restore();
+        // The bubble: YouTube red, see-through, glowing; the tab in it red, its colour changing right at the edge
+        canvas.save();
+        canvas.clipPath(bubble);
+        mFill.setShader(null);
+        mFill.setColor((YOUTUBE_RED & 0x00FFFFFF) | (mDark ? 0x2E000000 : 0x24000000));
+        canvas.drawRect(pill, mFill);
+        drawGlow(canvas, pill, 0.3f);
+        int layer = canvas.saveLayer(pill, mRedText);
+        super.dispatchDraw(canvas);
+        canvas.restoreToCount(layer);
+        canvas.restore();
+        mEdge.setStrokeWidth(0.75f * mD);
+        mEdge.setShader(new LinearGradient(0, pill.top, 0, pill.bottom,
+                (YOUTUBE_RED & 0x00FFFFFF) | 0x80000000, (YOUTUBE_RED & 0x00FFFFFF) | 0x1A000000, Shader.TileMode.CLAMP));
+        RectF ring = new RectF(pill);
+        ring.inset(0.375f * mD, 0.375f * mD);
+        canvas.drawRoundRect(ring, r, r, mEdge);
+        mEdge.setShader(null);
     }
 
-    /** The feed under the bar, blurred, clipped to the shape (Android 12+, on the GPU); false when it can't be */
-    private boolean drawBackdrop(Canvas canvas, Path shape, float blur) {
-        Object node = canvas.isHardwareAccelerated() ? backdropNode(false, blur) : null;
-        if (node == null) {
-            return false;
+    /** YouTube red, glowing from the bubble's middle */
+    private void drawGlow(Canvas canvas, RectF from, float strength) {
+        int a = Math.round(255 * strength);
+        mFill.setShader(new RadialGradient(from.centerX(), from.centerY(), 300 * mD,
+                new int[] {(YOUTUBE_RED & 0x00FFFFFF) | (a << 24), (YOUTUBE_RED & 0x00FFFFFF) | (Math.round(a * 0.43f) << 24),
+                        YOUTUBE_RED & 0x00FFFFFF}, new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(mBar.left - 48 * mD, mBar.top - 16 * mD, mBar.right + 48 * mD, mBar.bottom + 16 * mD, mFill);
+        mFill.setShader(null);
+    }
+
+    // Liquid glass: MeeTube's
+
+    private void drawLiquid(Canvas canvas, float radius) {
+        drawGlassBar(canvas, radius);
+        RectF pill = pill(4 * mD);
+        // At rest: the chosen tab on a soft pill (it becomes the lens while it moves)
+        if (pill != null && mPresence < 0.99f) {
+            float r = pill.height() / 2f;
+            mFill.setShader(null);
+            int alpha = Math.round((mDark ? 0x24 : 0x14) * (1f - mPresence));
+            mFill.setColor((mDark ? 0x00FFFFFF : 0x00000000) | (alpha << 24));
+            canvas.drawRoundRect(pill, r, r, mFill);
+        }
+        super.dispatchDraw(canvas);
+        if (pill != null && mPresence > 0.01f) {
+            drawLens(canvas, pill);
+        }
+    }
+
+    /** The glass: what's behind it bent and blurred, a dark tint, grain and a lit rim */
+    private void drawGlassBar(Canvas canvas, float radius) {
+        boolean live = drawBackdrop(canvas, mBarPath, true);
+        mFill.setShader(null);
+        mFill.setColor(mDark ? (live ? 0x66121212 : 0xEB121212) : (live ? 0x8CF5F5F7 : 0xF0F5F5F7));
+        canvas.drawPath(mBarPath, mFill);
+        canvas.save();
+        canvas.clipPath(mBarPath);
+        canvas.drawRect(mBar, mNoise);
+        canvas.restore();
+        drawRim(canvas, mBar, radius, false);
+    }
+
+    /** Kyant's specular highlight (white at 50%, lit along a 45 degree normal); a top light before Android 13 */
+    private void drawRim(Canvas canvas, RectF rect, float radius, boolean lens) {
+        int w = Math.max(1, Math.round(rect.width()));
+        int h = Math.max(1, Math.round(rect.height()));
+        if (Build.VERSION.SDK_INT >= 33) {
+            Object existing = lens ? mLensHighlight : mHighlight;
+            RuntimeShader shader = existing instanceof RuntimeShader ? (RuntimeShader) existing : new RuntimeShader(HIGHLIGHT_AGSL);
+            if (lens) {
+                mLensHighlight = shader;
+            } else {
+                mHighlight = shader;
+            }
+            shader.setColorUniform("color", mDark ? 0x80FFFFFF : 0xB3FFFFFF);
+            shader.setFloatUniform("angle", (float) Math.toRadians(45));
+            shader.setFloatUniform("falloff", 1f);
+            shader.setFloatUniform("size", w, h);
+            shader.setFloatUniform("radius", Math.min(radius, Math.min(w, h) / 2f));
+            mRim.setShader(shader);
+            canvas.save();
+            canvas.translate(rect.left, rect.top);
+            canvas.drawRoundRect(0, 0, w, h, radius, radius, mRim);
+            canvas.restore();
+        } else {
+            mRim.setShader(new LinearGradient(0, rect.top, 0, rect.bottom,
+                    new int[] {0x66FFFFFF, 0x14FFFFFF, 0x0AFFFFFF, 0x2EFFFFFF}, new float[] {0f, 0.35f, 0.7f, 1f},
+                    Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(rect, radius, radius, mRim);
+        }
+        mRim.setShader(null);
+    }
+
+    /**
+     * The lens: the pill swollen (12 dp wider, 6 dp taller than the tab), the bar under it magnified 1.12x and
+     * refracted along its rim with dispersion, a faint white tint and the lit rim; it stretches with its speed
+     */
+    private void drawLens(Canvas canvas, RectF pill) {
+        float p = mPresence;
+        float speed = Math.min(1f, Math.abs(mVelocity) / (1800 * mD));
+        float w = (pill.width() + LENS_GROW_W_DP * mD * p) * (1f + STRETCH * speed);
+        float h = (pill.height() + (LENS_GROW_H_DP + 8) * mD * p) * (1f - STRETCH / 3f * speed);
+        RectF lens = new RectF(mX - w / 2f, mBar.centerY() - h / 2f, mX + w / 2f, mBar.centerY() + h / 2f);
+        float r = Math.min(w, h) / 2f;
+        float magnify = 1f + (MAGNIFY - 1f) * p;
+        int alpha = Math.round(255 * Math.min(1f, p * 1.6f));
+        int layer = alpha < 255 ? canvas.saveLayerAlpha(lens.left - 2 * mD, lens.top - 2 * mD, lens.right + 2 * mD, lens.bottom + 2 * mD, alpha) : -1;
+        Path shape = new Path();
+        shape.addRoundRect(lens, r, r, Path.Direction.CW);
+        if (!drawLensContent(canvas, lens, r, magnify)) {
+            // No runtime shaders: the bar under it, magnified, unrefracted
+            canvas.save();
+            canvas.clipPath(shape);
+            canvas.scale(magnify, magnify, mX, mBar.centerY());
+            canvas.clipPath(mBarPath);
+            drawGlassBar(canvas, mBar.height() / 2f);
+            super.dispatchDraw(canvas);
+            canvas.restore();
         }
         canvas.save();
         canvas.clipPath(shape);
-        canvas.drawRenderNode((RenderNode) node);
+        canvas.drawColor(mDark ? 0x10FFFFFF : 0x14FFFFFF);
+        canvas.restore();
+        drawRim(canvas, lens, r, true);
+        if (layer >= 0) {
+            canvas.restoreToCount(layer);
+        }
+    }
+
+    /** Android 13+: the bar recorded under the lens, magnified about its middle, through the refraction shader */
+    private boolean drawLensContent(Canvas canvas, RectF lens, float r, float magnify) {
+        if (Build.VERSION.SDK_INT < 33 || !canvas.isHardwareAccelerated()) {
+            return false;
+        }
+        int w = Math.max(1, Math.round(lens.width()));
+        int h = Math.max(1, Math.round(lens.height()));
+        RenderNode node = mLensNode instanceof RenderNode ? (RenderNode) mLensNode : new RenderNode("tab lens");
+        mLensNode = node;
+        node.setPosition(0, 0, w, h);
+        RuntimeShader refraction = mLensRefraction instanceof RuntimeShader ? (RuntimeShader) mLensRefraction : new RuntimeShader(REFRACTION_AGSL);
+        mLensRefraction = refraction;
+        refraction.setFloatUniform("size", w, h);
+        refraction.setFloatUniform("radius", Math.min(r, Math.min(w, h) / 2f));
+        refraction.setFloatUniform("refractionHeight", LENS_REFRACTION_DP * mD);
+        refraction.setFloatUniform("refractionAmount", -LENS_REFRACTION_DP * mD);
+        refraction.setFloatUniform("depthEffect", 1f);
+        refraction.setFloatUniform("chromaticAberration", 1f);
+        node.setRenderEffect(RenderEffect.createRuntimeShaderEffect(refraction, "content"));
+        Canvas recording = node.beginRecording();
+        recording.translate(w / 2f, h / 2f);
+        recording.scale(magnify, magnify);
+        recording.translate(-mX, -mBar.centerY());
+        recording.clipPath(mBarPath);
+        drawGlassBar(recording, mBar.height() / 2f);
+        super.dispatchDraw(recording);
+        node.endRecording();
+        Path shape = new Path();
+        shape.addRoundRect(0, 0, w, h, r, r, Path.Direction.CW);
+        canvas.save();
+        canvas.translate(lens.left, lens.top);
+        canvas.clipPath(shape);
+        canvas.drawRenderNode(node);
         canvas.restore();
         return true;
     }
 
-    /** The feed under the bar recorded (from where it is on screen), blurred this much; null before Android 12 */
-    private Object backdropNode(boolean lens, float blur) {
-        if (Build.VERSION.SDK_INT < 31 || mBackdrop == null || !isHardwareAccelerated() || !mBackdrop.isAttachedToWindow()) {
-            return null;
+    /**
+     * The feed behind the bar, drawn into the shape through the glass's effect (Android 12+): floating, blurred
+     * 24 dp; liquid, saturated 1.5x, blurred 8 dp and refracted 24 dp deep along the rim (Android 13+)
+     */
+    private boolean drawBackdrop(Canvas canvas, Path shape, boolean liquid) {
+        if (Build.VERSION.SDK_INT < 31 || mBackdrop == null || !canvas.isHardwareAccelerated() || !mBackdrop.isAttachedToWindow()) {
+            return false;
         }
-        Object existing = lens ? mLensNode : mBlurNode;
-        RenderNode node = existing instanceof RenderNode ? (RenderNode) existing : new RenderNode(lens ? "tab lens" : "tab bar glass");
-        if (lens) {
-            mLensNode = node;
-        } else {
-            mBlurNode = node;
+        RenderNode node = mBarNode instanceof RenderNode ? (RenderNode) mBarNode : new RenderNode("tab bar glass");
+        mBarNode = node;
+        int w = Math.max(1, Math.round(mBar.width()));
+        int h = Math.max(1, Math.round(mBar.height()));
+        node.setPosition(0, 0, w, h);
+        if (w != mEffectW || h != mEffectH || mEffectStyle != mStyle) {
+            mEffectW = w;
+            mEffectH = h;
+            mEffectStyle = mStyle;
+            node.setRenderEffect(glassEffect(w, h, liquid));
         }
-        node.setPosition(0, 0, getWidth(), getHeight());
-        node.setRenderEffect(blur > 0 ? RenderEffect.createBlurEffect(blur * mD, blur * mD, Shader.TileMode.CLAMP) : null);
         getLocationInWindow(mHere);
         mBackdrop.getLocationInWindow(mThere);
-        android.graphics.RecordingCanvas recording = node.beginRecording();
-        recording.translate(mThere[0] - mHere[0], mThere[1] - mHere[1]);
+        Canvas recording = node.beginRecording();
+        recording.translate(mThere[0] - mHere[0] - mBar.left, mThere[1] - mHere[1] - mBar.top);
         mBackdrop.draw(recording);
         node.endRecording();
-        return node;
-    }
-
-    /** Floating: a bubble of the app's red, see-through, lighter at its top edge */
-    private void drawRedBubble(Canvas canvas, RectF bubble) {
-        float r = bubble.height() / 2f;
-        mPaint.setShader(new LinearGradient(0, bubble.top, 0, bubble.bottom,
-                (mAccent & 0x00FFFFFF) | (mDark ? 0x66000000 : 0x40000000),
-                (mAccent & 0x00FFFFFF) | (mDark ? 0x40000000 : 0x29000000), Shader.TileMode.CLAMP));
-        canvas.drawRoundRect(bubble, r, r, mPaint);
-        mPaint.setShader(null);
-        mStroke.setStrokeWidth(1f * mD);
-        mStroke.setShader(new LinearGradient(0, bubble.top, 0, bubble.bottom,
-                (mAccent & 0x00FFFFFF) | 0x99000000, (mAccent & 0x00FFFFFF) | 0x26000000, Shader.TileMode.CLAMP));
-        canvas.drawRoundRect(bubble, r, r, mStroke);
-        mStroke.setShader(null);
-    }
-
-    /**
-     * Liquid glass: a clear lens. What's under it (the feed and the tabs) shows magnified, as through a drop of water;
-     * near its rim it bends more, with red and blue fringes; light pools in it, a reflection runs along its top and
-     * its rim catches prism colours.
-     */
-    private void drawLens(Canvas canvas, RectF lens) {
-        float r = lens.height() / 2f;
-        Path shape = new Path();
-        shape.addRoundRect(lens, r, r, Path.Direction.CW);
-        float cx = lens.centerX();
-        float cy = mBar.centerY();
-        float zoom = 1.16f + 0.10f * mLift;
-        Object clear = canvas.isHardwareAccelerated() ? backdropNode(true, 1.2f) : null;
-
         canvas.save();
         canvas.clipPath(shape);
-        // The middle: clear, magnified
-        canvas.save();
-        canvas.scale(zoom, zoom, cx, cy);
-        if (clear != null) {
-            canvas.drawRenderNode((RenderNode) clear);
-        }
+        canvas.translate(mBar.left, mBar.top);
+        canvas.drawRenderNode(node);
         canvas.restore();
-        mPaint.setShader(null);
-        mPaint.setColor(mDark ? (clear != null ? 0x38000000 : 0xCC1A1A1D) : (clear != null ? 0x1FFFFFFF : 0xD9F7F7F9));
-        canvas.drawRoundRect(lens, r, r, mPaint);
-        canvas.save();
-        canvas.scale(zoom, zoom, cx, cy);
-        super.dispatchDraw(canvas);
-        canvas.restore();
+        return true;
+    }
 
-        // The rim: a ring that bends more, its colours split
-        Path ring = new Path();
-        RectF inner = new RectF(lens);
-        float band = Math.min(lens.height(), lens.width()) * 0.2f;
-        inner.inset(band, band);
-        float ir = Math.max(0, r - band);
-        ring.addRoundRect(lens, r, r, Path.Direction.CW);
-        ring.addRoundRect(inner, ir, ir, Path.Direction.CCW);
-        ring.setFillType(Path.FillType.WINDING);
-        canvas.clipPath(ring);
-        float edgeZoom = zoom * 1.18f;
-        float split = 1.3f * mD;
-        for (int pass = 0; pass < 2; pass++) {
-            int layer = canvas.saveLayer(lens, pass == 0 ? mRed : mCyan);
-            canvas.translate(pass == 0 ? split : -split, 0);
-            canvas.scale(edgeZoom, edgeZoom, cx, cy);
-            if (clear != null) {
-                canvas.drawRenderNode((RenderNode) clear);
+    private RenderEffect glassEffect(int w, int h, boolean liquid) {
+        float blur = (liquid ? BLUR_DP : 24f) * mD;
+        if (!liquid) {
+            return RenderEffect.createBlurEffect(blur, blur, Shader.TileMode.CLAMP);
+        }
+        ColorMatrix saturate = new ColorMatrix();
+        saturate.setSaturation(SATURATION);
+        RenderEffect frost = RenderEffect.createBlurEffect(blur, blur,
+                RenderEffect.createColorFilterEffect(new ColorMatrixColorFilter(saturate)), Shader.TileMode.CLAMP);
+        if (Build.VERSION.SDK_INT < 33) {
+            return frost;
+        }
+        RuntimeShader lens = mRefraction instanceof RuntimeShader ? (RuntimeShader) mRefraction : new RuntimeShader(REFRACTION_AGSL);
+        mRefraction = lens;
+        lens.setFloatUniform("size", w, h);
+        lens.setFloatUniform("radius", Math.min(w, h) / 2f);
+        lens.setFloatUniform("refractionHeight", REFRACTION_DP * mD);
+        lens.setFloatUniform("refractionAmount", -REFRACTION_DP * mD);
+        lens.setFloatUniform("depthEffect", 1f);
+        lens.setFloatUniform("chromaticAberration", 1f);
+        return RenderEffect.createChainEffect(RenderEffect.createRuntimeShaderEffect(lens, "content"), frost);
+    }
+
+    /** Fine grain for the glass (about 4%) */
+    private static Bitmap noise() {
+        if (sNoise == null) {
+            int size = 96;
+            int[] px = new int[size * size];
+            Random random = new Random(7);
+            for (int i = 0; i < px.length; i++) {
+                int v = random.nextInt(256);
+                px[i] = 0xFF000000 | (v << 16) | (v << 8) | v;
             }
-            super.dispatchDraw(canvas);
-            canvas.restoreToCount(layer);
+            sNoise = Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888);
         }
-        canvas.restore();
-
-        // Light pooling in it
-        mPaint.setShader(new RadialGradient(cx, lens.top + lens.height() * 0.3f, lens.width() * 0.6f,
-                new int[] {mDark ? 0x24FFFFFF : 0x4DFFFFFF, mDark ? 0x08FFFFFF : 0x14FFFFFF, 0x00FFFFFF},
-                new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
-        canvas.drawRoundRect(lens, r, r, mPaint);
-        // The reflection: a bright band along the top, and a faint one at the bottom
-        mPaint.setShader(new LinearGradient(0, lens.top, 0, lens.top + lens.height() * 0.42f,
-                mDark ? 0x47FFFFFF : 0x8CFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP));
-        RectF shine = new RectF(lens.left + r * 0.4f, lens.top + 1.5f * mD, lens.right - r * 0.4f, lens.top + lens.height() * 0.46f);
-        canvas.drawRoundRect(shine, shine.height() / 2f, shine.height() / 2f, mPaint);
-        mPaint.setShader(new LinearGradient(0, lens.bottom - lens.height() * 0.22f, 0, lens.bottom,
-                0x00FFFFFF, mDark ? 0x1FFFFFFF : 0x40FFFFFF, Shader.TileMode.CLAMP));
-        RectF under = new RectF(lens.left + r * 0.7f, lens.bottom - lens.height() * 0.22f, lens.right - r * 0.7f, lens.bottom - 1.5f * mD);
-        canvas.drawRoundRect(under, under.height() / 2f, under.height() / 2f, mPaint);
-        mPaint.setShader(null);
-        // The rim: bright where the light hits, prism colours along the curves
-        mStroke.setStrokeWidth(1.4f * mD);
-        mStroke.setShader(new SweepGradient(cx, lens.centerY(),
-                new int[] {0xB3FFFFFF, 0x80FF6FD8, 0x8055D6FF, 0xE6FFFFFF, 0x80FFE066, 0x8070FFB0, 0xB3FFFFFF}, null));
-        RectF rim = new RectF(lens);
-        rim.inset(0.7f * mD, 0.7f * mD);
-        canvas.drawRoundRect(rim, r, r, mStroke);
-        mStroke.setShader(null);
+        return sNoise;
     }
 
     // endregion
