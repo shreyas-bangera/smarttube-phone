@@ -1,10 +1,10 @@
-- Player menus (Settings, Quality, Speed, Captions and the rest) close with a swipe down, from the handle or the list; tapping outside a menu closes it too
-- Player menus are smaller and neater, and narrower in full screen, so the video stays in view around them
-- Brightness set by swiping in full screen goes back to your phone's own brightness when you leave full screen
-- The top bar stays in place while you scroll Settings, Subscriptions and every other page, so search is always at hand; on Home it still tucks away as you scroll down and comes back as you scroll up
-- Up next in the music player: tap the bar under the controls to see the song playing and the songs coming after it, in the order they'll play (shuffle's pick first), and tap any of them to play it
-- The music player glows with the song: a living background of the artwork's own colours drifts slowly behind everything, with beams of light falling from above, ribbons of light flowing near the bottom and soft specks of light rising, soft lights circle the artwork and breathe while the song plays, and a glint of light sweeps across each new song's artwork
-- Glowing controls: the play button glows in the song's colour and breathes with it, Previous and Next light up when pressed, and Shuffle and Repeat glow when they're on
-- A cleaner music player: music video thumbnails shown whole on a soft blurred backdrop (song covers still fill the frame), a shadow in the song's colour, and the lyric line without a box
+- Cover Flow in the music player: turn your phone sideways to see your songs as a row of covers, the one playing in the middle and the ones before and after turned towards it. Swipe through them and tap one to play it, with the controls right under them. In portrait, press and hold the artwork for the same view
+- A living music player: a background made from the song's own artwork and colours drifts slowly behind everything, with beams of light from above, flowing ribbons and soft specks of light, soft lights circle the artwork, and a glint of light sweeps across each new song's artwork
 - A new animation for every song behind the music player, picked from many: confetti, fireflies, soap bubbles, shooting stars, blossom petals, snow, glowing lanterns, neon waves, a turning galaxy, butterflies, floating music notes, rainbow light, hearts, sparkles, aurora and more. Each song keeps its own, and no two songs in a row share one
-- Cover Flow in the music player: turn your phone sideways to see the songs as a row of covers, the one playing in the middle, the ones before and after turned towards it. Swipe through them and tap one to play it, with the controls right under them. In portrait, press and hold the artwork for the same view
+- Up next: tap the bar under the controls to see the songs coming after this one, in the order they'll play, and tap any of them to play it
+- Glowing controls: the play button glows in the song's colour and breathes with it, Previous and Next light up when pressed, and Shuffle and Repeat glow when they're on
+- A cleaner music player: music video thumbnails shown whole on a soft blurred backdrop, a shadow in the song's colour, the lyric line without a box, and no like button
+- Player menus (Settings, Quality, Speed, Captions and the rest) close with a swipe down or a tap outside, and they're smaller and neater, narrower in full screen
+- Brightness set by swiping in full screen goes back to your phone's own when you leave full screen
+- The top bar stays in place on Settings, Subscriptions and every other page, so search is always at hand; on Home it tucks away as you scroll down and comes back as you scroll up
+- Fixed a crash that could happen when one song moved on to the next
