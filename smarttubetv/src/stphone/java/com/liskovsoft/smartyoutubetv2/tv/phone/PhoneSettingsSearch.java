@@ -74,7 +74,7 @@ final class PhoneSettingsSearch {
         for (Entry entry : mEntries) {
             boolean all = true;
             for (String word : words) {
-                if (!word.isEmpty() && !entry.words.contains(word)) {
+                if (!word.isEmpty() && !matches(entry.words, word)) {
                     all = false;
                     break;
                 }
@@ -86,6 +86,32 @@ final class PhoneSettingsSearch {
         }
         first.addAll(rest);
         return first;
+    }
+
+    /** Everyday words for SmartTube's: "size" finds "Subtitle scale", "captions" finds Subtitles... */
+    private static final String[][] SAME = {
+            {"size", "scale"}, {"font", "text", "style"}, {"colour", "color"}, {"captions", "subtitle", "cc"},
+            {"cc", "subtitle"}, {"caption", "subtitle"}, {"dark", "theme"}, {"light", "theme"},
+            {"skip", "sponsorblock", "segment"}, {"ads", "sponsorblock", "segment"}, {"sponsor", "sponsorblock"},
+            {"resolution", "quality", "preset"}, {"hd", "quality", "preset"}, {"1080p", "preset"}, {"4k", "preset"},
+            {"autoplay", "playback mode"}, {"loop", "repeat", "playback mode"}, {"repeat", "playback mode"},
+            {"background", "background play"}, {"pip", "picture"}, {"language", "locale", "country"},
+            {"thumbnail", "dearrow"}, {"clickbait", "dearrow"}, {"volume", "audio"}, {"sound", "audio"}};
+
+    private static boolean matches(String words, String word) {
+        if (words.contains(word)) {
+            return true;
+        }
+        for (String[] same : SAME) {
+            if (same[0].equals(word)) {
+                for (int i = 1; i < same.length; i++) {
+                    if (words.contains(same[i])) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void add(Set<String> seen, PhoneSetting row, String words) {
