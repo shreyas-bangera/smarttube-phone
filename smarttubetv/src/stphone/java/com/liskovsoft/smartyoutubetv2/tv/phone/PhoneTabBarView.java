@@ -249,6 +249,7 @@ public class PhoneTabBarView extends LinearLayout {
     void setStyle(int style, int navInset) {
         mStyle = style;
         mLogged = false;
+        requestLayout(); // the tabs' shares of the bar (see onMeasure)
         mDark = PhoneTabBar.isDark(getContext());
         mEffectStyle = -1;
         setScaleX(1f);
@@ -602,16 +603,38 @@ public class PhoneTabBarView extends LinearLayout {
         return Math.min(20 * mD, Math.min(shape.width(), shape.height()) / 2f);
     }
 
-    /** A tab's pill width: the tab, or its name with room on both sides when the name is wider */
+    /** A tab's pill: its own share of the bar, 3 dp in on each side, so it never reaches the next tab's name */
     private float pillWidth(View tab) {
-        float width = tab.getWidth();
-        if (tab instanceof android.view.ViewGroup && ((android.view.ViewGroup) tab).getChildCount() > 1
-                && ((android.view.ViewGroup) tab).getChildAt(1) instanceof android.widget.TextView) {
-            android.widget.TextView label = (android.widget.TextView) ((android.view.ViewGroup) tab).getChildAt(1);
-            float text = label.getPaint().measureText(String.valueOf(label.getText()));
-            width = Math.max(width, Math.min(text + 20 * mD, tab.getWidth() * 1.45f));
+        return Math.max(0, tab.getWidth() - 6 * mD);
+    }
+
+    /**
+     * The floating bars give each tab a share of the bar after its name (wider for Subscriptions and Notifications,
+     * narrower for Home), so every name fits inside its own pill with room on both sides; Classic shares it evenly
+     */
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        for (int i = 0; i < getChildCount(); i++) {
+            View tab = getChildAt(i);
+            if (!(tab.getLayoutParams() instanceof LinearLayout.LayoutParams)) {
+                continue;
+            }
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) tab.getLayoutParams();
+            float weight = 1f;
+            if (mStyle != PhoneTabBar.CLASSIC && tab instanceof android.view.ViewGroup
+                    && ((android.view.ViewGroup) tab).getChildCount() > 1
+                    && ((android.view.ViewGroup) tab).getChildAt(1) instanceof android.widget.TextView) {
+                android.widget.TextView label = (android.widget.TextView) ((android.view.ViewGroup) tab).getChildAt(1);
+                Paint paint = new Paint(label.getPaint());
+                paint.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 10,
+                        getResources().getDisplayMetrics()));
+                float wanted = paint.measureText(String.valueOf(label.getText())) + 22 * mD; // the name and room for the pill
+                weight = Math.max(52 * mD, wanted);
+            }
+            params.width = 0;
+            params.weight = weight;
         }
-        return width;
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     // Floating: Nuvio's look, YouTube's colours
