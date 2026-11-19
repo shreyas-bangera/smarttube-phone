@@ -157,7 +157,7 @@ public class PhoneTabBarView extends LinearLayout {
             + "}\n";
 
     // MeeTube's glass and lens numbers
-    private static final float BLUR_DP = 8f;
+    private static final float BLUR_DP = 16f;
     private static final float SATURATION = 1.5f;
     private static final float REFRACTION_DP = 24f;
     private static final float LENS_REFRACTION_DP = 16f;
@@ -303,7 +303,7 @@ public class PhoneTabBarView extends LinearLayout {
             return;
         }
         mTargetX = tab.getLeft() + tab.getWidth() / 2f;
-        mTargetW = tab.getWidth();
+        mTargetW = pillWidth(tab);
         if (!animate || mX < 0) {
             mX = mTargetX;
             mW = mTargetW;
@@ -512,7 +512,7 @@ public class PhoneTabBarView extends LinearLayout {
         mHovered = null;
         if (tab != null) {
             mTargetX = tab.getLeft() + tab.getWidth() / 2f;
-            mTargetW = tab.getWidth();
+            mTargetW = pillWidth(tab);
         }
         startAnimation();
         if (open && tab != null) {
@@ -554,7 +554,7 @@ public class PhoneTabBarView extends LinearLayout {
         if (mX < 0 && mChosen != null && mChosen.getWidth() > 0) {
             // The chosen tab is laid out now: the bubble starts on it
             mX = mTargetX = mChosen.getLeft() + mChosen.getWidth() / 2f;
-            mW = mTargetW = mChosen.getWidth();
+            mW = mTargetW = pillWidth(mChosen);
         }
         if (!mLogged) {
             mLogged = true;
@@ -571,14 +571,33 @@ public class PhoneTabBarView extends LinearLayout {
         }
     }
 
-    /** The bubble on the chosen tab (or under the finger): the tab's width, the bar's height less 4 dp each side */
+    /** The bubble on the chosen tab (or under the finger): wide enough for the tab's name, the bar's height less 4 dp each side */
     private RectF pill(float inset) {
         if (mX < 0 || mW <= 0) {
             return null;
         }
         float h = mBar.height() - 2 * inset;
-        float w = mW - (mStyle == PhoneTabBar.GLASS ? 4 * mD : 0);
-        return new RectF(mX - w / 2f, mBar.centerY() - h / 2f, mX + w / 2f, mBar.centerY() + h / 2f);
+        float half = mW / 2f;
+        // It stays inside the bar
+        float x = Math.max(mBar.left + inset + half, Math.min(mBar.right - inset - half, mX));
+        return new RectF(x - half, mBar.centerY() - h / 2f, x + half, mBar.centerY() + h / 2f);
+    }
+
+    /** The pill's corners: a rounded square (not a circle), so the icon and the name both sit inside */
+    private float corner(RectF shape) {
+        return Math.min(20 * mD, Math.min(shape.width(), shape.height()) / 2f);
+    }
+
+    /** A tab's pill width: the tab, or its name with room on both sides when the name is wider */
+    private float pillWidth(View tab) {
+        float width = tab.getWidth();
+        if (tab instanceof android.view.ViewGroup && ((android.view.ViewGroup) tab).getChildCount() > 1
+                && ((android.view.ViewGroup) tab).getChildAt(1) instanceof android.widget.TextView) {
+            android.widget.TextView label = (android.widget.TextView) ((android.view.ViewGroup) tab).getChildAt(1);
+            float text = label.getPaint().measureText(String.valueOf(label.getText()));
+            width = Math.max(width, Math.min(text + 20 * mD, tab.getWidth() * 1.45f));
+        }
+        return width;
     }
 
     // Floating: Nuvio's look, YouTube's colours
@@ -587,7 +606,7 @@ public class PhoneTabBarView extends LinearLayout {
         boolean blurred = drawBackdrop(canvas, mBarPath, false);
         // Dark glass: YouTube's near black, see-through where the feed shows
         mFill.setShader(null);
-        mFill.setColor(mDark ? (blurred ? 0x8C0F0F0F : 0xD60F0F0F) : (blurred ? 0x9EFFFFFF : 0xEBFFFFFF));
+        mFill.setColor(mDark ? (blurred ? 0xC70F0F0F : 0xEB0F0F0F) : (blurred ? 0xCCFFFFFF : 0xF2FFFFFF));
         canvas.drawPath(mBarPath, mFill);
         RectF pill = pill(4 * mD);
         float speed = Math.min(1f, Math.abs(mVelocity) / (1800 * mD));
@@ -614,7 +633,7 @@ public class PhoneTabBarView extends LinearLayout {
             super.dispatchDraw(canvas);
             return;
         }
-        float r = Math.min(pill.height(), pill.width()) / 2f;
+        float r = corner(pill);
         Path bubble = new Path();
         bubble.addRoundRect(pill, r, r, Path.Direction.CW);
         // Outside the bubble: the tabs as they are (white)
@@ -659,9 +678,9 @@ public class PhoneTabBarView extends LinearLayout {
         RectF pill = pill(4 * mD);
         // At rest: the chosen tab on a soft pill (it becomes the lens while it moves)
         if (pill != null && mPresence < 0.99f) {
-            float r = pill.height() / 2f;
+            float r = corner(pill);
             mFill.setShader(null);
-            int alpha = Math.round((mDark ? 0x24 : 0x14) * (1f - mPresence));
+            int alpha = Math.round((mDark ? 0x30 : 0x1A) * (1f - mPresence));
             mFill.setColor((mDark ? 0x00FFFFFF : 0x00000000) | (alpha << 24));
             canvas.drawRoundRect(pill, r, r, mFill);
         }
@@ -675,7 +694,8 @@ public class PhoneTabBarView extends LinearLayout {
     private void drawGlassBar(Canvas canvas, float radius) {
         boolean live = drawBackdrop(canvas, mBarPath, true);
         mFill.setShader(null);
-        mFill.setColor(mDark ? (live ? 0x66121212 : 0xEB121212) : (live ? 0x8CF5F5F7 : 0xF0F5F5F7));
+        // Dark enough that the names stay readable over bright thumbnails
+        mFill.setColor(mDark ? (live ? 0xC2121214 : 0xF0121214) : (live ? 0xC7F7F7F9 : 0xF5F7F7F9));
         canvas.drawPath(mBarPath, mFill);
         canvas.save();
         canvas.clipPath(mBarPath);
@@ -725,7 +745,7 @@ public class PhoneTabBarView extends LinearLayout {
         float w = (pill.width() + LENS_GROW_W_DP * mD * p) * (1f + STRETCH * speed);
         float h = (pill.height() + (LENS_GROW_H_DP + 8) * mD * p) * (1f - STRETCH / 3f * speed);
         RectF lens = new RectF(mX - w / 2f, mBar.centerY() - h / 2f, mX + w / 2f, mBar.centerY() + h / 2f);
-        float r = Math.min(w, h) / 2f;
+        float r = Math.min(24 * mD, Math.min(w, h) / 2f);
         float magnify = 1f + (MAGNIFY - 1f) * p;
         int alpha = Math.round(255 * Math.min(1f, p * 1.6f));
         int layer = alpha < 255 ? canvas.saveLayerAlpha(lens.left - 2 * mD, lens.top - 2 * mD, lens.right + 2 * mD, lens.bottom + 2 * mD, alpha) : -1;
