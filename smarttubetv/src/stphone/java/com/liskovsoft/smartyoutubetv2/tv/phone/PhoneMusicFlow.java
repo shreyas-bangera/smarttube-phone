@@ -232,8 +232,9 @@ final class PhoneMusicFlow {
     private void build() {
         mScreen = new FrameLayout(mActivity);
         mScreen.setClickable(true);
-        // Dimmed, so the covers stand out; the player's living background still shows through
-        mScreen.setBackgroundColor(mLandscape ? 0x8C000000 : 0xE6000000);
+        // Over the player's own living background (its colours, lights and the song's animation), just a touch
+        // darker so the covers stand out
+        mScreen.setBackgroundColor(0x1F000000);
         mScreen.setOnClickListener(v -> {
             if (!mLandscape) {
                 hide(); // a tap above or below the covers

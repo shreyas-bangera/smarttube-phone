@@ -672,18 +672,12 @@ final class PhoneMusicPlayer {
         mArtFrame.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
         mFlow.show(false);
         mFlow.setColor(mColor);
-        // The player behind goes out of focus and dims, so only Cover Flow's words read
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            mScroll.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(18), dp(18), android.graphics.Shader.TileMode.CLAMP));
-        }
-        mScroll.animate().alpha(0.25f).setDuration(220).start();
+        // The player's artwork, words and buttons fade away; its background and animation stay, behind the covers
+        mScroll.animate().alpha(0f).setDuration(220).start();
     }
 
-    /** Cover Flow closed: the player is sharp again */
+    /** Cover Flow closed: the player comes back */
     private void flowClosed() {
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            mScroll.setRenderEffect(null);
-        }
         mScroll.animate().alpha(1f).setDuration(220).start();
     }
 
