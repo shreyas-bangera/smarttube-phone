@@ -153,12 +153,16 @@ public class ExoPlayerController implements Player.EventListener, LiveStateProvi
     @Override
     public long getLiveDurationMs() {
         long liveEdgeMs = mSabrLiveManifest != null ? mSabrLiveManifest.getLiveEdgeMs() : -1;
+        Video video = getVideo();
+        if (video == null) {
+            return liveEdgeMs; // between videos: none loaded yet
+        }
         // Skip the fallback duration because SABR uses absolute values for clipped streams
-        if (mSabrLiveManifest != null && !getVideo().isFullLive()) {
+        if (mSabrLiveManifest != null && !video.isFullLive()) {
             return liveEdgeMs;
         }
         // NOTE: liveEdgeMs could be -1 during initial video loading. Use fallback duration.
-        return liveEdgeMs != -1 ? liveEdgeMs : getVideo().getLiveDurationMs();
+        return liveEdgeMs != -1 ? liveEdgeMs : video.getLiveDurationMs();
     }
 
     @Override
