@@ -91,6 +91,7 @@ final class PhoneMusicFlow {
     private String mPlayingId;
     /** When the covers were last touched: the flow follows the song playing only after a while */
     private long mTouchedAt;
+    private Runnable mOnHide;
 
     PhoneMusicFlow(Activity activity, FrameLayout parent, Host host) {
         mActivity = activity;
@@ -128,9 +129,17 @@ final class PhoneMusicFlow {
         mFlow.animate().scaleX(1f).scaleY(1f).setDuration(320).setInterpolator(new DecelerateInterpolator(2f)).start();
     }
 
+    /** Told when it closes (the player behind comes back into focus) */
+    void setOnHide(Runnable onHide) {
+        mOnHide = onHide;
+    }
+
     void hide() {
         if (mScreen == null) {
             return;
+        }
+        if (mOnHide != null) {
+            mOnHide.run();
         }
         View screen = mScreen;
         mScreen = null;
@@ -224,7 +233,7 @@ final class PhoneMusicFlow {
         mScreen = new FrameLayout(mActivity);
         mScreen.setClickable(true);
         // Dimmed, so the covers stand out; the player's living background still shows through
-        mScreen.setBackgroundColor(mLandscape ? 0x8C000000 : 0xB3000000);
+        mScreen.setBackgroundColor(mLandscape ? 0x8C000000 : 0xE6000000);
         mScreen.setOnClickListener(v -> {
             if (!mLandscape) {
                 hide(); // a tap above or below the covers
@@ -400,7 +409,7 @@ final class PhoneMusicFlow {
         words.setGravity(gravity);
         words.setPadding(dp(24), 0, dp(24), 0);
         LinearLayout titleRow = new LinearLayout(mActivity);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.setGravity(Gravity.CENTER);
         mBars = new PhoneMusicPlayer.Bars(mActivity);
         LinearLayout.LayoutParams barsParams = new LinearLayout.LayoutParams(dp(14), dp(14));
         barsParams.setMarginEnd(dp(8));
@@ -409,13 +418,13 @@ final class PhoneMusicFlow {
         mTitle.setSingleLine(true);
         mTitle.setEllipsize(TextUtils.TruncateAt.END);
         titleRow.addView(mTitle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        words.addView(titleRow);
+        words.addView(titleRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         mArtist = text(titleSp - 4, 0xB3FFFFFF, false);
         mArtist.setSingleLine(true);
         mArtist.setEllipsize(TextUtils.TruncateAt.END);
         mArtist.setGravity(Gravity.CENTER);
-        mArtist.setPadding(0, dp(2), 0, 0);
-        words.addView(mArtist);
+        mArtist.setPadding(0, dp(4), 0, 0);
+        words.addView(mArtist, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return words;
     }
 

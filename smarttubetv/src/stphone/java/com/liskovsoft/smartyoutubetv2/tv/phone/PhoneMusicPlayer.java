@@ -534,6 +534,7 @@ final class PhoneMusicPlayer {
                 mHost.minimize();
             }
         });
+        mFlow.setOnHide(this::flowClosed);
         // Turned sideways: Cover Flow is the player
         mRoot.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (r - l != or - ol || b - t != ob - ot) {
@@ -671,6 +672,19 @@ final class PhoneMusicPlayer {
         mArtFrame.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
         mFlow.show(false);
         mFlow.setColor(mColor);
+        // The player behind goes out of focus and dims, so only Cover Flow's words read
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            mScroll.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(dp(18), dp(18), android.graphics.Shader.TileMode.CLAMP));
+        }
+        mScroll.animate().alpha(0.25f).setDuration(220).start();
+    }
+
+    /** Cover Flow closed: the player is sharp again */
+    private void flowClosed() {
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            mScroll.setRenderEffect(null);
+        }
+        mScroll.animate().alpha(1f).setDuration(220).start();
     }
 
     // endregion
