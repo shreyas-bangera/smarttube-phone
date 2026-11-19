@@ -2606,12 +2606,22 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
             return;
         }
-        if (mMusicQueue == null || (!modeChanged && current.videoId != null && current.videoId.equals(mShuffledFor))) {
+        if (!modeChanged && current.videoId != null && current.videoId.equals(mShuffledFor)) {
+            return;
+        }
+        // The songs lined up after this one (a search's or a playlist's), else the suggestions
+        com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist queue =
+                com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance();
+        java.util.List<Video> pool = queue.getAllAfterCurrent();
+        if ((pool == null || pool.isEmpty()) && mMusicQueue != null) {
+            pool = mMusicQueue.getVideos();
+        }
+        if (pool == null) {
             return;
         }
         java.util.List<Video> songs = new java.util.ArrayList<>();
         java.util.List<Video> fresh = new java.util.ArrayList<>();
-        for (Video video : mMusicQueue.getVideos()) {
+        for (Video video : new java.util.ArrayList<>(pool)) {
             if (video != null && video.videoId != null && !video.videoId.equals(current.videoId) && !isShort(video)) {
                 songs.add(video);
                 if (!mShufflePlayed.contains(video.videoId)) {
@@ -2629,6 +2639,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         current.nextMediaItem = com.liskovsoft.smartyoutubetv2.common.app.models.data.SimpleMediaItem.from(pick);
         current.isShuffled = true;
+        queue.next(pick); // Next takes the queue's next song first: the pick is it now
         mShuffledFor = current.videoId;
         android.util.Log.d("PhoneMusic", "shuffle: after " + current.videoId + " comes " + pick.videoId
                 + " (of " + from.size() + " songs)");
