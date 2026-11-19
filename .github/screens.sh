@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of Customize > Tab bar (run 3: Nuvio-style floating, MeeTube-style liquid glass), from the real app: Home with each tab bar style (Classic, Floating, Liquid
+# Emulator test of Customize > Tab bar (run 4: crash log), from the real app: Home with each tab bar style (Classic, Floating, Liquid
 # glass), the drop-down, and a tab switch (the pill or lens moving). Each step is a screenshot in the log (base64 JPEG
 # between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -74,4 +74,6 @@ shot tabs_glass_moving
 sleep 3
 shot tabs_glass_you
 
-adb logcat -d | grep -E "AndroidRuntime|FATAL" | tail -30
+adb logcat -d | grep -E "PhoneTabBar|FATAL|Fatal signal|Abort message|backtrace:|#0[0-9] pc|has died|ANR in" | tail -60
+echo "---- crash buffer"
+adb logcat -d -b crash | tail -80

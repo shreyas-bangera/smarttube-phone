@@ -216,6 +216,7 @@ public class PhoneTabBarView extends LinearLayout {
     private boolean mAnimating;
     private ValueAnimator mWobble;
 
+    private boolean mLogged;
     private boolean mDragging;
     private float mDownX;
     private View mHovered;
@@ -247,6 +248,7 @@ public class PhoneTabBarView extends LinearLayout {
     /** The look, and the navigation bar's height under the bar */
     void setStyle(int style, int navInset) {
         mStyle = style;
+        mLogged = false;
         mDark = PhoneTabBar.isDark(getContext());
         mEffectStyle = -1;
         setScaleX(1f);
@@ -549,6 +551,16 @@ public class PhoneTabBarView extends LinearLayout {
             return;
         }
         mBar.set(mSide, mRise, getWidth() - mSide, getHeight() - mBelow);
+        if (mX < 0 && mChosen != null && mChosen.getWidth() > 0) {
+            // The chosen tab is laid out now: the bubble starts on it
+            mX = mTargetX = mChosen.getLeft() + mChosen.getWidth() / 2f;
+            mW = mTargetW = mChosen.getWidth();
+        }
+        if (!mLogged) {
+            mLogged = true;
+            android.util.Log.d("PhoneTabBar", "first draw: style " + mStyle + ", bar " + mBar + ", bubble at " + mX
+                    + " (" + mW + " wide), backdrop " + (mBackdrop != null) + ", hardware " + canvas.isHardwareAccelerated());
+        }
         float radius = mBar.height() / 2f;
         mBarPath.reset();
         mBarPath.addRoundRect(mBar, radius, radius, Path.Direction.CW);
