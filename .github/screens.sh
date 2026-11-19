@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of Search in Settings (run 2: the gear opens Settings), from the real app: Settings (with What's new and Check for updates at the
+# Emulator test of Search in Settings (run 3: the gear opens Settings, search from the top), from the real app: Settings (with What's new and Check for updates at the
 # bottom), the search icon there, results for a few words, and a result opening its page. Each step is a screenshot
 # in the log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -36,7 +36,9 @@ for i in 1 2 3 4 5; do adb shell input swipe 540 1900 540 500 300; sleep 1; done
 sleep 2
 shot s2_settings_bottom
 
-# The search icon on the Settings page: a box to search the settings
+# The search icon on the Settings page (back at the top, where the bar is): a box to search the settings
+for i in 1 2 3 4 5 6; do adb shell input swipe 540 700 540 2000 300; sleep 1; done
+sleep 2
 tap 'content-desc="Search YouTube"'
 sleep 3
 shot s3_search_box
