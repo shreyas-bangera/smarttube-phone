@@ -1,11 +1,5 @@
-- New Music page, second on Home: big featured music videos you can swipe through, Play and Shuffle buttons, playlists with their artwork and number of tracks, and the top charts
-- New music player for songs you open from Music: big artwork you swipe for the next song, a background that glows in the song's colours as it plays, shuffle, repeat and like. Tap "Video" to watch the video instead
-- Lyrics as you listen, in the song's own language: the line being sung shows under the song's name; tap it to see all the lyrics in place of the artwork, tap a line to jump there
-- Songs in the music player play the song itself, like YouTube Music's Song mode: no music video intros, and the lyrics stay in time. Tap "Video" to watch the music video
-- The music player feels the song: a quiet animation in the background follows its mood. Hearts drift up for love songs, soft rain falls for sad ones, sparkles twinkle for party songs, aurora waves for calm ones, rings pulse for energetic ones and embers rise for devotional ones. It pauses with the song
-- Go small from the music player and it becomes a music bar at the bottom of the app, with play, next and the song's progress around the play button
-- Search for music: turn on the music note next to the search box (or search from the Music page) and the songs and playlists you find open in the music player. Any video can switch to it too: tap **Listen** under the video
-- Playlists look like YouTube's now: big artwork, title and description at the top, with Play all, Shuffle and Share
-- History, Settings and the other parts of the You tab open as their own pages
-- Car and Bluetooth screens now show the song or video's title and artist (and its artwork) instead of "Unavailable"
-- Smaller, neater History cards on the You tab
+- Search in Settings: tap the search icon on the Settings page and type what you're looking for. It finds any setting, also the ones inside Player, Subtitles, SponsorBlock and the other pages, and shows where each one is. Tap a result to go straight to it
+- What's new and Check for updates are now at the bottom of Settings, under Updates
+- Shuffle in the music player really shuffles now: songs from Music or a search play in a random order, without repeating the ones you just heard
+- Repeat this song starts the song over when it ends, also from the music bar
+- Shuffle and Repeat show clearly when they're on: a soft circle behind the button and a dot under it

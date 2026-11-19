@@ -24,7 +24,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  */
 final class PhoneWhatsNew {
     /** The newest release below: raise it with each new one */
-    static final int VERSION = 6;
+    static final int VERSION = 7;
 
     private static final String PREFS = "phone_whats_new";
     private static final String KEY_READ = "read";
@@ -57,7 +57,16 @@ final class PhoneWhatsNew {
     }
 
     static final Release[] RELEASES = {
-            new Release(6, "This update",
+            new Release(7, "This update",
+                    new Feature(R.drawable.ic_phone_search, "Search in Settings",
+                            "Tap the search icon on the Settings page and type what you're looking for. It finds any setting, also the ones inside Player, Subtitles, SponsorBlock and the other pages, and shows where each one is. Tap a result to go straight to it."),
+                    new Feature(R.drawable.ic_phone_mode_shuffle, "Shuffle that really shuffles",
+                            "In the music player, songs from Music or a search now play in a random order, without repeating the ones you just heard."),
+                    new Feature(R.drawable.ic_phone_mode_repeat_one, "Repeat this song",
+                            "With Repeat on, the song starts over when it ends, also from the music bar. Shuffle and Repeat show clearly when they're on: a soft circle behind the button and a dot under it."),
+                    new Feature(R.drawable.ic_phone_update, "Updates at the bottom",
+                            "What's new and Check for updates are now at the bottom of Settings, under Updates.")),
+            new Release(6, "Music",
                     new Feature(R.drawable.ic_phone_music_note, "A new Music page",
                             "Music now sits right after Home. Swipe through featured music videos, tap Play or Shuffle, and browse playlists and the top charts."),
                     new Feature(R.drawable.ic_phone_headphones, "A real music player",
