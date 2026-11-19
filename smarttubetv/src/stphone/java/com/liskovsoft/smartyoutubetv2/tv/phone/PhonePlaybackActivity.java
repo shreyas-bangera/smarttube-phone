@@ -223,16 +223,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
-            public void like() {
-                clickButton(R.id.action_thumbs_up);
-            }
-
-            @Override
-            public boolean liked() {
-                return getButtonState(R.id.action_thumbs_up) == PlayerUI.BUTTON_ON;
-            }
-
-            @Override
             public void minimize() {
                 if (canMinimizeToCard()) {
                     mMusicPlayer.slideAway(PhonePlaybackActivity.this::minimizeToMusicPill);

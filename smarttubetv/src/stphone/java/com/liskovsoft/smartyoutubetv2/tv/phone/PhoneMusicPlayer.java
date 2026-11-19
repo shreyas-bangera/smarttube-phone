@@ -67,10 +67,6 @@ final class PhoneMusicPlayer {
 
         void previous();
 
-        void like();
-
-        boolean liked();
-
         /** Down arrow: the player goes small (the music pill) */
         void minimize();
 
@@ -118,7 +114,6 @@ final class PhoneMusicPlayer {
     private final TextView mSource;
     private final TextView mTitle;
     private final TextView mArtist;
-    private final ImageView mLike;
     private final LinearLayout mLyricChip;
     private final Bars mChipBars;
     private final TextView mChipLine;
@@ -308,7 +303,7 @@ final class PhoneMusicPlayer {
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88), Gravity.TOP));
         mStage.addView(mLyricsPanel, match());
 
-        // Title, artist, like
+        // Title and artist
         LinearLayout titleRow = new LinearLayout(context);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
         titleRow.setPadding(dp(2), dp(28), 0, 0);
@@ -326,12 +321,6 @@ final class PhoneMusicPlayer {
         mArtist.setPadding(0, dp(2), 0, 0);
         words.addView(mArtist);
         titleRow.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        mLike = icon(context, R.drawable.ic_phone_like, 26);
-        mLike.setOnClickListener(v -> {
-            mHost.like();
-            mHandler.postDelayed(this::updateLike, 300);
-        });
-        titleRow.addView(mLike, new LinearLayout.LayoutParams(dp(48), dp(48)));
         mColumn.addView(titleRow);
 
         // The line being sung: a coloured pill with little moving bars (tap: all the lyrics)
@@ -723,14 +712,7 @@ final class PhoneMusicPlayer {
             refreshUpNext();
         }
         updateModes();
-        updateLike();
         updateLyrics(false);
-    }
-
-    private void updateLike() {
-        boolean liked = mHost.liked();
-        mLike.setImageTintList(android.content.res.ColorStateList.valueOf(liked ? 0xFFFF4E6A : Color.WHITE));
-        mLike.setAlpha(liked ? 1f : 0.85f);
     }
 
     // endregion
