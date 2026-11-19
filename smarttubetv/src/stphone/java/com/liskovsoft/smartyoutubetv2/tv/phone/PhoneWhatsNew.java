@@ -58,10 +58,14 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(8, "This update",
+                    new Feature(R.drawable.ic_phone_playlist, "See what plays next",
+                            "In the music player, tap Up next under the controls to see the songs coming after this one, in the order they'll play. Tap any of them to play it now."),
+                    new Feature(R.drawable.ic_phone_headphones, "Lights that follow the song",
+                            "Soft lights in the artwork's own colours glow around it and breathe while the song plays, and a glint of light sweeps across each new song's artwork."),
                     new Feature(R.drawable.ic_phone_collapse, "Swipe down to close menus",
                             "The player's menus (Settings, Quality, Speed, Captions and the rest) close with a swipe down, from the handle or the list, or with a tap outside them. They're smaller and neater too, and narrower in full screen."),
                     new Feature(R.drawable.ic_phone_music_note, "A cleaner music player",
-                            "Music video thumbnails show whole on a soft blurred backdrop, song covers still fill the frame, the artwork casts a shadow in the song's colour, and the lyric line has no box around it."),
+                            "Music video thumbnails show whole on a soft blurred backdrop, song covers still fill the frame, and the lyric line has no box around it."),
                     new Feature(R.drawable.ic_phone_search, "Search always at hand",
                             "The top bar stays in place while you scroll Home, Settings and every other page."),
                     new Feature(R.drawable.ic_phone_brightness, "Brightness back to normal",

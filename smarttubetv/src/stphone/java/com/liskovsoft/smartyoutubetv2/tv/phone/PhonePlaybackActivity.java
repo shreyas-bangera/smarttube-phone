@@ -198,6 +198,16 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public java.util.List<Video> upNext() {
+                return musicUpNext();
+            }
+
+            @Override
+            public void play(Video video) {
+                presenter().onSuggestionItemClicked(video);
+            }
+
+            @Override
             public void togglePlay() {
                 PhonePlaybackActivity.this.togglePlay();
             }
@@ -2735,6 +2745,40 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     /** Songs shuffle played lately: not again soon */
     private final java.util.LinkedList<String> mShufflePlayed = new java.util.LinkedList<>();
     private Object mEndWatchedOn;
+
+    /**
+     * The songs after this one for the music player's Up next: the queue lined up (a playlist's, a search's, with
+     * shuffle's pick first), then this song's suggestions. No Shorts, none twice.
+     */
+    private java.util.List<Video> musicUpNext() {
+        java.util.List<Video> songs = new java.util.ArrayList<>();
+        Video current = currentVideo();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        if (current != null && current.videoId != null) {
+            seen.add(current.videoId);
+        }
+        java.util.List<Video> lined = com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance().getAllAfterCurrent();
+        addSongs(songs, seen, lined);
+        if (songs.size() < 2 && mMusicQueue != null && current != null && current.videoId != null
+                && current.videoId.equals(mQueueFor)) {
+            addSongs(songs, seen, mMusicQueue.getVideos());
+        }
+        return songs;
+    }
+
+    private static void addSongs(java.util.List<Video> songs, java.util.Set<String> seen, java.util.List<Video> from) {
+        if (from == null) {
+            return;
+        }
+        for (Video video : new java.util.ArrayList<>(from)) {
+            if (songs.size() >= 50) {
+                return;
+            }
+            if (video != null && video.videoId != null && !isShort(video) && seen.add(video.videoId)) {
+                songs.add(video);
+            }
+        }
+    }
 
     /**
      * Shuffle: the next song (the Next button's and the one after this ends) is a random one of the songs after

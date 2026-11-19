@@ -2,4 +2,6 @@
 - Player menus are smaller and neater, and narrower in full screen, so the video stays in view around them
 - Brightness set by swiping in full screen goes back to your phone's own brightness when you leave full screen
 - The top bar stays in place while you scroll Home, Settings and every other page, so search is always at hand
+- Up next in the music player: tap the bar under the controls to see the song playing and the songs coming after it, in the order they'll play (shuffle's pick first), and tap any of them to play it
+- The music player glows with the song: soft lights in the artwork's own colours circle around it and breathe while the song plays, and a glint of light sweeps across each new song's artwork
 - A cleaner music player: music video thumbnails shown whole on a soft blurred backdrop (song covers still fill the frame), a shadow in the song's colour, and the lyric line without a box

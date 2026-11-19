@@ -216,4 +216,8 @@
     <string name="phone_tabs_classic">Klasik</string>
     <string name="phone_tabs_floating">Terapung</string>
     <string name="phone_tabs_glass">Kaca cecair</string>
+    <string name="phone_music_up_next">Seterusnya</string>
+    <string name="phone_music_queue_now">Sedang dimainkan</string>
+    <string name="phone_music_queue_next">Seterusnya</string>
+    <string name="phone_music_up_next_none">Belum ada lagu selepas ini</string>
 </resources>

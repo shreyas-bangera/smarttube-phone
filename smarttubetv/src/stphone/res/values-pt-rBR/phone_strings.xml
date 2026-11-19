@@ -223,4 +223,8 @@
     <string name="phone_tabs_classic">Clássica</string>
     <string name="phone_tabs_floating">Flutuante</string>
     <string name="phone_tabs_glass">Vidro líquido</string>
+    <string name="phone_music_up_next">A seguir</string>
+    <string name="phone_music_queue_now">Tocando agora</string>
+    <string name="phone_music_queue_next">Próximas</string>
+    <string name="phone_music_up_next_none">Nada na fila depois desta música ainda</string>
 </resources>

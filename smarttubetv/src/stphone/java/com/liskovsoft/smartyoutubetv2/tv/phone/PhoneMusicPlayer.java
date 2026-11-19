@@ -79,6 +79,12 @@ final class PhoneMusicPlayer {
 
         /** Shuffle or repeat was turned on or off */
         void onModesChanged();
+
+        /** The songs that play after this one, in order (shuffle's pick first) */
+        List<Video> upNext();
+
+        /** A song picked in Up next */
+        void play(Video video);
     }
 
     private static final long TICK_MS = 200;
@@ -115,6 +121,15 @@ final class PhoneMusicPlayer {
     private final ImageView mPlay;
     private final ImageView mShuffle;
     private final ImageView mRepeat;
+    /** Behind the artwork: the song's colours glowing around it */
+    private final PhoneMusicFx.Aura mAura;
+    /** Over the artwork: a glare sweeping across it when a song starts */
+    private final PhoneMusicFx.Glare mGlare = new PhoneMusicFx.Glare();
+    /** Under the controls: the next song, tap for the whole queue */
+    private final LinearLayout mUpNext;
+    private final TextView mUpNextTitle;
+    private final PhoneMusicQueue mQueue;
+    private int mUpNextTicks;
 
     private boolean mShown;
     private boolean mSeeking;
@@ -221,6 +236,11 @@ final class PhoneMusicPlayer {
         stageParams.topMargin = dp(20);
         stageParams.gravity = Gravity.CENTER_HORIZONTAL;
         mColumn.addView(mStage, stageParams);
+        mColumn.setClipChildren(false);
+        mColumn.setClipToPadding(false);
+        mAura = new PhoneMusicFx.Aura(context);
+        int auraSize = Math.round(stageSize * 1.5f);
+        mStage.addView(mAura, new FrameLayout.LayoutParams(auraSize, auraSize, Gravity.CENTER));
 
         mArtFrame = new FrameLayout(context);
         mArtFrame.setElevation(dp(24));
@@ -240,6 +260,7 @@ final class PhoneMusicPlayer {
         mArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
         mArtFrame.addView(mArt, match());
         mStage.addView(mArtFrame, match());
+        mArtFrame.setForeground(mGlare);
         mArtFrame.setContentDescription(context.getString(R.string.phone_music_artwork));
         setupArtSwipe(scroll);
 
@@ -391,6 +412,56 @@ final class PhoneMusicPlayer {
         controls.addView(mRepeat, new LinearLayout.LayoutParams(0, dp(48), 1f));
         mColumn.addView(controls);
 
+        // Up next: the next song in a glass pill, tap for the queue
+        mUpNext = new LinearLayout(context);
+        mUpNext.setGravity(Gravity.CENTER_VERTICAL);
+        mUpNext.setPadding(dp(14), dp(10), dp(14), dp(10));
+        mUpNext.setClickable(true);
+        mUpNext.setForeground(context.getDrawable(R.drawable.phone_ripple));
+        rounded(mUpNext, dp(18));
+        ImageView queueIcon = icon(context, R.drawable.ic_phone_playlist, 20);
+        mUpNext.addView(queueIcon, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        LinearLayout upWords = new LinearLayout(context);
+        upWords.setOrientation(LinearLayout.VERTICAL);
+        TextView upLabel = text(context, 11, 0x99FFFFFF, true);
+        upLabel.setText(R.string.phone_music_up_next);
+        upLabel.setAllCaps(true);
+        upLabel.setLetterSpacing(0.1f);
+        upWords.addView(upLabel);
+        mUpNextTitle = text(context, 14, Color.WHITE, false);
+        mUpNextTitle.setSingleLine(true);
+        mUpNextTitle.setEllipsize(TextUtils.TruncateAt.END);
+        upWords.addView(mUpNextTitle);
+        LinearLayout.LayoutParams upWordsParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        upWordsParams.setMarginStart(dp(12));
+        mUpNext.addView(upWords, upWordsParams);
+        ImageView open = icon(context, R.drawable.ic_phone_collapse, 20);
+        open.setRotation(180f);
+        open.setAlpha(0.7f);
+        mUpNext.addView(open, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        mUpNext.setOnClickListener(v -> openQueue());
+        LinearLayout.LayoutParams upNextParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        upNextParams.topMargin = dp(8);
+        mColumn.addView(mUpNext, upNextParams);
+
+        mQueue = new PhoneMusicQueue(activity, mRoot, new PhoneMusicQueue.Source() {
+            @Override
+            public Video playing() {
+                return mHost.video();
+            }
+
+            @Override
+            public List<Video> upNext() {
+                return mHost.upNext();
+            }
+
+            @Override
+            public void play(Video video) {
+                mHost.play(video);
+                mHandler.postDelayed(PhoneMusicPlayer.this::refreshUpNext, 600);
+            }
+        });
+
         mRoot.setOnApplyWindowInsetsListener((v, insets) -> {
             mColumn.setPadding(dp(24), insets.getSystemWindowInsetTop(), dp(24), dp(24) + insets.getSystemWindowInsetBottom());
             return insets;
@@ -427,6 +498,7 @@ final class PhoneMusicPlayer {
             mHandler.post(mTick);
         } else {
             mRoot.animate().cancel();
+            mQueue.close();
             mRoot.setVisibility(View.GONE);
             stopPulse();
             mHandler.removeCallbacks(mTick);
@@ -455,11 +527,42 @@ final class PhoneMusicPlayer {
 
     /** Back pressed: the lyrics give the artwork its place back first */
     boolean onBack() {
+        if (mShown && mQueue.isOpen()) {
+            mQueue.close();
+            return true;
+        }
         if (mShown && mLyricsOpen) {
             showLyrics(false);
             return true;
         }
         return false;
+    }
+
+    // endregion
+
+    // region Up next
+
+    private void openQueue() {
+        SimpleExoPlayer exo = mHost.exo();
+        mQueue.open(mColor, exo != null && exo.getPlayWhenReady());
+    }
+
+    private void refreshUpNext() {
+        List<Video> next = mHost.upNext();
+        if (next.isEmpty()) {
+            mUpNextTitle.setText(R.string.phone_music_up_next_none);
+            mUpNextTitle.setAlpha(0.6f);
+            return;
+        }
+        Video first = next.get(0);
+        String title = PhoneLyrics.displayTitle(first.getTitle());
+        String artist = PhoneLyrics.cleanArtist(first.getAuthor());
+        String text = !TextUtils.isEmpty(artist) ? title + "  ·  " + artist : title;
+        if (!text.contentEquals(mUpNextTitle.getText())) {
+            mUpNextTitle.setText(text);
+            mUpNextTitle.setAlpha(0f);
+            mUpNextTitle.animate().alpha(1f).setDuration(300).start();
+        }
     }
 
     // endregion
@@ -485,6 +588,7 @@ final class PhoneMusicPlayer {
             showLyrics(false);
         }
         mMood.setMood(PhoneMood.of(video.getTitle(), null)); // the title first, the lyrics when they come
+        mUpNextTicks = 0; // the queue changes with the song: read again soon
 
         if (PhoneUi.isAlive(mActivity)) {
             String id = video.videoId;
@@ -509,6 +613,8 @@ final class PhoneMusicPlayer {
                             if (id.equals(mVideoId)) {
                                 animateColor(vibrant(bitmap));
                                 frameArt(bitmap);
+                                mAura.setColors(PhoneMusicFx.palette(bitmap));
+                                mGlare.sweep();
                             }
                         }
 
@@ -568,6 +674,13 @@ final class PhoneMusicPlayer {
             stopPulse();
         }
         mChipBars.setPlaying(moving);
+        mAura.setPlaying(moving);
+        mQueue.setPlaying(moving);
+        // Up next: read now and then (the suggestions come in after the song starts; shuffle picks)
+        if (mUpNextTicks-- <= 0) {
+            mUpNextTicks = 10;
+            refreshUpNext();
+        }
         updateModes();
         updateLike();
         updateLyrics(false);
@@ -936,6 +1049,13 @@ final class PhoneMusicPlayer {
 
     private void applyColor(int color) {
         mColor = color;
+        if (mUpNext != null) {
+            GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                    new int[] {(lighten(color) & 0x00FFFFFF) | 0x2E000000, 0x14FFFFFF});
+            glass.setCornerRadius(dp(18));
+            glass.setStroke(Math.max(1, dp(1) / 2), (lighten(color) & 0x00FFFFFF) | 0x40000000);
+            mUpNext.setBackground(glass);
+        }
         GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[] {darken(color, 0.55f), darken(color, 0.28f), 0xFF0A0A0A});
         mBackground.setBackground(background);
