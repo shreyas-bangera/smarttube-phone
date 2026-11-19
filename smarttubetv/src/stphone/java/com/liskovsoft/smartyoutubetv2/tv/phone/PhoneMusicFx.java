@@ -10,7 +10,6 @@ import android.graphics.LinearGradient;
 import android.graphics.BitmapShader;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
@@ -264,12 +263,17 @@ final class PhoneMusicFx {
         private static final float[] RAY_WIDTH = {0.09f, 0.14f, 0.07f, 0.12f, 0.08f};
         private static final float[] RAY_STRENGTH = {0.55f, 0.8f, 0.6f, 0.75f, 0.5f};
         private final Paint mRayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path mRay = new Path();
-        private Shader mRayShader;
+        private final float[] mRayVerts = new float[18];
+        private final int[] mRayColors = new int[9];
+        /** Two triangles in each of the four cells between the beam's three rows of three corners */
+        private static final short[] RAY_INDICES = {0, 1, 3, 1, 4, 3, 1, 2, 4, 2, 5, 4, 3, 4, 6, 4, 7, 6, 4, 5, 7, 5, 8, 7};
+        private int mLight = 0xFFCCDDFF;
         /** Ribbons */
+        private static final int RIBBON_STEPS = 40;
         private final Paint mRibbonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path mRibbon = new Path();
-        private final Shader[] mRibbonShaders = new Shader[2];
+        private final float[] mRibbonVerts = new float[(RIBBON_STEPS + 1) * 4];
+        private final int[] mRibbonColorsV = new int[(RIBBON_STEPS + 1) * 2];
+        private final int[] mRibbonColors = new int[2];
         /** Bokeh: where each speck is (fractions of the screen), its size (dp), speed, twinkle and colour */
         private static final int SPECKS = 22;
         private final java.util.Random mRandom = new java.util.Random(11);
@@ -381,16 +385,9 @@ final class PhoneMusicFx {
                                     (c & 0x00FFFFFF) | 0x26000000, c & 0x00FFFFFF},
                             new float[] {0f, 0.3f, 0.65f, 1f}, Shader.TileMode.CLAMP);
                 }
-                int light = colors[2] & 0x00FFFFFF;
-                // A beam: brightest where it starts, fading out down the screen (drawn pointing down)
-                mRayShader = new LinearGradient(0, 0, 0, h * 1.15f, new int[] {light | 0x40000000, light | 0x14000000, light},
-                        new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP);
-                for (int i = 0; i < 2; i++) {
-                    int c = colors[i == 0 ? 0 : 1] & 0x00FFFFFF;
-                    float top = h * (i == 0 ? 0.70f : 0.80f);
-                    mRibbonShaders[i] = new LinearGradient(0, top, 0, top + h * 0.16f,
-                            new int[] {c | 0x33000000, c | 0x0D000000, c}, new float[] {0f, 0.4f, 1f}, Shader.TileMode.CLAMP);
-                }
+                mLight = colors[2];
+                mRibbonColors[0] = colors[0];
+                mRibbonColors[1] = colors[1];
                 for (int i = 0; i < 3; i++) {
                     int c = PhoneMusicPlayer.blend(colors[i], Color.WHITE, 0.4f) & 0x00FFFFFF;
                     // A speck out of focus: a soft disc with a slightly brighter rim, like a lens makes them
@@ -423,51 +420,72 @@ final class PhoneMusicFx {
             }
         }
 
-        /** Beams of light from above the top of the screen, swaying slowly, each flickering a little */
+        /**
+         * Beams of light from above the top of the screen, swaying slowly, each flickering a little. Drawn as
+         * triangles whose corners carry the colour (bright down the middle, clear at the edges and the far end): no
+         * shapes to fill anew every frame, cheap for any phone's graphics. (Android 10 and later.)
+         */
         private void drawRays(Canvas canvas, float w, float h) {
+            if (android.os.Build.VERSION.SDK_INT < 29) {
+                return;
+            }
             float ox = w * (0.5f + 0.12f * (float) Math.sin(mTime * 0.07f));
             float oy = -h * 0.1f;
-            mRayPaint.setShader(mRayShader);
+            float length = h * 1.15f;
+            int light = mLight & 0x00FFFFFF;
             for (int i = 0; i < RAY_ANGLE.length; i++) {
                 float angle = RAY_ANGLE[i] + 5f * (float) Math.sin(mTime * 0.11f + i * 1.3f);
                 float half = w * RAY_WIDTH[i] * (1f + 0.25f * (float) Math.sin(mTime * 0.17f + i));
                 float flicker = 0.75f + 0.25f * (float) Math.sin(mTime * 0.5f + i * 2.1f);
-                mRay.rewind();
-                mRay.moveTo(-w * 0.012f, 0);
-                mRay.lineTo(w * 0.012f, 0);
-                mRay.lineTo(half, h * 1.15f);
-                mRay.lineTo(-half, h * 1.15f);
-                mRay.close();
-                mRayPaint.setAlpha(Math.round(255 * RAY_STRENGTH[i] * flicker * (0.6f + 0.4f * mEnergy)));
+                float strength = 0.25f * RAY_STRENGTH[i] * flicker * (0.6f + 0.4f * mEnergy);
+                // Three rows (the start, part way, the end) of three corners (left edge, middle, right edge)
+                float[] widths = {w * 0.012f, half * 0.5f, half};
+                float[] ys = {0, length * 0.45f, length};
+                float[] alphas = {strength, strength * 0.35f, 0f};
+                for (int row = 0; row < 3; row++) {
+                    for (int col = 0; col < 3; col++) {
+                        int k = row * 3 + col;
+                        mRayVerts[k * 2] = (col - 1) * widths[row];
+                        mRayVerts[k * 2 + 1] = ys[row];
+                        float a = col == 1 ? alphas[row] : 0f;
+                        mRayColors[k] = light | (Math.round(Math.min(1f, a) * 255) << 24);
+                    }
+                }
                 canvas.save();
                 canvas.translate(ox, oy);
                 canvas.rotate(angle);
-                canvas.drawPath(mRay, mRayPaint);
+                canvas.drawVertices(Canvas.VertexMode.TRIANGLES, mRayVerts.length, mRayVerts, 0, null, 0, mRayColors, 0,
+                        RAY_INDICES, 0, RAY_INDICES.length, mRayPaint);
                 canvas.restore();
             }
         }
 
-        /** Two ribbons of light flowing across near the bottom, one behind the other */
+        /** Two ribbons of light flowing across near the bottom, one behind the other (a strip of triangles) */
         private void drawRibbons(Canvas canvas, float w, float h) {
+            if (android.os.Build.VERSION.SDK_INT < 29) {
+                return;
+            }
             for (int r = 0; r < 2; r++) {
                 float base = h * (r == 0 ? 0.74f : 0.84f);
                 float amplitude = (r == 0 ? 26f : 18f) * mDp;
                 float length = w * (r == 0 ? 1.1f : 0.8f);
                 float phase = mTime * (r == 0 ? 0.6f : -0.45f);
-                mRibbon.rewind();
-                mRibbon.moveTo(0, h);
-                int steps = 32;
-                for (int i = 0; i <= steps; i++) {
-                    float x = w * i / steps;
+                float depth = h * 0.14f;
+                int c = mRibbonColors[r] & 0x00FFFFFF;
+                int top = c | (Math.round(255 * 0.2f * (0.7f + 0.3f * mEnergy)) << 24);
+                for (int i = 0; i <= RIBBON_STEPS; i++) {
+                    float x = w * i / RIBBON_STEPS;
                     float y = base + amplitude * (float) Math.sin(x / length * 6.2832f + phase)
                             + amplitude * 0.4f * (float) Math.sin(x / length * 13f - phase * 1.7f);
-                    mRibbon.lineTo(x, y);
+                    mRibbonVerts[i * 4] = x;
+                    mRibbonVerts[i * 4 + 1] = y;
+                    mRibbonVerts[i * 4 + 2] = x;
+                    mRibbonVerts[i * 4 + 3] = y + depth;
+                    mRibbonColorsV[i * 2] = top;
+                    mRibbonColorsV[i * 2 + 1] = c;
                 }
-                mRibbon.lineTo(w, h);
-                mRibbon.close();
-                mRibbonPaint.setShader(mRibbonShaders[r]);
-                mRibbonPaint.setAlpha(Math.round(255 * (0.7f + 0.3f * mEnergy)));
-                canvas.drawPath(mRibbon, mRibbonPaint);
+                canvas.drawVertices(Canvas.VertexMode.TRIANGLE_STRIP, mRibbonVerts.length, mRibbonVerts, 0, null, 0,
+                        mRibbonColorsV, 0, null, 0, 0, mRibbonPaint);
             }
         }
 
