@@ -624,7 +624,7 @@ final class PhoneMusicPlayer {
         if (mLyricsOpen) {
             showLyrics(false);
         }
-        mMood.setMood(PhoneMood.of(video.getTitle(), null)); // the title first, the lyrics when they come
+        mMood.setScene(PhoneMood.sceneFor(video.videoId)); // each song its own scene
         mUpNextTicks = 0; // the queue changes with the song: read again soon
 
         if (PhoneUi.isAlive(mActivity)) {
@@ -674,9 +674,6 @@ final class PhoneMusicPlayer {
             if (videoId.equals(mVideoId)) {
                 mLyrics = lyrics;
                 mLyricIndex = -2;
-                PhoneMood.Mood mood = PhoneMood.of(video.getTitle(), lyrics.lines);
-                android.util.Log.d("PhoneLyrics", "mood of " + videoId + ": " + mood);
-                mMood.setMood(mood);
                 fillLyrics();
                 updateLyrics(true);
             }

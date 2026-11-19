@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emulator test of the music player's lights and Up next (run 4: beams, ribbons, bokeh and grain), from the real app: the player (lights around the artwork),
+# Emulator test of the music player's lights and Up next (run 5: a scene for every song), from the real app: the player (lights around the artwork),
 # the Up next bar, the queue panel, a song picked from it, and the panel swiped down. Each step is a screenshot in the
 # log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens).
 set -x
@@ -64,5 +64,11 @@ shot m5_queue_again
 adb shell input swipe 540 900 540 2200 250
 sleep 2
 shot m6_swiped_down
+# Next, twice: each song its own scene
+for n in 1 2; do
+  adb shell input tap 750 1864
+  sleep 25
+  shot m7_next_$n
+done
 
 adb logcat -d | grep -E "AndroidRuntime|FATAL|PhoneMusic|PhoneLyrics" | tail -60

@@ -58,6 +58,8 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(8, "This update",
+                    new Feature(R.drawable.ic_phone_music_note, "A new animation for every song",
+                            "Behind the music player, each song now gets its own animation: confetti, fireflies, soap bubbles, shooting stars, blossom petals, snow, lanterns, neon waves, a galaxy, butterflies, music notes, rainbow light and more."),
                     new Feature(R.drawable.ic_phone_playlist, "See what plays next",
                             "In the music player, tap Up next under the controls to see the songs coming after this one, in the order they'll play. Tap any of them to play it now."),
                     new Feature(R.drawable.ic_phone_headphones, "Lights that follow the song",
@@ -89,7 +91,7 @@ final class PhoneWhatsNew {
                     new Feature(R.drawable.ic_phone_cc, "Lyrics as you listen",
                             "The line being sung shows under the song's name, in the song's own language. Songs play as the song itself (no music video intro), so the lyrics stay in time. Tap the line for all the lyrics."),
                     new Feature(R.drawable.ic_phone_brightness, "A background that feels the song",
-                            "A quiet animation behind the music player follows the song's mood: hearts for love songs, soft rain for sad ones, sparkles for party songs, aurora for calm ones. It pauses with the song."),
+                            "A quiet animation plays behind the music player and pauses with the song."),
                     new Feature(R.drawable.ic_phone_search, "Search for music",
                             "Turn on the music note next to the search box (or search from the Music page): songs and playlists you find open in the music player. Any video can switch to it too: tap Listen under the video."),
                     new Feature(R.drawable.ic_phone_library, "Better playlists",
