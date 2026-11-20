@@ -234,6 +234,13 @@
     <string name="phone_widget_idle">Nada tocando</string>
     <string name="phone_widget_idle_hint">Abra o StreamTube para tocar algo</string>
     <string name="phone_chapters">Capítulos</string>
+    <string name="phone_tweak_ambient">Modo ambiente</string>
+    <string name="phone_tweak_ambient_summary">Um brilho suave das cores do vídeo ao redor do player, na aparência escura</string>
+    <string name="phone_tweak_glow">Intensidade do brilho</string>
+    <string name="phone_tweak_glow_summary">Quão forte é o brilho ao redor do vídeo</string>
+    <string name="phone_tweak_glow_subtle">Suave</string>
+    <string name="phone_tweak_glow_balanced">Equilibrado</string>
+    <string name="phone_tweak_glow_vivid">Vívido</string>
     <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
     <string name="phone_music_flow_close">Fechar Cover Flow</string>
 </resources>

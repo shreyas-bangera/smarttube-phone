@@ -234,6 +234,13 @@
     <string name="phone_widget_idle">Nothing playing</string>
     <string name="phone_widget_idle_hint">Open StreamTube to play something</string>
     <string name="phone_chapters">Chapters</string>
+    <string name="phone_tweak_ambient">Ambient mode</string>
+    <string name="phone_tweak_ambient_summary">A soft glow of the video\'s colours around the player, in the dark appearance</string>
+    <string name="phone_tweak_glow">Glow strength</string>
+    <string name="phone_tweak_glow_summary">How bright the glow around the video is</string>
+    <string name="phone_tweak_glow_subtle">Subtle</string>
+    <string name="phone_tweak_glow_balanced">Balanced</string>
+    <string name="phone_tweak_glow_vivid">Vivid</string>
     <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
     <string name="phone_music_flow_close">Close Cover Flow</string>
 </resources>

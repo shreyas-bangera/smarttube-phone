@@ -227,6 +227,13 @@
     <string name="phone_widget_idle">Tiada yang dimainkan</string>
     <string name="phone_widget_idle_hint">Buka StreamTube untuk memainkan sesuatu</string>
     <string name="phone_chapters">Bab</string>
+    <string name="phone_tweak_ambient">Mod ambien</string>
+    <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>
+    <string name="phone_tweak_glow">Kekuatan cahaya</string>
+    <string name="phone_tweak_glow_summary">Seberapa terang cahaya di sekeliling video</string>
+    <string name="phone_tweak_glow_subtle">Lembut</string>
+    <string name="phone_tweak_glow_balanced">Seimbang</string>
+    <string name="phone_tweak_glow_vivid">Terang</string>
     <string name="phone_music_flow_hint">Leret lagu anda, ketik satu untuk memainkannya</string>
     <string name="phone_music_flow_close">Tutup Cover Flow</string>
 </resources>

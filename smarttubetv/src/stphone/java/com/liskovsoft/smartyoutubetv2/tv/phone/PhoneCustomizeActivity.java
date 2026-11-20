@@ -79,6 +79,34 @@ public class PhoneCustomizeActivity extends PhoneActivity {
             PhoneTweaks.setPrevNextButtons(this, !PhoneTweaks.prevNextButtons(this));
             build();
         }).summary(getString(R.string.phone_tweak_prev_next_summary)));
+        boolean ambient = PhoneTweaks.ambient(this);
+        row(PhoneSetting.toggle(getString(R.string.phone_tweak_ambient), ambient, R.drawable.ic_phone_brightness, () -> {
+            PhoneTweaks.setAmbient(this, !PhoneTweaks.ambient(this));
+            build();
+        }).summary(getString(R.string.phone_tweak_ambient_summary)));
+        if (ambient) {
+            row(PhoneSetting.dropDown(getString(R.string.phone_tweak_glow), getString(PhoneTweaks.glowNameRes(PhoneTweaks.ambientGlow(this))),
+                    R.drawable.ic_phone_brightness, this::pickGlow).summary(getString(R.string.phone_tweak_glow_summary)));
+        }
+    }
+
+    private void pickGlow(View anchor) {
+        int current = PhoneTweaks.ambientGlow(this);
+        int[] glows = {PhoneTweaks.GLOW_SUBTLE, PhoneTweaks.GLOW_BALANCED, PhoneTweaks.GLOW_VIVID};
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor, Gravity.END);
+        for (int i = 0; i < glows.length; i++) {
+            menu.getMenu().add(0, i, i, PhoneTweaks.glowNameRes(glows[i])).setCheckable(true).setChecked(glows[i] == current);
+        }
+        menu.getMenu().setGroupCheckable(0, true, true);
+        menu.setOnMenuItemClickListener(item -> {
+            int glow = glows[item.getItemId()];
+            if (glow != current) {
+                PhoneTweaks.setAmbientGlow(this, glow); // the player picks it up on its next frame
+                build();
+            }
+            return true;
+        });
+        menu.show();
     }
 
     private void header(int title) {

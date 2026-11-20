@@ -1962,13 +1962,14 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         boolean want = mPlayer != null && mPortrait && !mShortsMode && !mMusicMode && !isPip()
                 && mDetails.getVisibility() == View.VISIBLE
-                && PhoneAmbient.isDark(getResources().getColor(R.color.phone_bg));
+                && PhoneAmbient.isDark(getResources().getColor(R.color.phone_bg)) && PhoneTweaks.ambient(this);
         boolean was = mAmbient.isActive();
         mAmbient.setActive(want);
         if (!want) {
             mAmbientAt = 0;
             return;
         }
+        mAmbient.setStrength(PhoneTweaks.ambientStrength(this));
         long now = android.os.SystemClock.uptimeMillis();
         boolean playing = mPlayer.getPlayWhenReady();
         if (!was || mAmbientAt == 0 || playing && now - mAmbientAt >= 1500) {

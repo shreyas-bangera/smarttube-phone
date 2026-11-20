@@ -34,6 +34,7 @@ final class PhoneAmbient {
     private final Drawable mDetailsBackground;
     private final Drawable mRootBackground;
     private boolean mActive;
+    private float mStrength = 0.52f;
 
     PhoneAmbient(Context context, View root, View videoBox, View details, int background) {
         mRoot = root;
@@ -49,6 +50,14 @@ final class PhoneAmbient {
     /** Dark appearance: the page's background is dark */
     static boolean isDark(int background) {
         return 0.299 * Color.red(background) + 0.587 * Color.green(background) + 0.114 * Color.blue(background) < 60;
+    }
+
+    /** How opaque the glow is (Customize > Glow strength) */
+    void setStrength(float strength) {
+        if (strength != mStrength) {
+            mStrength = strength;
+            mGlow.invalidateSelf();
+        }
     }
 
     boolean isActive() {
@@ -128,7 +137,7 @@ final class PhoneAmbient {
             float below = 230 * mD;
             // The glow: the frame stretched over the video and beyond it, a little wider than the screen
             mRect.set(b.left - b.width() * 0.15f, Math.min(b.top, videoTop) - 40 * mD, b.right + b.width() * 0.15f, videoBottom + below);
-            float strength = 0.62f;
+            float strength = mStrength;
             if (mBefore != null && mMix < 1f) {
                 mPaint.setAlpha(Math.round(255 * strength * (1f - mMix)));
                 canvas.drawBitmap(mBefore, null, mRect, mPaint);

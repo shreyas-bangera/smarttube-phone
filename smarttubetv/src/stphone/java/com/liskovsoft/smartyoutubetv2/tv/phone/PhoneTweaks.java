@@ -11,6 +11,11 @@ final class PhoneTweaks {
     private static final String PREFS = "phone_tweaks";
     private static final String KEY_YOU_ON_TOP = "you_on_top";
     private static final String KEY_TAB_STYLE = "tab_style";
+    private static final String KEY_AMBIENT = "ambient";
+    private static final String KEY_AMBIENT_GLOW = "ambient_glow";
+    static final int GLOW_SUBTLE = 0;
+    static final int GLOW_BALANCED = 1;
+    static final int GLOW_VIVID = 2;
 
     private PhoneTweaks() {
     }
@@ -34,6 +39,36 @@ final class PhoneTweaks {
 
     static void setTabStyle(Context context, int style) {
         prefs(context).edit().putInt(KEY_TAB_STYLE, style).apply();
+    }
+
+    /** Ambient mode: the video's colours glowing around the player (dark appearance) */
+    static boolean ambient(Context context) {
+        return prefs(context).getBoolean(KEY_AMBIENT, true);
+    }
+
+    static void setAmbient(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_AMBIENT, on).apply();
+    }
+
+    /** How bright ambient mode's glow is: Subtle, Balanced or Vivid */
+    static int ambientGlow(Context context) {
+        return prefs(context).getInt(KEY_AMBIENT_GLOW, GLOW_BALANCED);
+    }
+
+    static void setAmbientGlow(Context context, int glow) {
+        prefs(context).edit().putInt(KEY_AMBIENT_GLOW, glow).apply();
+    }
+
+    /** The glow's strength (how opaque the video's colours are around it) */
+    static float ambientStrength(Context context) {
+        int glow = ambientGlow(context);
+        return glow == GLOW_SUBTLE ? 0.34f : glow == GLOW_VIVID ? 0.72f : 0.52f;
+    }
+
+    static int glowNameRes(int glow) {
+        return glow == GLOW_SUBTLE ? com.liskovsoft.smartyoutubetv2.tv.R.string.phone_tweak_glow_subtle
+                : glow == GLOW_VIVID ? com.liskovsoft.smartyoutubetv2.tv.R.string.phone_tweak_glow_vivid
+                : com.liskovsoft.smartyoutubetv2.tv.R.string.phone_tweak_glow_balanced;
     }
 
     /** The player's previous / next buttons (kept where they were stored before) */
