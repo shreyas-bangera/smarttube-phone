@@ -127,6 +127,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             updateProgress();
             syncPlaybackService();
             syncWidget();
+            ambientTick();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
@@ -167,6 +168,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mRoot = findViewById(R.id.phone_player_root);
         mVideoBox = findViewById(R.id.phone_video_box);
         mDetails = findViewById(R.id.phone_player_details);
+        mAmbient = new PhoneAmbient(this, mRoot, mVideoBox, mDetails, getResources().getColor(R.color.phone_bg));
 
         // Inflated here (not in the layout) so they get the phone density, not the TV one
         LayoutInflater inflater = LayoutInflater.from(this);
@@ -1947,6 +1949,35 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 PhonePip.onMenuPipEntered(screenUnderPlayer);
             }
         }, 150);
+    }
+
+    /** Ambient mode: the video's colours glowing around it (portrait, dark appearance) */
+    private PhoneAmbient mAmbient;
+    private long mAmbientAt;
+
+    /** Every tick: ambient mode on where it belongs, and a new frame for it now and then while the video plays */
+    private void ambientTick() {
+        if (mAmbient == null) {
+            return;
+        }
+        boolean want = mPlayer != null && mPortrait && !mShortsMode && !mMusicMode && !isPip()
+                && mDetails.getVisibility() == View.VISIBLE
+                && PhoneAmbient.isDark(getResources().getColor(R.color.phone_bg));
+        boolean was = mAmbient.isActive();
+        mAmbient.setActive(want);
+        if (!want) {
+            mAmbientAt = 0;
+            return;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        boolean playing = mPlayer.getPlayWhenReady();
+        if (!was || mAmbientAt == 0 || playing && now - mAmbientAt >= 1500) {
+            android.graphics.Bitmap frame = mPlayer.videoFrame(32, 18);
+            if (frame != null) {
+                mAmbientAt = now;
+                mAmbient.show(frame);
+            }
+        }
     }
 
     static final int WIDGET_TOGGLE = 0;

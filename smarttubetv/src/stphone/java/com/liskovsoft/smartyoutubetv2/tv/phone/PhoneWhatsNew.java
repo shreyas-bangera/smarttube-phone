@@ -58,6 +58,8 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(9, "This update",
+                    new Feature(R.drawable.ic_phone_brightness, "Ambient mode",
+                            "In the dark appearance, a soft glow of the video's own colours surrounds the player and changes with the picture, like the YouTube app."),
                     new Feature(R.drawable.ic_phone_music_note, "A home screen widget",
                             "The song's artwork fills it edge to edge, fading into the song's own colour under its name and the buttons. It fits any size, and a tap opens the player. Long press your home screen, tap Widgets and find StreamTube."),
                     new Feature(R.drawable.ic_phone_playlist, "Move songs in Up next",

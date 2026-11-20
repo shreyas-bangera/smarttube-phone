@@ -392,6 +392,11 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         }
     }
 
+    /** The video's picture as it is now, this small (for ambient mode's glow) */
+    public android.graphics.Bitmap videoFrame(int width, int height) {
+        return mVideoView != null && mVideoView.isAvailable() ? mVideoView.getBitmap(width, height) : null;
+    }
+
     /** The video's picture as it is now (for the mini player's first moment) */
     public android.graphics.Bitmap videoFrame() {
         return mVideoView != null && mVideoView.isAvailable() ? mVideoView.getBitmap() : null;
