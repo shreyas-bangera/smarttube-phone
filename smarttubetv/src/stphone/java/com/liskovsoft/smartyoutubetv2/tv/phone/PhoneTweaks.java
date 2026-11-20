@@ -52,7 +52,7 @@ final class PhoneTweaks {
 
     /** How bright ambient mode's glow is: Subtle, Balanced or Vivid */
     static int ambientGlow(Context context) {
-        return prefs(context).getInt(KEY_AMBIENT_GLOW, GLOW_BALANCED);
+        return prefs(context).getInt(KEY_AMBIENT_GLOW, GLOW_VIVID);
     }
 
     static void setAmbientGlow(Context context, int glow) {
