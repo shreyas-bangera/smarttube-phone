@@ -462,7 +462,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             sInstance = null;
         }
         // The widget keeps the song, paused; its buttons open the app now
-        PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false, null);
+        PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
         if (mPeek != null) {
             mPeek.release(exoPlayer());
         }
@@ -1952,44 +1952,26 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     static final int WIDGET_TOGGLE = 0;
     static final int WIDGET_NEXT = 1;
     static final int WIDGET_PREVIOUS = 2;
-    static final int WIDGET_PICK = 3;
-    private int mWidgetTicks;
-    private String mWidgetFor;
 
-    /** The home screen widget follows what's playing (not Shorts), and its cover stack the songs to come */
+    /** The home screen widget follows what's playing (not Shorts) */
     private void syncWidget() {
         if (mShortsMode || mPlayer == null) {
             return;
         }
-        Video video = currentVideo();
-        java.util.List<Video> upNext = null;
-        boolean newSong = video != null && video.videoId != null && !video.videoId.equals(mWidgetFor);
-        if (newSong || mWidgetTicks-- <= 0) {
-            mWidgetTicks = 10; // about every two seconds (the suggestions come in after the video starts)
-            mWidgetFor = video != null ? video.videoId : null;
-            upNext = musicUpNext();
-        }
-        PhoneWidget.sync(this, video, mMusicMode, mPlayer.getPlayWhenReady(), true, upNext);
+        PhoneWidget.sync(this, currentVideo(), mMusicMode, mPlayer.getPlayWhenReady(), true);
     }
 
-    /** The widget's buttons and covers: to the open player; none open, the app opens */
-    static void widgetCommand(android.content.Context context, int what, String videoId) {
+    /** The widget's buttons: to the open player; none open, the app opens */
+    static void widgetCommand(android.content.Context context, int what) {
         PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
         if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
             activity.runOnUiThread(() -> {
-                switch (what) {
-                    case WIDGET_NEXT:
-                        activity.presenter().onNextClicked();
-                        break;
-                    case WIDGET_PREVIOUS:
-                        activity.presenter().onPreviousClicked();
-                        break;
-                    case WIDGET_PICK:
-                        activity.widgetPick(videoId);
-                        break;
-                    default:
-                        activity.togglePlay();
-                        break;
+                if (what == WIDGET_NEXT) {
+                    activity.presenter().onNextClicked();
+                } else if (what == WIDGET_PREVIOUS) {
+                    activity.presenter().onPreviousClicked();
+                } else {
+                    activity.togglePlay();
                 }
                 activity.syncWidget();
             });
@@ -2004,21 +1986,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 // Not allowed from the background on this Android: the widget's tap opens it instead
             }
         }
-    }
-
-    /** A cover tapped in the widget's stack: that song plays (the one playing: nothing to do) */
-    private void widgetPick(String videoId) {
-        Video current = currentVideo();
-        if (videoId == null || current != null && videoId.equals(current.videoId)) {
-            return;
-        }
-        for (Video video : musicUpNext()) {
-            if (videoId.equals(video.videoId)) {
-                presenter().onSuggestionItemClicked(video);
-                return;
-            }
-        }
-        presenter().onSuggestionItemClicked(Video.from(videoId));
     }
 
     /** The floating player, if any, as far as tapping the app's icon is concerned */

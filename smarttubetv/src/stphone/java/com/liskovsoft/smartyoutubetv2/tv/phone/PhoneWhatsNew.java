@@ -59,7 +59,7 @@ final class PhoneWhatsNew {
     static final Release[] RELEASES = {
             new Release(9, "This update",
                     new Feature(R.drawable.ic_phone_music_note, "A home screen widget",
-                            "In the song's own colours, for every size: small, wide or large. Swipe the cover stack to see what's next and tap a cover to play it. Long press your home screen, tap Widgets and find StreamTube."),
+                            "The song's artwork fills it edge to edge, fading into the song's own colour under its name and the buttons. It fits any size, and a tap opens the player. Long press your home screen, tap Widgets and find StreamTube."),
                     new Feature(R.drawable.ic_phone_playlist, "Move songs in Up next",
                             "Hold the handle on the right of a song and drag it up or down. The queue plays in your order."),
                     new Feature(R.drawable.ic_phone_cc, "Chapters on the seek bar",
