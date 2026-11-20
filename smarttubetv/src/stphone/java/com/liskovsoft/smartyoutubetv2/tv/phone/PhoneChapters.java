@@ -37,6 +37,10 @@ final class PhoneChapters {
         mChapters.clear();
     }
 
+    List<Video> list() {
+        return new ArrayList<>(mChapters);
+    }
+
     boolean isEmpty() {
         return mChapters.isEmpty();
     }

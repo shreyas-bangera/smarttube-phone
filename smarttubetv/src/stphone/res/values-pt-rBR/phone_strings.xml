@@ -233,6 +233,7 @@
     <string name="phone_widget_play_pause">Tocar ou pausar</string>
     <string name="phone_widget_idle">Nada tocando</string>
     <string name="phone_widget_idle_hint">Abra o StreamTube para tocar algo</string>
+    <string name="phone_chapters">Capítulos</string>
     <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
     <string name="phone_music_flow_close">Fechar Cover Flow</string>
 </resources>

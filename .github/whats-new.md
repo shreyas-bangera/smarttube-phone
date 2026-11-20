@@ -1,5 +1,5 @@
-- A home screen widget: the song playing with its artwork, Play/Pause and Next, on a background in the song's own colours. Long press your home screen, tap Widgets and find StreamTube
-- Chapters on the seek bar: videos with chapters show them as segments, and the chapter's name shows next to the time and while you seek
+- A home screen widget in the song's own colours, made for every size: small with a big cover, wide with the cover beside the controls, or large with a big cover in the middle. Swipe the cover stack to see what's next and tap a cover to play it. Long press your home screen, tap Widgets and find StreamTube
+- Chapters: videos with chapters show them as segments on the seek bar, with the chapter's name next to the time and while you seek. Tap the chapter's name to see all of them, with a picture of each, and tap one to go there
 - Move songs in Up next: hold the handle on the right of a song and drag it up or down; the queue plays in your order
 - See where you're going: while you drag the seek bar (or along the line at the bottom of a video), a picture of the video at that point shows above your finger, with its time
 - The seek bar's handle is whole again, no longer cut off by the bottom of the video

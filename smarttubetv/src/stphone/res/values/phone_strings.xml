@@ -233,6 +233,7 @@
     <string name="phone_widget_play_pause">Play or pause</string>
     <string name="phone_widget_idle">Nothing playing</string>
     <string name="phone_widget_idle_hint">Open StreamTube to play something</string>
+    <string name="phone_chapters">Chapters</string>
     <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
     <string name="phone_music_flow_close">Close Cover Flow</string>
 </resources>

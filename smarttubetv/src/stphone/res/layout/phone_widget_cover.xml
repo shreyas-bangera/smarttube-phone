@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One cover in the widget's stack -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/phone_widget_cover"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scaleType="fitCenter" />

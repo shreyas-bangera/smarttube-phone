@@ -319,6 +319,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mTime.setSingleLine(true);
         mTime.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        // The chapter's name by the time: tap it for all the chapters
+        mTime.setOnClickListener(v -> openChapters());
+        mTime.setClickable(false);
         mShorts = findViewById(R.id.phone_shorts);
         mShortsPaused = findViewById(R.id.phone_shorts_paused);
 
@@ -459,7 +462,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             sInstance = null;
         }
         // The widget keeps the song, paused; its buttons open the app now
-        PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
+        PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false, null);
         if (mPeek != null) {
             mPeek.release(exoPlayer());
         }
@@ -1946,23 +1949,47 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }, 150);
     }
 
-    /** The home screen widget follows what's playing (not Shorts) */
+    static final int WIDGET_TOGGLE = 0;
+    static final int WIDGET_NEXT = 1;
+    static final int WIDGET_PREVIOUS = 2;
+    static final int WIDGET_PICK = 3;
+    private int mWidgetTicks;
+    private String mWidgetFor;
+
+    /** The home screen widget follows what's playing (not Shorts), and its cover stack the songs to come */
     private void syncWidget() {
         if (mShortsMode || mPlayer == null) {
             return;
         }
-        PhoneWidget.sync(this, currentVideo(), mMusicMode, mPlayer.getPlayWhenReady(), true);
+        Video video = currentVideo();
+        java.util.List<Video> upNext = null;
+        boolean newSong = video != null && video.videoId != null && !video.videoId.equals(mWidgetFor);
+        if (newSong || mWidgetTicks-- <= 0) {
+            mWidgetTicks = 10; // about every two seconds (the suggestions come in after the video starts)
+            mWidgetFor = video != null ? video.videoId : null;
+            upNext = musicUpNext();
+        }
+        PhoneWidget.sync(this, video, mMusicMode, mPlayer.getPlayWhenReady(), true, upNext);
     }
 
-    /** The widget's Play/Pause or Next: to the open player; none open, the app opens */
-    static void widgetCommand(android.content.Context context, boolean next) {
+    /** The widget's buttons and covers: to the open player; none open, the app opens */
+    static void widgetCommand(android.content.Context context, int what, String videoId) {
         PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
         if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
             activity.runOnUiThread(() -> {
-                if (next) {
-                    activity.presenter().onNextClicked();
-                } else {
-                    activity.togglePlay();
+                switch (what) {
+                    case WIDGET_NEXT:
+                        activity.presenter().onNextClicked();
+                        break;
+                    case WIDGET_PREVIOUS:
+                        activity.presenter().onPreviousClicked();
+                        break;
+                    case WIDGET_PICK:
+                        activity.widgetPick(videoId);
+                        break;
+                    default:
+                        activity.togglePlay();
+                        break;
                 }
                 activity.syncWidget();
             });
@@ -1977,6 +2004,21 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 // Not allowed from the background on this Android: the widget's tap opens it instead
             }
         }
+    }
+
+    /** A cover tapped in the widget's stack: that song plays (the one playing: nothing to do) */
+    private void widgetPick(String videoId) {
+        Video current = currentVideo();
+        if (videoId == null || current != null && videoId.equals(current.videoId)) {
+            return;
+        }
+        for (Video video : musicUpNext()) {
+            if (videoId.equals(video.videoId)) {
+                presenter().onSuggestionItemClicked(video);
+                return;
+            }
+        }
+        presenter().onSuggestionItemClicked(Video.from(videoId));
     }
 
     /** The floating player, if any, as far as tapping the app's icon is concerned */
@@ -2364,7 +2406,24 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private void updateTimeText(long position, long duration) {
         String time = duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position);
         String chapter = mChapters.titleAt(position);
-        mTime.setText(chapter != null && !chapter.isEmpty() ? time + "  \u2022  " + chapter : time);
+        boolean named = chapter != null && !chapter.isEmpty();
+        mTime.setText(named ? time + "  \u2022  " + chapter + "  \u203A" : time);
+        mTime.setClickable(named);
+    }
+
+    /** All the video's chapters, from the chapter's name: tap one to go there */
+    private void openChapters() {
+        if (mChapters.isEmpty() || mPlayer == null) {
+            return;
+        }
+        mHandler.removeCallbacks(mAutoHide);
+        PhoneChapterSheet.show(this, mChapters.list(), mPlayer.getPositionMs(), position -> {
+            if (mPlayer != null) {
+                mPlayer.setPositionMs(position);
+                updateProgress();
+            }
+            scheduleAutoHide();
+        });
     }
 
     /** The chapters' gaps in the seek bar and the line, placed for the video's length (known once it plays) */

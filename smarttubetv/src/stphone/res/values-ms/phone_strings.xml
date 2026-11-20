@@ -226,6 +226,7 @@
     <string name="phone_widget_play_pause">Main atau jeda</string>
     <string name="phone_widget_idle">Tiada yang dimainkan</string>
     <string name="phone_widget_idle_hint">Buka StreamTube untuk memainkan sesuatu</string>
+    <string name="phone_chapters">Bab</string>
     <string name="phone_music_flow_hint">Leret lagu anda, ketik satu untuk memainkannya</string>
     <string name="phone_music_flow_close">Tutup Cover Flow</string>
 </resources>

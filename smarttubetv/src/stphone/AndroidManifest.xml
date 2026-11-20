@@ -179,6 +179,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/phone_widget_info" />
         </receiver>
+        <!-- The widget's stack of covers -->
+        <service
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneWidgetCovers"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
         <!-- A video is playing: Android keeps the app's network going in the background (see PhonePlaybackService) -->
         <service
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhonePlaybackService"
