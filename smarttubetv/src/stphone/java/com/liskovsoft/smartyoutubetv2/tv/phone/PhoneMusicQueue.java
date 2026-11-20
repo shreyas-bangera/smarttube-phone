@@ -34,6 +34,9 @@ final class PhoneMusicQueue {
         List<Video> upNext();
 
         void play(Video video);
+
+        /** The songs after this one, put in this order */
+        void reorder(List<Video> upNext);
     }
 
     private final Activity mActivity;
@@ -45,6 +48,10 @@ final class PhoneMusicQueue {
     private LinearLayout mRows;
     private PhoneMusicPlayer.Bars mBars;
     private boolean mOpen;
+    /** The rows of the songs to come, and those songs, in the order shown */
+    private final List<View> mNextRows = new java.util.ArrayList<>();
+    private final List<Video> mNextVideos = new java.util.ArrayList<>();
+    private ScrollView mScroll;
 
     PhoneMusicQueue(Activity activity, FrameLayout parent, Source source) {
         mActivity = activity;
@@ -134,6 +141,7 @@ final class PhoneMusicQueue {
         mRows = new LinearLayout(mActivity);
         mRows.setOrientation(LinearLayout.VERTICAL);
         ScrollView scroll = new ScrollView(mActivity);
+        mScroll = scroll;
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         scroll.addView(mRows);
@@ -147,8 +155,13 @@ final class PhoneMusicQueue {
         List<Video> next = mSource.upNext();
         if (!next.isEmpty()) {
             mRows.addView(section(R.string.phone_music_queue_next));
+            mNextRows.clear();
+            mNextVideos.clear();
             for (Video video : next) {
-                mRows.addView(row(video, color, false, false));
+                View row = row(video, color, false, false);
+                mNextRows.add(row);
+                mNextVideos.add(video);
+                mRows.addView(row);
             }
         } else {
             TextView none = text(14, 0x99FFFFFF, false);
@@ -243,7 +256,110 @@ final class PhoneMusicQueue {
             length.setText(time(video.getDurationMs()));
             row.addView(length);
         }
+        if (!current) {
+            // Hold and drag the handle to move the song up or down the queue
+            ImageView handle = new ImageView(mActivity);
+            handle.setImageResource(R.drawable.ic_phone_drag);
+            handle.setImageTintList(android.content.res.ColorStateList.valueOf(0x99FFFFFF));
+            handle.setScaleType(ImageView.ScaleType.CENTER);
+            handle.setContentDescription(mActivity.getString(R.string.phone_music_queue_move));
+            LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(40), dp(44));
+            handleParams.setMarginStart(dp(4));
+            row.addView(handle, handleParams);
+            handle.setOnTouchListener(new Dragger(row));
+        }
         return row;
+    }
+
+    /**
+     * Moving a song: hold its handle, and it lifts (a little bigger, a shadow) and follows the finger; passing the
+     * middle of the song above or below swaps them (that one slides into the gap). Let go: it settles, and the queue
+     * takes the new order.
+     */
+    private final class Dragger implements View.OnTouchListener {
+        private final View mRow;
+        private float mLastY;
+
+        Dragger(View row) {
+            mRow = row;
+        }
+
+        @SuppressWarnings("ClickableViewAccessibility")
+        @Override
+        public boolean onTouch(View v, android.view.MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    mLastY = event.getRawY();
+                    v.getParent().requestDisallowInterceptTouchEvent(true); // the list and the sheet stay put
+                    mRow.animate().cancel();
+                    mRow.animate().scaleX(1.03f).scaleY(1.03f).translationZ(dp(10)).setDuration(120).start();
+                    GradientDrawable lifted = new GradientDrawable();
+                    lifted.setCornerRadius(dp(14));
+                    lifted.setColor(0x33FFFFFF);
+                    mRow.setBackground(lifted);
+                    mRow.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    return true;
+                case android.view.MotionEvent.ACTION_MOVE: {
+                    float dy = event.getRawY() - mLastY;
+                    mLastY = event.getRawY();
+                    mRow.setTranslationY(mRow.getTranslationY() + dy);
+                    swapIfPast();
+                    keepInView(event.getRawY());
+                    return true;
+                }
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    mRow.animate().translationY(0).scaleX(1f).scaleY(1f).translationZ(0).setDuration(180)
+                            .withEndAction(() -> mRow.setBackgroundResource(R.drawable.phone_ripple)).start();
+                    mSource.reorder(new java.util.ArrayList<>(mNextVideos));
+                    return true;
+                default:
+                    return true;
+            }
+        }
+
+        /** Past the middle of the next song up or down: they change places */
+        private void swapIfPast() {
+            int at = mNextRows.indexOf(mRow);
+            float shift = mRow.getTranslationY();
+            if (shift > 0 && at < mNextRows.size() - 1) {
+                View below = mNextRows.get(at + 1);
+                if (shift > below.getHeight() / 2f) {
+                    move(at, at + 1, below, -1);
+                }
+            } else if (shift < 0 && at > 0) {
+                View above = mNextRows.get(at - 1);
+                if (-shift > above.getHeight() / 2f) {
+                    move(at, at - 1, above, 1);
+                }
+            }
+        }
+
+        /** The dragged row and the one next to it change places (otherDirection: -1 it was below, 1 above) */
+        private void move(int from, int to, View other, int otherDirection) {
+            int index = mRows.indexOfChild(mRow);
+            mRows.removeView(other);
+            mRows.addView(other, index); // below: it goes before the dragged row; above: after it
+            java.util.Collections.swap(mNextRows, from, to);
+            java.util.Collections.swap(mNextVideos, from, to);
+            // The dragged row stays under the finger; the other one slides into the gap it left
+            mRow.setTranslationY(mRow.getTranslationY() + otherDirection * other.getHeight());
+            other.setTranslationY(-otherDirection * mRow.getHeight());
+            other.animate().translationY(0).setDuration(160).start();
+            mRow.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);
+        }
+
+        /** Near the top or bottom of the list: it scrolls a little */
+        private void keepInView(float rawY) {
+            int[] at = new int[2];
+            mScroll.getLocationOnScreen(at);
+            float edge = dp(48);
+            if (rawY < at[1] + edge) {
+                mScroll.scrollBy(0, -dp(8));
+            } else if (rawY > at[1] + mScroll.getHeight() - edge) {
+                mScroll.scrollBy(0, dp(8));
+            }
+        }
     }
 
     private static String time(long ms) {

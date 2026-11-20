@@ -167,6 +167,18 @@
         <receiver
             android:name="com.liskovsoft.smartyoutubetv2.common.misc.RemoteControlReceiver"
             tools:node="remove" />
+        <!-- The home screen widget: what's playing, with Play/Pause and Next -->
+        <receiver
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneWidget"
+            android:exported="false"
+            android:label="@string/phone_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/phone_widget_info" />
+        </receiver>
         <!-- A video is playing: Android keeps the app's network going in the background (see PhonePlaybackService) -->
         <service
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhonePlaybackService"

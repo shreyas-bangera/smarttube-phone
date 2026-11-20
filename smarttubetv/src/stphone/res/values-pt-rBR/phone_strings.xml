@@ -227,6 +227,12 @@
     <string name="phone_music_queue_now">Tocando agora</string>
     <string name="phone_music_queue_next">Próximas</string>
     <string name="phone_music_up_next_none">Nada na fila depois desta música ainda</string>
+    <string name="phone_music_queue_move">Mover esta música na fila</string>
+    <string name="phone_widget_label">Player do StreamTube</string>
+    <string name="phone_widget_description">O que está tocando, com Tocar e Próxima</string>
+    <string name="phone_widget_play_pause">Tocar ou pausar</string>
+    <string name="phone_widget_idle">Nada tocando</string>
+    <string name="phone_widget_idle_hint">Abra o StreamTube para tocar algo</string>
     <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
     <string name="phone_music_flow_close">Fechar Cover Flow</string>
 </resources>

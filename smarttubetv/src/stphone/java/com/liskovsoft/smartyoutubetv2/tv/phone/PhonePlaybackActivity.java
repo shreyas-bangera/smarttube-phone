@@ -70,6 +70,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private SeekBar mSeek;
     /** While seeking: a picture of the video at that point, with its time */
     private PhoneSeekPreview mSeekPreview;
+    /** The video's chapters: gaps in the seek bar and the line under the video, the name by the time */
+    private final PhoneChapters mChapters = new PhoneChapters();
+    private PhoneChapters.Gaps mSeekGaps;
+    private PhoneChapters.Gaps mLineGaps;
+    private long mGapsFor = -1;
     private ProgressBar mMiniProgress;
     private View mHeader;
     private View mShorts;
@@ -121,6 +126,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         public void run() {
             updateProgress();
             syncPlaybackService();
+            syncWidget();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
@@ -215,6 +221,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public void reorder(java.util.List<Video> upNext) {
+                musicReorder(upNext);
+            }
+
+            @Override
             public void togglePlay() {
                 PhonePlaybackActivity.this.togglePlay();
             }
@@ -299,6 +310,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mTime = findViewById(R.id.phone_ctl_time);
         mSeek = findViewById(R.id.phone_ctl_seek);
         mMiniProgress = findViewById(R.id.phone_mini_progress);
+        // Chapter gaps: over the seek bar, and over the thin line under the video
+        mSeekGaps = new PhoneChapters.Gaps(dp(2.5f), dp(6), 0xE6000000);
+        mLineGaps = new PhoneChapters.Gaps(dp(2.5f), dp(4), 0xFF000000);
+        mSeek.setForeground(mSeekGaps);
+        if (mMiniProgress != null) {
+            mMiniProgress.setForeground(mLineGaps);
+        }
+        mTime.setSingleLine(true);
+        mTime.setEllipsize(android.text.TextUtils.TruncateAt.END);
         mShorts = findViewById(R.id.phone_shorts);
         mShortsPaused = findViewById(R.id.phone_shorts_paused);
 
@@ -438,6 +458,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (sInstance != null && sInstance.get() == this) {
             sInstance = null;
         }
+        // The widget keeps the song, paused; its buttons open the app now
+        PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
         if (mPeek != null) {
             mPeek.release(exoPlayer());
         }
@@ -1264,7 +1286,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         mSeekPreview.prepare(currentVideo(), duration);
-        mSeekPreview.show(progress, formatTime(duration * progress / 1000));
+        mSeekPreview.show(progress, formatTime(duration * progress / 1000), mChapters.titleAt(duration * progress / 1000));
     }
 
     /** True when a quick downward drag that started on the video ends (YouTube: drag the player down) */
@@ -1924,6 +1946,39 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }, 150);
     }
 
+    /** The home screen widget follows what's playing (not Shorts) */
+    private void syncWidget() {
+        if (mShortsMode || mPlayer == null) {
+            return;
+        }
+        PhoneWidget.sync(this, currentVideo(), mMusicMode, mPlayer.getPlayWhenReady(), true);
+    }
+
+    /** The widget's Play/Pause or Next: to the open player; none open, the app opens */
+    static void widgetCommand(android.content.Context context, boolean next) {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
+            activity.runOnUiThread(() -> {
+                if (next) {
+                    activity.presenter().onNextClicked();
+                } else {
+                    activity.togglePlay();
+                }
+                activity.syncWidget();
+            });
+            return;
+        }
+        android.content.Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (open != null) {
+            open.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                context.startActivity(open);
+            } catch (RuntimeException ignored) {
+                // Not allowed from the background on this Android: the widget's tap opens it instead
+            }
+        }
+    }
+
     /** The floating player, if any, as far as tapping the app's icon is concerned */
     static PhonePlaybackActivity floatingPlayer() {
         PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
@@ -2252,6 +2307,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         int progress = duration > 0 ? (int) Math.max(0, Math.min(1000, position * 1000 / duration)) : 0;
 
         setMiniProgress(progress);
+        updateChapterGaps(duration);
         if (mShortsMode && !mIsSeeking) {
             ((SeekBar) findViewById(R.id.phone_shorts_seek)).setProgress(progress);
         }
@@ -2306,7 +2362,20 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private void updateTimeText(long position, long duration) {
-        mTime.setText(duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position));
+        String time = duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position);
+        String chapter = mChapters.titleAt(position);
+        mTime.setText(chapter != null && !chapter.isEmpty() ? time + "  \u2022  " + chapter : time);
+    }
+
+    /** The chapters' gaps in the seek bar and the line, placed for the video's length (known once it plays) */
+    private void updateChapterGaps(long duration) {
+        if (duration == mGapsFor || mSeekGaps == null) {
+            return;
+        }
+        mGapsFor = duration;
+        float[] marks = mChapters.marks(duration);
+        mSeekGaps.setMarks(marks);
+        mLineGaps.setMarks(marks);
     }
 
     private static String formatTime(long ms) {
@@ -2783,6 +2852,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             addSongs(songs, seen, mMusicQueue.getVideos());
         }
         return songs;
+    }
+
+    /**
+     * Up next put in a new order (songs dragged in the queue): the play queue after this song becomes exactly that,
+     * and Next and the end of this song take its first. Shuffle leaves this song's pick alone (it's the user's now).
+     */
+    private void musicReorder(java.util.List<Video> upNext) {
+        Video current = currentVideo();
+        if (current == null || upNext == null || upNext.isEmpty()) {
+            return;
+        }
+        com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist queue =
+                com.liskovsoft.smartyoutubetv2.common.app.models.data.Playlist.instance();
+        if (queue.getCurrent() == null || !current.videoId.equals(queue.getCurrent().videoId)) {
+            queue.add(current);
+            queue.setCurrent(current);
+        }
+        queue.removeAllAfterCurrent();
+        for (int i = upNext.size() - 1; i >= 0; i--) {
+            queue.next(upNext.get(i)); // each goes right after this song: last first, so they end up in order
+        }
+        current.nextMediaItem = com.liskovsoft.smartyoutubetv2.common.app.models.data.SimpleMediaItem.from(upNext.get(0));
+        mShuffledFor = current.videoId; // shuffle doesn't pick again for this song
+        android.util.Log.d("PhoneMusic", "queue reordered: next is " + upNext.get(0).videoId + " (" + upNext.size() + " songs)");
     }
 
     /** The songs played before this one in the queue, oldest first, at most 20 (Cover Flow's left side) */
@@ -3841,6 +3934,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         if (video != null && video.videoId != null && !video.videoId.equals(mQueueFor)) {
             mQueueFor = video.videoId;
+            mChapters.clear(); // this video's come with its details
+            mGapsFor = -1;
             mMusicQueue = null; // this song's suggestions are on their way
             if (mShufflePlayed.isEmpty() || !video.videoId.equals(mShufflePlayed.getLast())) {
                 mShufflePlayed.add(video.videoId);
@@ -3864,8 +3959,14 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     @Override
     public void onPlayerSuggestions(VideoGroup group) {
-        if (mAdapter == null || group == null || group.isChapters()) {
-            return; // chapters stay out of the list
+        if (group != null && group.isChapters()) {
+            // Chapters stay out of the list: they go on the seek bar
+            mChapters.set(group.getVideos());
+            mGapsFor = -1;
+            return;
+        }
+        if (mAdapter == null || group == null) {
+            return;
         }
         Video playing = currentVideo();
         mAdapter.setExcludedVideoId(playing != null ? playing.videoId : null);

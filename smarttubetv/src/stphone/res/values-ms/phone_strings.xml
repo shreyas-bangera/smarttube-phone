@@ -220,6 +220,12 @@
     <string name="phone_music_queue_now">Sedang dimainkan</string>
     <string name="phone_music_queue_next">Seterusnya</string>
     <string name="phone_music_up_next_none">Belum ada lagu selepas ini</string>
+    <string name="phone_music_queue_move">Alihkan lagu ini dalam baris gilir</string>
+    <string name="phone_widget_label">Pemain StreamTube</string>
+    <string name="phone_widget_description">Apa yang dimainkan, dengan Main dan Seterusnya</string>
+    <string name="phone_widget_play_pause">Main atau jeda</string>
+    <string name="phone_widget_idle">Tiada yang dimainkan</string>
+    <string name="phone_widget_idle_hint">Buka StreamTube untuk memainkan sesuatu</string>
     <string name="phone_music_flow_hint">Leret lagu anda, ketik satu untuk memainkannya</string>
     <string name="phone_music_flow_close">Tutup Cover Flow</string>
 </resources>

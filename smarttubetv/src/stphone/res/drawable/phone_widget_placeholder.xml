@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Before the song's colours are drawn (and in the widget picker's preview) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <corners android:radius="26dp" />
+    <gradient android:angle="315" android:startColor="#FF3A2A5C" android:endColor="#FF0B0B0D" />
+</shape>

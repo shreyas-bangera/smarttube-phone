@@ -227,6 +227,12 @@
     <string name="phone_music_queue_now">Now playing</string>
     <string name="phone_music_queue_next">Next</string>
     <string name="phone_music_up_next_none">Nothing lined up after this song yet</string>
+    <string name="phone_music_queue_move">Move this song in the queue</string>
+    <string name="phone_widget_label">StreamTube player</string>
+    <string name="phone_widget_description">What\'s playing, with Play and Next</string>
+    <string name="phone_widget_play_pause">Play or pause</string>
+    <string name="phone_widget_idle">Nothing playing</string>
+    <string name="phone_widget_idle_hint">Open StreamTube to play something</string>
     <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
     <string name="phone_music_flow_close">Close Cover Flow</string>
 </resources>

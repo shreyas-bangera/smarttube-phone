@@ -84,6 +84,9 @@ final class PhoneMusicPlayer {
 
         /** A song picked in Up next */
         void play(Video video);
+
+        /** Up next put in a new order */
+        void reorder(List<Video> upNext);
     }
 
     private static final long TICK_MS = 200;
@@ -557,6 +560,12 @@ final class PhoneMusicPlayer {
             public void play(Video video) {
                 mHost.play(video);
                 mHandler.postDelayed(PhoneMusicPlayer.this::refreshUpNext, 600);
+            }
+
+            @Override
+            public void reorder(List<Video> upNext) {
+                mHost.reorder(upNext);
+                refreshUpNext();
             }
         });
 

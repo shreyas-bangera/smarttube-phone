@@ -32,6 +32,7 @@ final class PhoneSeekPreview {
     private FrameLayout mCard;
     private ImageView mFrame;
     private TextView mTime;
+    private TextView mChapter;
     private String mPreparedFor;
     private long mPreparedLength;
     private int mWanted = -1;
@@ -57,13 +58,18 @@ final class PhoneSeekPreview {
         mStoryboard.init(video, lengthMs);
     }
 
-    /** Seeking to progress (of 1000), at this time */
-    void show(int progress, String time) {
+    /** Seeking to progress (of 1000), at this time, in this chapter (or none) */
+    void show(int progress, String time, String chapter) {
         build();
         long[] positions = mStoryboard.getSeekPositions();
         boolean pictures = positions != null && positions.length > 0;
         mCard.setVisibility(pictures ? View.VISIBLE : View.GONE);
         mTime.setText(time);
+        boolean named = chapter != null && !chapter.isEmpty();
+        mChapter.setVisibility(named ? View.VISIBLE : View.GONE);
+        if (named) {
+            mChapter.setText(chapter);
+        }
         if (mView.getVisibility() != View.VISIBLE) {
             mView.setVisibility(View.VISIBLE);
             mView.setAlpha(0f);
@@ -134,12 +140,25 @@ final class PhoneSeekPreview {
         mCard.addView(mFrame, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mView.addView(mCard, new LinearLayout.LayoutParams(cardWidth(), Math.round(cardWidth() * 9f / 16f)));
 
+        // The chapter's name, under the picture
+        mChapter = new TextView(mActivity);
+        mChapter.setTextColor(Color.WHITE);
+        mChapter.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        mChapter.setTypeface(PhoneUi.medium(mActivity));
+        mChapter.setShadowLayer(dp(4), 0, 0, 0xCC000000);
+        mChapter.setSingleLine(true);
+        mChapter.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mChapter.setMaxWidth(dp(220));
+        mChapter.setPadding(dp(6), dp(5), dp(6), 0);
+        mChapter.setVisibility(View.GONE);
+        mView.addView(mChapter);
+
         mTime = new TextView(mActivity);
         mTime.setTextColor(Color.WHITE);
         mTime.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         mTime.setTypeface(PhoneUi.medium(mActivity));
         mTime.setShadowLayer(dp(4), 0, 0, 0xCC000000);
-        mTime.setPadding(dp(6), dp(4), dp(6), 0);
+        mTime.setPadding(dp(6), dp(2), dp(6), 0);
         mView.addView(mTime);
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
