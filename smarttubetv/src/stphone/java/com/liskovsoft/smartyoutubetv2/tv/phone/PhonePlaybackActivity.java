@@ -68,6 +68,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private TextView mControlsTitle;
     private TextView mTime;
     private SeekBar mSeek;
+    /** While seeking: a picture of the video at that point, with its time */
+    private PhoneSeekPreview mSeekPreview;
     private ProgressBar mMiniProgress;
     private View mHeader;
     private View mShorts;
@@ -290,6 +292,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         });
 
         mControls = findViewById(R.id.phone_controls);
+        mSeekPreview = new PhoneSeekPreview(this, (android.widget.FrameLayout) mControls);
         mPlayButton = findViewById(R.id.phone_ctl_play);
         mFullscreenButton = findViewById(R.id.phone_ctl_fullscreen);
         mControlsTitle = findViewById(R.id.phone_ctl_title);
@@ -1227,6 +1230,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mLineScrub = false;
         mRouteTouchToPlayer = null;
         mIsSeeking = false;
+        mSeekPreview.hide();
         if (action == MotionEvent.ACTION_UP && mPlayer != null) {
             long duration = mPlayer.getDurationMs();
             if (duration > 0) {
@@ -1246,7 +1250,21 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mPlayer != null) {
             long duration = mPlayer.getDurationMs();
             updateTimeText(duration * progress / 1000, duration);
+            showSeekPreview(progress);
         }
+    }
+
+    /** The picture of the video where the seek is, above the finger */
+    private void showSeekPreview(int progress) {
+        if (mPlayer == null || mSeekPreview == null) {
+            return;
+        }
+        long duration = mPlayer.getDurationMs();
+        if (duration <= 0) {
+            return;
+        }
+        mSeekPreview.prepare(currentVideo(), duration);
+        mSeekPreview.show(progress, formatTime(duration * progress / 1000));
     }
 
     /** True when a quick downward drag that started on the video ends (YouTube: drag the player down) */
@@ -2154,6 +2172,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 if (fromUser && mPlayer != null) {
                     long duration = mPlayer.getDurationMs();
                     updateTimeText(duration * progress / 1000, duration);
+                    showSeekPreview(progress);
                 }
             }
 
@@ -2161,11 +2180,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             public void onStartTrackingTouch(SeekBar seekBar) {
                 mIsSeeking = true;
                 mHandler.removeCallbacks(mAutoHide);
+                showSeekPreview(seekBar.getProgress());
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 mIsSeeking = false;
+                mSeekPreview.hide();
                 if (mPlayer != null) {
                     long duration = mPlayer.getDurationMs();
                     if (duration > 0) {
@@ -2194,6 +2215,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             updatePlayButton();
             updateProgress();
             scheduleAutoHide();
+            if (mPlayer != null && mSeekPreview != null) {
+                mSeekPreview.prepare(currentVideo(), mPlayer.getDurationMs()); // the pictures ready before a seek
+            }
         } else {
             mHandler.removeCallbacks(mAutoHide);
         }

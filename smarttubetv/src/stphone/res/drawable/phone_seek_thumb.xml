@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The seek bar's handle: a red dot, small enough to sit whole inside the video above its bottom edge -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="@color/phone_accent" />
+    <size android:width="13dp" android:height="13dp" />
+</shape>

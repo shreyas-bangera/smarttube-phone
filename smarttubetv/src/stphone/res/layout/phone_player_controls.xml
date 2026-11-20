@@ -178,15 +178,16 @@
             android:id="@+id/phone_ctl_seek"
             android:layout_width="match_parent"
             android:layout_height="30dp"
-            android:layout_marginBottom="-11dp"
-            android:minHeight="4dp"
-            android:maxHeight="4dp"
+            android:layout_marginBottom="-7dp"
+            android:minHeight="3dp"
+            android:maxHeight="3dp"
             android:max="1000"
             android:paddingStart="0dp"
             android:paddingEnd="0dp"
             android:progressBackgroundTint="#66FFFFFF"
             android:progressTint="@color/phone_accent"
             android:splitTrack="false"
-            android:thumbTint="@color/phone_accent" />
+            android:thumb="@drawable/phone_seek_thumb"
+            android:thumbOffset="6dp" />
     </LinearLayout>
 </FrameLayout>
