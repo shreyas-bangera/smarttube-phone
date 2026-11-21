@@ -1,4 +1,2 @@
-- Lyrics on your lock screen: while a song plays in the music player, the words being sung appear on the lock screen and in the media controls, right as they're sung. Long lines come in short pieces, so they never scroll, and each one pops in on time, even with the screen off
-- Easy to spot: while lyrics show, the song's artwork gets a glowing note in its corner, and the line under the words reads Lyrics, the song and the singer
-- Sharper artwork on the lock screen, in the media controls and on car screens: the song's picture without black bars, cut square like an album cover
-- Prefer the song's name there? Turn the lyrics off in Settings > Customize > Lyrics on the lock screen
+- The home screen widget shows a song only while it's playing in StreamTube: with nothing playing it rests in StreamTube's colours, and tapping it opens the app
+- More room for the song's name on the small widget

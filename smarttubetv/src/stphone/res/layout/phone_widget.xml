@@ -40,7 +40,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
-                android:paddingEnd="8dp">
+                android:paddingEnd="6dp">
 
             <TextView
                 android:id="@+id/phone_widget_title"
@@ -73,8 +73,8 @@
 
         <FrameLayout
             android:id="@+id/phone_widget_play_box"
-            android:layout_width="42dp"
-            android:layout_height="42dp">
+            android:layout_width="38dp"
+            android:layout_height="38dp">
 
             <ImageView
                 android:layout_width="match_parent"
@@ -87,7 +87,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="@string/phone_widget_play_pause"
-                android:padding="12dp"
+                android:padding="11dp"
                 android:src="@drawable/ic_phone_play" />
         </FrameLayout>
         </LinearLayout>

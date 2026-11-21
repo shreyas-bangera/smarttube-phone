@@ -87,7 +87,12 @@ public class PhoneWidget extends AppWidgetProvider {
         if (sWidgetIds.length == 0) {
             return; // none on the home screen
         }
-        draw(app, sWidgetIds, video.videoId, title, artist, playing, live, null);
+        if (!live) {
+            // The player closed: nothing is playing, so no song's artwork
+            draw(app, sWidgetIds, null, null, null, false, false, null);
+            return;
+        }
+        draw(app, sWidgetIds, video.videoId, title, artist, playing, true, null);
     }
 
     /** The widget's buttons: to the open player, or open the app */
@@ -114,9 +119,10 @@ public class PhoneWidget extends AppWidgetProvider {
         Context app = context.getApplicationContext();
         sWidgetIds = ids(app);
         SharedPreferences prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String id = sShownId != null ? sShownId : prefs.getString("id", null);
-        draw(app, widgetIds, id, prefs.getString("title", null), prefs.getString("artist", null), sShownPlaying,
-                sShownLive, goAsync());
+        // A song only while a player is open with it; otherwise (closed, after a restart) nothing playing
+        String id = sShownLive ? sShownId : null;
+        draw(app, widgetIds, id, id != null ? prefs.getString("title", null) : null,
+                id != null ? prefs.getString("artist", null) : null, sShownPlaying, sShownLive, goAsync());
     }
 
     @Override
@@ -164,7 +170,8 @@ public class PhoneWidget extends AppWidgetProvider {
                     }
                 }
                 if (palette == null) {
-                    palette = new int[] {0xFF8C6CFF, 0xFFFF6FA8, 0xFFCDBFFF};
+                    // Nothing playing (or no artwork): StreamTube's own red, deep into black
+                    palette = new int[] {0xFFE5202E, 0xFFFF5E62, 0xFFFF9A9E};
                 }
                 AppWidgetManager manager = AppWidgetManager.getInstance(app);
                 for (int widgetId : widgetIds) {
@@ -237,6 +244,11 @@ public class PhoneWidget extends AppWidgetProvider {
         views.setTextViewText(R.id.phone_widget_artist, idle ? app.getString(R.string.phone_widget_idle_hint)
                 : artist != null ? artist : "");
         views.setImageViewResource(R.id.phone_widget_play, playing ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play);
+        // Nothing playing: no Next or Previous (Play opens the app)
+        views.setViewVisibility(R.id.phone_widget_next, idle ? android.view.View.GONE : android.view.View.VISIBLE);
+        if (kind != SMALL) {
+            views.setViewVisibility(R.id.phone_widget_prev, idle ? android.view.View.GONE : android.view.View.VISIBLE);
+        }
         // Play's icon in a deep shade of the song's colour, the glass buttons' white
         views.setInt(R.id.phone_widget_play, "setColorFilter", PhoneMusicPlayer.darken(palette[0], 0.55f));
         views.setInt(R.id.phone_widget_next, "setColorFilter", 0xFFFFFFFF);
