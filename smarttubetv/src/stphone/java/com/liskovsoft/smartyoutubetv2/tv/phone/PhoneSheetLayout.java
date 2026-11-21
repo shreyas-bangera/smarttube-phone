@@ -41,11 +41,30 @@ public class PhoneSheetLayout extends LinearLayout {
         mOnDismiss = onDismiss;
     }
 
+    /**
+     * The phone's real screen (density, width, height): the player's screen also carries SmartTube's TV layout scale,
+     * which on some phones reaches the menus' context and made them full width and oversized in landscape
+     */
+    static android.util.DisplayMetrics screen() {
+        return android.content.res.Resources.getSystem().getDisplayMetrics();
+    }
+
+    /** dp in real pixels, on the phone's own density */
+    static int dp(float value) {
+        return Math.round(value * screen().density);
+    }
+
+    /** A text size in sp, as real pixels (the phone's density and font size): use with COMPLEX_UNIT_PX */
+    static float sp(float value) {
+        return value * screen().scaledDensity;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int max = Math.round(MAX_WIDTH_DP * getResources().getDisplayMetrics().density);
-        boolean wide = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-                || getResources().getConfiguration().smallestScreenWidthDp >= 600;
+        android.util.DisplayMetrics screen = screen();
+        int max = Math.round(MAX_WIDTH_DP * screen.density);
+        boolean wide = screen.widthPixels > screen.heightPixels // landscape, whatever the context says
+                || Math.min(screen.widthPixels, screen.heightPixels) / screen.density >= 600;
         if (wide && MeasureSpec.getSize(widthMeasureSpec) > max) {
             widthMeasureSpec = MeasureSpec.makeMeasureSpec(max, MeasureSpec.EXACTLY);
         }

@@ -204,7 +204,7 @@ final class PhonePlayerSheet {
 
         Sheet(Activity activity, String title) {
             mActivity = activity;
-            mDensity = activity.getResources().getDisplayMetrics().density;
+            mDensity = PhoneSheetLayout.screen().density; // the phone's own (see PhoneSheetLayout.screen)
             mDialog = new Dialog(activity);
             mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -226,7 +226,7 @@ final class PhonePlayerSheet {
                 TextView heading = new TextView(activity);
                 heading.setText(title);
                 heading.setTextColor(color(R.color.phone_text));
-                heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+                heading.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(16));
                 heading.setPadding(dp(24), dp(6), dp(24), dp(10));
                 root.addView(heading);
                 View divider = new View(activity);
@@ -278,7 +278,7 @@ final class PhonePlayerSheet {
             TextView label = new TextView(mActivity);
             label.setText(text);
             label.setTextColor(color(R.color.phone_text));
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            label.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             labelParams.setMarginStart(dp(32));
             row.addView(label, labelParams);
@@ -287,7 +287,7 @@ final class PhonePlayerSheet {
                 TextView right = new TextView(mActivity);
                 right.setText(value);
                 right.setTextColor(color(R.color.phone_text_2));
-                right.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                right.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(14));
                 LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 rightParams.setMarginStart(dp(12));
                 row.addView(right, rightParams);

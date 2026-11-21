@@ -42,7 +42,7 @@ final class PhoneChapterSheet {
         if (chapters == null || chapters.isEmpty() || activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
-        float d = activity.getResources().getDisplayMetrics().density;
+        float d = PhoneSheetLayout.screen().density; // the phone's own (see PhoneSheetLayout.screen)
         Dialog dialog = new Dialog(activity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -63,7 +63,7 @@ final class PhoneChapterSheet {
         TextView heading = new TextView(activity);
         heading.setText(R.string.phone_chapters);
         heading.setTextColor(color(activity, R.color.phone_text));
-        heading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        heading.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(17));
         heading.setTypeface(PhoneUi.medium(activity));
         heading.setPadding(dp(d, 20), dp(d, 6), dp(d, 20), dp(d, 10));
         root.addView(heading);
@@ -160,7 +160,7 @@ final class PhoneChapterSheet {
         TextView title = new TextView(activity);
         title.setText(chapter.title);
         title.setTextColor(color(activity, R.color.phone_text));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
         title.setTypeface(playing ? PhoneUi.medium(activity) : PhoneUi.regular(activity));
         title.setMaxLines(2);
         title.setEllipsize(TextUtils.TruncateAt.END);
@@ -168,7 +168,7 @@ final class PhoneChapterSheet {
         TextView time = new TextView(activity);
         time.setText(chapter.badge != null ? chapter.badge : "");
         time.setTextColor(color(activity, playing ? R.color.phone_accent : R.color.phone_text_2));
-        time.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        time.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
         time.setPadding(0, dp(d, 3), 0, 0);
         words.addView(time);
         LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
