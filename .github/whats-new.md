@@ -1,3 +1,3 @@
-- Playback in feeds: on Home and Subscriptions, the video you stop on plays right in its thumbnail, muted, like in the YouTube app. Scroll on and the next one takes over; tap it to watch from that moment, or tap the speaker to hear it. Choose Always, Wi-Fi only or Off in Settings > Customize > Playback in feeds
+- Playback in feeds: on Home and Subscriptions, the video you stop on plays right in its thumbnail, muted, like in the YouTube app. Scroll on and the next one takes over; drag the seek bar on it to look around, tap it to watch from that moment, or tap the speaker to hear it. Previews start quickly and stay light on data. Always, Wi-Fi only or Off in Settings > Customize > Playback in feeds
 - The home screen widget shows a song only while it's playing in StreamTube: with nothing playing it rests in StreamTube's colours, and tapping it opens the app
 - More room for the song's name on the small widget

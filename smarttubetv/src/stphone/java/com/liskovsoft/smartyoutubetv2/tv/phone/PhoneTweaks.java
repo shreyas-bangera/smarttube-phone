@@ -48,7 +48,7 @@ final class PhoneTweaks {
 
     /** Playback in feeds: videos play in their thumbnails on Home and Subscriptions (Always, Wi-Fi only or Off) */
     static int feedPlayback(Context context) {
-        return prefs(context).getInt(KEY_FEED_PLAYBACK, FEED_WIFI);
+        return prefs(context).getInt(KEY_FEED_PLAYBACK, FEED_ALWAYS);
     }
 
     static void setFeedPlayback(Context context, int mode) {

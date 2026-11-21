@@ -15,7 +15,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
 
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -44,9 +43,9 @@ import java.util.concurrent.Executors;
  * its thumbnail; scroll on and the next one takes over, only ever one at a time. One player and one video surface for
  * the whole feed (the surface moves to the card playing), with the app's own way of getting a video's streams
  * (SmartTube's format info and media sources, as the Shorts' hidden player). The thumbnail stays until the video's
- * first frame is drawn, then the video fades in over it; a thin red line shows how far it is, a glass button turns
- * the sound on or off. A tap on the card opens the video in the player from where the preview was.
- * Settings > Customize > Playback in feeds: Always, Wi-Fi only (the default, as on YouTube) or Off.
+ * first frame is drawn, then the video fades in over it (no spinner); a seek bar shows how far it is and can be
+ * dragged, a glass button turns the sound on or off. Stream details are kept and looked up ahead for the next cards. A tap on the card opens the video in the player from where the preview was.
+ * Settings > Customize > Playback in feeds: Always (the default), Wi-Fi only or Off.
  */
 final class PhoneFeedPreview {
     private static final String TAG = "PhoneFeedPreview";
@@ -55,13 +54,16 @@ final class PhoneFeedPreview {
     private static final float START_VISIBLE = 0.65f;
     private static final float STOP_VISIBLE = 0.5f;
     /** Scrolling settles this long before a card starts (fast scrolling doesn't start every card it passes) */
-    private static final long SETTLE_MS = 300;
+    private static final long SETTLE_MS = 220;
     /** Sound on for the previews (the mute button), for as long as the app runs */
     private static boolean sSound;
     /** Where each video's preview got to: scrolling back, it carries on from there */
     private static final LruCache<String, Long> POSITIONS = new LruCache<>(100);
     /** Videos without a playable stream (or live ones, Shorts): their thumbnails stay */
     private static final Set<String> SKIP = new HashSet<>();
+    /** Videos' stream details, kept: coming back to a card (or to one looked up ahead) it starts at once */
+    private static final LruCache<String, MediaItemFormatInfo> INFO = new LruCache<>(40);
+    private static final Set<String> FETCHING = java.util.Collections.synchronizedSet(new HashSet<>());
 
     interface Host {
         /** The feed on screen plays previews (Home or Subscriptions, nothing else in front) */
@@ -79,9 +81,12 @@ final class PhoneFeedPreview {
     /** The preview: the video, the red line, the sound button and a small spinner, put inside the card's thumbnail */
     private final FrameLayout mView;
     private final TextureView mTexture;
-    private final View mLine;
+    private final android.widget.SeekBar mSeek;
+    private boolean mSeeking;
     private final ImageView mSound;
-    private final ProgressBar mSpinner;
+    private ExoMediaSourceFactory mSources;
+    private final Rect mListRect = new Rect();
+    private final int[] mAt = new int[2];
     private SimpleExoPlayer mPlayer;
     private DefaultTrackSelector mTrackSelector;
     private Video mVideo;
@@ -113,17 +118,52 @@ final class PhoneFeedPreview {
         mTexture.setAlpha(0f);
         mView.addView(mTexture, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        mSpinner = new ProgressBar(context);
-        mSpinner.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(0xE6FFFFFF));
-        mSpinner.setVisibility(View.GONE);
-        mView.addView(mSpinner, new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+        // A seek bar along the bottom: how far the preview is, and drag it to go elsewhere in the video
+        mSeek = new android.widget.SeekBar(context);
+        mSeek.setMax(1000);
+        mSeek.setPadding(dp(10), 0, dp(10), 0);
+        mSeek.setSplitTrack(false);
+        int accent = context.getResources().getColor(R.color.phone_accent);
+        mSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
+        mSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0x66FFFFFF));
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(accent);
+        dot.setSize(dp(11), dp(11));
+        mSeek.setThumb(dot);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            mSeek.setMinHeight(dp(3));
+            mSeek.setMaxHeight(dp(3));
+        }
+        mSeek.setOnTouchListener((v, event) -> {
+            // Dragging the bar: not the feed's scroll, not a tap on the card
+            if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            return false;
+        });
+        mSeek.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+            }
 
-        // How far the preview is: a thin red line along the bottom, as on YouTube
-        mLine = new View(context);
-        mLine.setBackgroundColor(context.getResources().getColor(R.color.phone_accent));
-        mLine.setPivotX(0);
-        mLine.setScaleX(0f);
-        mView.addView(mLine, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3), Gravity.BOTTOM));
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar seekBar) {
+                mSeeking = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                mSeeking = false;
+                if (mPlayer != null && mPlayer.getDuration() > 0) {
+                    mPlayer.seekTo(mPlayer.getDuration() * seekBar.getProgress() / 1000);
+                }
+            }
+        });
+        mSeek.setVisibility(View.GONE);
+        FrameLayout.LayoutParams seekParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(26), Gravity.BOTTOM);
+        seekParams.bottomMargin = -dp(5);
+        mView.addView(mSeek, seekParams);
 
         // Sound on or off: a small glass button in the top right corner
         mSound = new ImageView(context);
@@ -269,6 +309,39 @@ final class PhoneFeedPreview {
             return; // already playing there
         }
         play(best, bestFrame);
+        lookAhead(best);
+    }
+
+    /** The next cards' stream details, fetched ahead (in the background): scrolling on, they start at once */
+    private void lookAhead(Video current) {
+        int found = 0;
+        for (int i = 0; i < mList.getChildCount() && found < 2; i++) {
+            int position = mList.getChildAdapterPosition(mList.getChildAt(i));
+            if (position == RecyclerView.NO_POSITION) {
+                continue;
+            }
+            for (int next = position; next <= position + 3 && found < 2; next++) {
+                Video video = mHost.previewVideoAt(next);
+                if (video != null && video.videoId != null && !video.videoId.equals(current.videoId) && playable(video)
+                        && INFO.get(video.videoId) == null && FETCHING.add(video.videoId)) {
+                    found++;
+                    String id = video.videoId;
+                    LOADER.execute(() -> {
+                        try {
+                            MediaItemFormatInfo info = com.liskovsoft.youtubeapi.service.YouTubeMediaItemService.preloadFormatInfo(id);
+                            if (info != null) {
+                                INFO.put(id, info);
+                            }
+                        } catch (Throwable e) {
+                            Log.d(TAG, "ahead " + id + ": " + e);
+                        } finally {
+                            FETCHING.remove(id);
+                        }
+                    });
+                }
+            }
+            break; // from the first card in view down
+        }
     }
 
     /** The settings, the network and what's on screen allow previews now */
@@ -306,16 +379,15 @@ final class PhoneFeedPreview {
         if (frame == null || !frame.isAttachedToWindow() || frame.getHeight() == 0) {
             return 0f;
         }
-        Rect list = new Rect();
+        Rect list = mListRect;
         if (!mList.getGlobalVisibleRect(list)) {
             return 0f;
         }
         list.top += mList.getPaddingTop();
         list.bottom -= mList.getPaddingBottom();
-        int[] at = new int[2];
-        frame.getLocationOnScreen(at);
-        int top = Math.max(at[1], list.top);
-        int bottom = Math.min(at[1] + frame.getHeight(), list.bottom);
+        frame.getLocationOnScreen(mAt);
+        int top = Math.max(mAt[1], list.top);
+        int bottom = Math.min(mAt[1] + frame.getHeight(), list.bottom);
         return Math.max(0, bottom - top) / (float) frame.getHeight();
     }
 
@@ -344,18 +416,18 @@ final class PhoneFeedPreview {
             parent.removeView(mView);
         }
         frame.addView(mView, 1, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        mView.bringToFront(); // over the card's length badge and watched bar (hidden while it plays, see coverCard)
         mTexture.setAlpha(0f);
-        mLine.setScaleX(0f);
+        mSeek.setProgress(0);
+        mSeek.setVisibility(View.GONE);
         mSound.setVisibility(View.GONE);
-        mSpinner.setVisibility(View.GONE);
-        // A spinner only if it takes a while
-        mHandler.postDelayed(() -> {
-            if (generation == mGeneration && !mFirstFrame) {
-                mSpinner.setVisibility(View.VISIBLE);
-            }
-        }, 900);
         String id = video.videoId;
         Log.d(TAG, "preview " + id);
+        MediaItemFormatInfo known = INFO.get(id);
+        if (known != null) {
+            start(id, known, generation); // looked up already: no wait
+            return;
+        }
         LOADER.execute(() -> {
             MediaItemFormatInfo info = null;
             try {
@@ -363,38 +435,47 @@ final class PhoneFeedPreview {
             } catch (Throwable e) {
                 Log.d(TAG, "preview " + id + ": " + e);
             }
+            if (info != null) {
+                INFO.put(id, info);
+            }
             MediaItemFormatInfo result = info;
-            mHandler.post(() -> {
-                if (generation != mGeneration) {
-                    return; // scrolled on meanwhile
-                }
-                MediaSource source = null;
-                if (result != null && !result.isUnplayable() && !result.isLive()) {
-                    try {
-                        ExoMediaSourceFactory factory = new ExoMediaSourceFactory(mContext);
-                        source = result.containsDashFormats() ? factory.fromDashFormatInfo(result)
-                                : result.containsSabrFormats() ? factory.fromSabrFormatInfo(result) : null;
-                    } catch (Throwable e) {
-                        Log.d(TAG, "preview " + id + " source: " + e);
-                    }
-                }
-                if (source == null) {
-                    SKIP.add(id); // its thumbnail stays (and it's not tried again)
-                    stop("no stream");
-                    return;
-                }
-                SimpleExoPlayer player = player();
-                applySound();
-                player.setPlayWhenReady(true);
-                player.prepare(source, true, true);
-                Long resume = POSITIONS.get(id);
-                if (resume != null && resume > 0) {
-                    player.seekTo(resume);
-                }
-                mHandler.removeCallbacks(mTick);
-                mHandler.post(mTick);
-            });
+            mHandler.post(() -> start(id, result, generation));
         });
+    }
+
+    /** The streams are known: the player gets them and plays (silent until the first frame shows) */
+    private void start(String id, MediaItemFormatInfo info, int generation) {
+        if (generation != mGeneration) {
+            return; // scrolled on meanwhile
+        }
+        MediaSource source = null;
+        if (info != null && !info.isUnplayable() && !info.isLive()) {
+            try {
+                if (mSources == null) {
+                    mSources = new ExoMediaSourceFactory(mContext);
+                }
+                source = info.containsDashFormats() ? mSources.fromDashFormatInfo(info)
+                        : info.containsSabrFormats() ? mSources.fromSabrFormatInfo(info) : null;
+            } catch (Throwable e) {
+                Log.d(TAG, "preview " + id + " source: " + e);
+            }
+        }
+        if (source == null) {
+            SKIP.add(id); // its thumbnail stays (and it's not tried again)
+            INFO.remove(id);
+            stop("no stream");
+            return;
+        }
+        SimpleExoPlayer player = player();
+        applySound();
+        player.setPlayWhenReady(true);
+        player.prepare(source, true, true);
+        Long resume = POSITIONS.get(id);
+        if (resume != null && resume > 0) {
+            player.seekTo(resume);
+        }
+        mHandler.removeCallbacks(mTick);
+        mHandler.post(mTick);
     }
 
     /** Stops the preview (the thumbnail shows again); the player stays for the next card */
@@ -415,6 +496,7 @@ final class PhoneFeedPreview {
         }
         mTexture.animate().cancel();
         mTexture.setAlpha(0f);
+        coverCard(false);
         ViewGroup parent = (ViewGroup) mView.getParent();
         if (parent != null) {
             parent.removeView(mView);
@@ -422,6 +504,28 @@ final class PhoneFeedPreview {
         mVideo = null;
         mFrame = null;
         mFirstFrame = false;
+    }
+
+    /** While the video plays, the card's length badge and watched bar step aside for the seek bar (and come back) */
+    private void coverCard(boolean playing) {
+        if (mFrame == null) {
+            return;
+        }
+        for (int id : new int[] {R.id.phone_badge, R.id.phone_progress}) {
+            View view = mFrame.findViewById(id);
+            if (view == null) {
+                continue;
+            }
+            if (playing) {
+                if (view.getVisibility() == View.VISIBLE) {
+                    view.setTag(R.id.phone_thumb_frame, Boolean.TRUE);
+                    view.setVisibility(View.INVISIBLE);
+                }
+            } else if (Boolean.TRUE.equals(view.getTag(R.id.phone_thumb_frame))) {
+                view.setTag(R.id.phone_thumb_frame, null);
+                view.setVisibility(View.VISIBLE);
+            }
+        }
     }
 
     /** No player at all (the screen is behind): its decoders and memory go back */
@@ -440,8 +544,8 @@ final class PhoneFeedPreview {
         }
         long duration = mPlayer.getDuration();
         long position = mPlayer.getCurrentPosition();
-        if (duration > 0) {
-            mLine.setScaleX(Math.max(0f, Math.min(1f, position / (float) duration)));
+        if (duration > 0 && !mSeeking) {
+            mSeek.setProgress((int) Math.max(0, Math.min(1000, position * 1000 / duration)));
         }
     }
 
@@ -457,12 +561,13 @@ final class PhoneFeedPreview {
         if (mPlayer != null) {
             return mPlayer;
         }
-        // A small buffer (a preview, not the whole video) and at most 720p: light on data and the phone
+        // A small buffer (a preview, not the whole video) that starts on very little, and at most 480p (plenty for a
+        // thumbnail): quick to start, light on data, the decoder and the battery
         DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
-                .setBufferDurationsMs(3_000, 10_000, 500, 1_500)
+                .setBufferDurationsMs(2_500, 8_000, 250, 1_000)
                 .createDefaultLoadControl();
         mTrackSelector = new DefaultTrackSelector();
-        mTrackSelector.setParameters(mTrackSelector.buildUponParameters().setMaxVideoSize(1280, 720));
+        mTrackSelector.setParameters(mTrackSelector.buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoFrameRate(30));
         mPlayer = ExoPlayerFactory.newSimpleInstance(mContext, new DefaultRenderersFactory(mContext), mTrackSelector, loadControl);
         mPlayer.setVideoTextureView(mTexture);
         mPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
@@ -474,10 +579,11 @@ final class PhoneFeedPreview {
                     return;
                 }
                 mFirstFrame = true;
-                mSpinner.setVisibility(View.GONE);
-                // The video fades in over the thumbnail: no black frame, no jump
-                mTexture.animate().alpha(1f).setDuration(220).start();
+                // The video fades in over the thumbnail: no black frame, no jump, no spinner
+                mTexture.animate().alpha(1f).setDuration(200).start();
                 mSound.setVisibility(View.VISIBLE);
+                mSeek.setVisibility(View.VISIBLE);
+                coverCard(true);
             }
 
             @Override
