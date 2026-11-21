@@ -1,2 +1,4 @@
-- Lyrics on the lock screen: in the music player, the words being sung pop up on the lock screen and in the media controls right as they're sung, a short piece at a time (no scrolling). The artwork gets a glowing note while lyrics show, and the line under them reads Lyrics, the song and the singer (turn it off in Settings > Customize)
-- The lock screen and media controls show the song's picture without black bars, cut square like an album cover
+- Lyrics on your lock screen: while a song plays in the music player, the words being sung appear on the lock screen and in the media controls, right as they're sung. Long lines come in short pieces, so they never scroll, and each one pops in on time, even with the screen off
+- Easy to spot: while lyrics show, the song's artwork gets a glowing note in its corner, and the line under the words reads Lyrics, the song and the singer
+- Sharper artwork on the lock screen, in the media controls and on car screens: the song's picture without black bars, cut square like an album cover
+- Prefer the song's name there? Turn the lyrics off in Settings > Customize > Lyrics on the lock screen

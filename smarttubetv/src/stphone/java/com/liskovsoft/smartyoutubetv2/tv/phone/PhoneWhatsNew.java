@@ -58,8 +58,12 @@ final class PhoneWhatsNew {
 
     static final Release[] RELEASES = {
             new Release(10, "This update",
-                    new Feature(R.drawable.ic_phone_cc, "Lyrics on the lock screen",
-                            "In the music player, the line being sung shows on the lock screen and in the media controls, under the song's name. You can turn it off in Settings > Customize.")),
+                    new Feature(R.drawable.ic_phone_cc, "Lyrics on your lock screen",
+                            "While a song plays in the music player, the words being sung appear on the lock screen and in the media controls, right as they're sung. Long lines come in short pieces that pop in on time, even with the screen off."),
+                    new Feature(R.drawable.ic_phone_music_note, "Easy to spot",
+                            "While lyrics show, the artwork gets a glowing note in its corner, and the line under the words reads Lyrics, the song and the singer. You can turn the lyrics off in Settings > Customize."),
+                    new Feature(R.drawable.ic_phone_headphones, "Sharper artwork",
+                            "The lock screen, the media controls and car screens show the song's picture without black bars, cut square like an album cover.")),
             new Release(9, "Ambient mode and more",
                     new Feature(R.drawable.ic_phone_brightness, "Ambient mode",
                             "In the dark appearance, a soft glow of the video's own colours surrounds the player and changes with the picture, like the YouTube app."),
