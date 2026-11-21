@@ -210,11 +210,13 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         if (android.text.TextUtils.isEmpty(artist)) {
             artist = app;
         }
-        // The lyric being sung in the second line (the singer moves to where the album goes)
+        // The words being sung as the first line (short pieces: they pop in whole, no scrolling), the song and the
+        // singer under them
         String album = app;
         if (!android.text.TextUtils.isEmpty(mLyricLine)) {
             album = artist;
-            artist = "\u266A " + mLyricLine;
+            artist = title + " \u00B7 " + artist;
+            title = mLyricLine;
         }
         android.support.v4.media.MediaMetadataCompat.Builder info = new android.support.v4.media.MediaMetadataCompat.Builder()
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, video.videoId)

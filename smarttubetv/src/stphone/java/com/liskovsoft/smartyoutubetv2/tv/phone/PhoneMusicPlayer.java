@@ -1060,26 +1060,92 @@ final class PhoneMusicPlayer {
 
     // region Lyrics
 
+    /** For the lock screen: the words to show now (null: none), and how long until they change */
+    static final class Lyric {
+        final String text;
+        final long waitMs;
+
+        Lyric(String text, long waitMs) {
+            this.text = text;
+            this.waitMs = waitMs;
+        }
+    }
+
+    /** Lock screen lyrics: no longer than this, so they never scroll; longer lines go in pieces */
+    private static final int LOCK_LINE_CHARS = 30;
+
     /**
-     * The lyric line being sung now, for the lock screen and the media controls: only for the song on screen, only
-     * when the lyrics are in time with it (null otherwise, and in the instrumental bits)
+     * The words being sung now, for the lock screen and the media controls: only for the song on screen, only when
+     * the lyrics are in time with it. A long line comes in short pieces, one after another through the line (each
+     * piece's share of the time by its length), so each fits and pops in whole. With it, how long until the words
+     * change, so the next ones can be shown right on time.
      */
-    String lyricNow() {
+    Lyric lyricNow() {
         Video video = mHost.video();
-        if (mLyrics == null || mLyrics.isEmpty() || video == null || video.videoId == null
-                || !video.videoId.equals(mVideoId) || !timed()) {
-            return null;
-        }
         SimpleExoPlayer exo = mHost.exo();
-        if (exo == null) {
+        if (mLyrics == null || mLyrics.isEmpty() || video == null || video.videoId == null
+                || !video.videoId.equals(mVideoId) || !timed() || exo == null) {
             return null;
         }
-        int index = mLyrics.indexAt(exo.getCurrentPosition() - offset());
-        if (index < 0 || index >= mLyrics.lines.size()) {
-            return null;
+        float speed = Math.max(0.25f, exo.getPlaybackParameters().speed);
+        long position = exo.getCurrentPosition() - offset();
+        List<PhoneLyrics.Line> lines = mLyrics.lines;
+        int index = mLyrics.indexAt(position);
+        if (index < 0) {
+            // Before the first line: nothing yet, back when it starts
+            return new Lyric(null, wait(lines.get(0).timeMs - 250 - position, speed));
         }
-        String line = mLyrics.lines.get(index).text;
-        return TextUtils.isEmpty(line) ? null : line.trim();
+        long start = lines.get(index).timeMs - 250;
+        long end = index + 1 < lines.size() ? lines.get(index + 1).timeMs - 250 : start + 5_000;
+        String text = lines.get(index).text != null ? lines.get(index).text.trim() : "";
+        if (text.isEmpty()) {
+            return new Lyric(null, wait(end - position, speed)); // an instrumental bit
+        }
+        List<String> pieces = pieces(text);
+        int chars = 0;
+        for (String piece : pieces) {
+            chars += piece.length();
+        }
+        long span = Math.max(1, end - start);
+        long from = start;
+        for (int i = 0; i < pieces.size(); i++) {
+            long to = i == pieces.size() - 1 ? end : from + span * pieces.get(i).length() / Math.max(1, chars);
+            if (position < to || i == pieces.size() - 1) {
+                return new Lyric(pieces.get(i), wait(to - position, speed));
+            }
+            from = to;
+        }
+        return null;
+    }
+
+    /** The line in pieces of whole words, each no longer than LOCK_LINE_CHARS */
+    private static List<String> pieces(String text) {
+        List<String> pieces = new java.util.ArrayList<>();
+        StringBuilder piece = new StringBuilder();
+        for (String word : text.split("\\s+")) {
+            if (piece.length() > 0 && piece.length() + 1 + word.length() > LOCK_LINE_CHARS) {
+                pieces.add(piece.toString());
+                piece.setLength(0);
+            }
+            if (piece.length() > 0) {
+                piece.append(' ');
+            }
+            piece.append(word);
+        }
+        if (piece.length() > 0) {
+            pieces.add(piece.toString());
+        }
+        // A short last piece goes with the one before (no one word alone)
+        if (pieces.size() > 1 && pieces.get(pieces.size() - 1).length() < 8
+                && pieces.get(pieces.size() - 2).length() + 1 + pieces.get(pieces.size() - 1).length() <= LOCK_LINE_CHARS + 8) {
+            String last = pieces.remove(pieces.size() - 1);
+            pieces.set(pieces.size() - 1, pieces.get(pieces.size() - 1) + " " + last);
+        }
+        return pieces;
+    }
+
+    private static long wait(long ms, float speed) {
+        return Math.max(60, Math.min(2_000, Math.round(ms / speed)));
     }
 
     private void updateLyrics(boolean force) {

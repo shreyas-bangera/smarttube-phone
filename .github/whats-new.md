@@ -1,1 +1,1 @@
-- Lyrics on the lock screen: in the music player, the line being sung shows on the lock screen and in the media controls, under the song's name, changing with the song (turn it off in Settings > Customize)
+- Lyrics on the lock screen: in the music player, the words being sung pop up on the lock screen and in the media controls right as they're sung, a short piece at a time (no scrolling), with the song and singer under them (turn it off in Settings > Customize)

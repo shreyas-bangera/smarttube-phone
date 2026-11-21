@@ -126,9 +126,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         public void run() {
             updateProgress();
             syncPlaybackService();
-            syncWidget();
             ambientTick();
-            lyricTick();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
@@ -169,6 +167,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mRoot = findViewById(R.id.phone_player_root);
         mVideoBox = findViewById(R.id.phone_video_box);
         mDetails = findViewById(R.id.phone_player_details);
+        mHandler.post(mBackgroundTicker);
         mAmbient = new PhoneAmbient(this, mRoot, mVideoBox, mDetails, getResources().getColor(R.color.phone_bg));
 
         // Inflated here (not in the layout) so they get the phone density, not the TV one
@@ -464,6 +463,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (sInstance != null && sInstance.get() == this) {
             sInstance = null;
         }
+        mHandler.removeCallbacks(mBackgroundTicker);
         // The widget keeps the song, paused; its buttons open the app now
         PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
         if (mPeek != null) {
@@ -1952,14 +1952,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }, 150);
     }
 
-    /** The lyric line being sung to the lock screen and media controls (music player, Customize setting on) */
-    private void lyricTick() {
-        if (mPlayer == null) {
-            return;
+    /**
+     * Runs all the time, also in the background and with the screen locked (the on-screen ticker stops then): the
+     * widget follows what's playing, and the lock screen's lyrics change right when the words do (it comes back exactly
+     * then, not on a fixed beat)
+     */
+    private final Runnable mBackgroundTicker = new Runnable() {
+        @Override
+        public void run() {
+            if (isDestroyed()) {
+                return;
+            }
+            syncWidget();
+            long next = 1_000;
+            if (mPlayer != null) {
+                PhoneMusicPlayer.Lyric lyric = mMusicMode && mMusicPlayer != null && PhoneTweaks.lockScreenLyrics(PhonePlaybackActivity.this)
+                        ? mMusicPlayer.lyricNow() : null;
+                mPlayer.setLyricLine(lyric != null ? lyric.text : null);
+                if (lyric != null && mPlayer.getPlayWhenReady()) {
+                    next = lyric.waitMs;
+                }
+            }
+            mHandler.postDelayed(this, next);
         }
-        String line = mMusicMode && mMusicPlayer != null && PhoneTweaks.lockScreenLyrics(this) ? mMusicPlayer.lyricNow() : null;
-        mPlayer.setLyricLine(line);
-    }
+    };
 
     /** Ambient mode: the video's colours glowing around it (portrait, dark appearance) */
     private PhoneAmbient mAmbient;
