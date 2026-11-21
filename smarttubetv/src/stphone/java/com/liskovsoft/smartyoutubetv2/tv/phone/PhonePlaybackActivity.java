@@ -128,6 +128,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             syncPlaybackService();
             syncWidget();
             ambientTick();
+            lyricTick();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
@@ -1949,6 +1950,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 PhonePip.onMenuPipEntered(screenUnderPlayer);
             }
         }, 150);
+    }
+
+    /** The lyric line being sung to the lock screen and media controls (music player, Customize setting on) */
+    private void lyricTick() {
+        if (mPlayer == null) {
+            return;
+        }
+        String line = mMusicMode && mMusicPlayer != null && PhoneTweaks.lockScreenLyrics(this) ? mMusicPlayer.lyricNow() : null;
+        mPlayer.setLyricLine(line);
     }
 
     /** Ambient mode: the video's colours glowing around it (portrait, dark appearance) */

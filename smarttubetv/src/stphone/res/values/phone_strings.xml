@@ -241,6 +241,8 @@
     <string name="phone_tweak_glow_subtle">Subtle</string>
     <string name="phone_tweak_glow_balanced">Balanced</string>
     <string name="phone_tweak_glow_vivid">Vivid</string>
+    <string name="phone_tweak_lock_lyrics">Lyrics on the lock screen</string>
+    <string name="phone_tweak_lock_lyrics_summary">In the music player, the line being sung shows on the lock screen and in the media controls, under the song\'s name</string>
     <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
     <string name="phone_music_flow_close">Close Cover Flow</string>
 </resources>

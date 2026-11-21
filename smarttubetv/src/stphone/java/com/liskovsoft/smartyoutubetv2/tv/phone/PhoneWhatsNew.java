@@ -24,7 +24,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  */
 final class PhoneWhatsNew {
     /** The newest release below: raise it with each new one */
-    static final int VERSION = 9;
+    static final int VERSION = 10;
 
     private static final String PREFS = "phone_whats_new";
     private static final String KEY_READ = "read";
@@ -57,7 +57,10 @@ final class PhoneWhatsNew {
     }
 
     static final Release[] RELEASES = {
-            new Release(9, "This update",
+            new Release(10, "This update",
+                    new Feature(R.drawable.ic_phone_cc, "Lyrics on the lock screen",
+                            "In the music player, the line being sung shows on the lock screen and in the media controls, under the song's name. You can turn it off in Settings > Customize.")),
+            new Release(9, "Ambient mode and more",
                     new Feature(R.drawable.ic_phone_brightness, "Ambient mode",
                             "In the dark appearance, a soft glow of the video's own colours surrounds the player and changes with the picture, like the YouTube app."),
                     new Feature(R.drawable.ic_phone_music_note, "A home screen widget",

@@ -241,6 +241,8 @@
     <string name="phone_tweak_glow_subtle">Suave</string>
     <string name="phone_tweak_glow_balanced">Equilibrado</string>
     <string name="phone_tweak_glow_vivid">Vívido</string>
+    <string name="phone_tweak_lock_lyrics">Letra na tela de bloqueio</string>
+    <string name="phone_tweak_lock_lyrics_summary">No player de música, a linha cantada aparece na tela de bloqueio e nos controles de mídia, sob o nome da música</string>
     <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
     <string name="phone_music_flow_close">Fechar Cover Flow</string>
 </resources>

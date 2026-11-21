@@ -168,6 +168,21 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         }
     }
 
+    /** The lyric line being sung (music, with lyrics in time): on the lock screen and the media controls */
+    private String mLyricLine;
+
+    /** A new lyric line (or none): the lock screen and the media controls show it under the song's name */
+    public void setLyricLine(String line) {
+        if (android.text.TextUtils.equals(line, mLyricLine)) {
+            return;
+        }
+        mLyricLine = line;
+        com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector connector = connector();
+        if (connector != null && connector == mInfoConnector) {
+            connector.invalidateMediaSessionMetadata();
+        }
+    }
+
     private android.support.v4.media.MediaMetadataCompat carInfo(com.google.android.exoplayer2.Player player) {
         Video video = getVideo();
         if (video == null) {
@@ -195,6 +210,12 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         if (android.text.TextUtils.isEmpty(artist)) {
             artist = app;
         }
+        // The lyric being sung in the second line (the singer moves to where the album goes)
+        String album = app;
+        if (!android.text.TextUtils.isEmpty(mLyricLine)) {
+            album = artist;
+            artist = "\u266A " + mLyricLine;
+        }
         android.support.v4.media.MediaMetadataCompat.Builder info = new android.support.v4.media.MediaMetadataCompat.Builder()
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, video.videoId)
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
@@ -202,7 +223,7 @@ public class PhonePlaybackFragment extends PlaybackFragment {
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artist)
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, artist)
-                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, app)
+                .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, album)
                 .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
                         "https://i.ytimg.com/vi/" + video.videoId + "/hqdefault.jpg");
         long duration = player != null ? player.getDuration() : 0;

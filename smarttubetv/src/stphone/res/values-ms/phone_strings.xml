@@ -234,6 +234,8 @@
     <string name="phone_tweak_glow_subtle">Lembut</string>
     <string name="phone_tweak_glow_balanced">Seimbang</string>
     <string name="phone_tweak_glow_vivid">Terang</string>
+    <string name="phone_tweak_lock_lyrics">Lirik pada skrin kunci</string>
+    <string name="phone_tweak_lock_lyrics_summary">Dalam pemain muzik, baris yang dinyanyikan dipaparkan pada skrin kunci dan kawalan media, di bawah nama lagu</string>
     <string name="phone_music_flow_hint">Leret lagu anda, ketik satu untuk memainkannya</string>
     <string name="phone_music_flow_close">Tutup Cover Flow</string>
 </resources>

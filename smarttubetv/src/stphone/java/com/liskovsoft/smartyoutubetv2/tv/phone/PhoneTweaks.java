@@ -12,6 +12,7 @@ final class PhoneTweaks {
     private static final String KEY_YOU_ON_TOP = "you_on_top";
     private static final String KEY_TAB_STYLE = "tab_style";
     private static final String KEY_AMBIENT = "ambient";
+    private static final String KEY_LOCK_LYRICS = "lock_screen_lyrics";
     private static final String KEY_AMBIENT_GLOW = "ambient_glow";
     static final int GLOW_SUBTLE = 0;
     static final int GLOW_BALANCED = 1;
@@ -39,6 +40,15 @@ final class PhoneTweaks {
 
     static void setTabStyle(Context context, int style) {
         prefs(context).edit().putInt(KEY_TAB_STYLE, style).apply();
+    }
+
+    /** The lyric line being sung on the lock screen and in the media controls (music player) */
+    static boolean lockScreenLyrics(Context context) {
+        return prefs(context).getBoolean(KEY_LOCK_LYRICS, true);
+    }
+
+    static void setLockScreenLyrics(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_LOCK_LYRICS, on).apply();
     }
 
     /** Ambient mode: the video's colours glowing around the player (dark appearance) */

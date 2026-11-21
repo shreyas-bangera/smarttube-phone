@@ -1060,6 +1060,28 @@ final class PhoneMusicPlayer {
 
     // region Lyrics
 
+    /**
+     * The lyric line being sung now, for the lock screen and the media controls: only for the song on screen, only
+     * when the lyrics are in time with it (null otherwise, and in the instrumental bits)
+     */
+    String lyricNow() {
+        Video video = mHost.video();
+        if (mLyrics == null || mLyrics.isEmpty() || video == null || video.videoId == null
+                || !video.videoId.equals(mVideoId) || !timed()) {
+            return null;
+        }
+        SimpleExoPlayer exo = mHost.exo();
+        if (exo == null) {
+            return null;
+        }
+        int index = mLyrics.indexAt(exo.getCurrentPosition() - offset());
+        if (index < 0 || index >= mLyrics.lines.size()) {
+            return null;
+        }
+        String line = mLyrics.lines.get(index).text;
+        return TextUtils.isEmpty(line) ? null : line.trim();
+    }
+
     private void updateLyrics(boolean force) {
         if (mLyrics == null || mLyrics.isEmpty()) {
             mLyricChip.setVisibility(View.GONE);
