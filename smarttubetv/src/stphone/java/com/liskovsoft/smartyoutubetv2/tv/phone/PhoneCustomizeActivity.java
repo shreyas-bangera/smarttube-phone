@@ -75,6 +75,8 @@ public class PhoneCustomizeActivity extends PhoneActivity {
         }
 
         header(R.string.phone_customize_player);
+        row(PhoneSetting.dropDown(getString(R.string.phone_feed_playback), getString(PhoneTweaks.feedPlaybackNameRes(PhoneTweaks.feedPlayback(this))),
+                R.drawable.ic_phone_play, this::pickFeedPlayback).summary(getString(R.string.phone_feed_playback_summary)));
         row(PhoneSetting.toggle(getString(R.string.phone_tweak_prev_next), PhoneTweaks.prevNextButtons(this), R.drawable.ic_phone_next, () -> {
             PhoneTweaks.setPrevNextButtons(this, !PhoneTweaks.prevNextButtons(this));
             build();
@@ -92,6 +94,25 @@ public class PhoneCustomizeActivity extends PhoneActivity {
             row(PhoneSetting.dropDown(getString(R.string.phone_tweak_glow), getString(PhoneTweaks.glowNameRes(PhoneTweaks.ambientGlow(this))),
                     R.drawable.ic_phone_brightness, this::pickGlow).summary(getString(R.string.phone_tweak_glow_summary)));
         }
+    }
+
+    private void pickFeedPlayback(View anchor) {
+        int current = PhoneTweaks.feedPlayback(this);
+        int[] modes = {PhoneTweaks.FEED_ALWAYS, PhoneTweaks.FEED_WIFI, PhoneTweaks.FEED_OFF};
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, anchor, Gravity.END);
+        for (int i = 0; i < modes.length; i++) {
+            menu.getMenu().add(0, i, i, PhoneTweaks.feedPlaybackNameRes(modes[i])).setCheckable(true).setChecked(modes[i] == current);
+        }
+        menu.getMenu().setGroupCheckable(0, true, true);
+        menu.setOnMenuItemClickListener(item -> {
+            int mode = modes[item.getItemId()];
+            if (mode != current) {
+                PhoneTweaks.setFeedPlayback(this, mode); // Home picks it up when it comes back to the front
+                build();
+            }
+            return true;
+        });
+        menu.show();
     }
 
     private void pickGlow(View anchor) {

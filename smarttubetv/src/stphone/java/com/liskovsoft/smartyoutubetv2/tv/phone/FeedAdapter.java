@@ -686,6 +686,15 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    /** The video at this position if it's a big video card (one that can play in its thumbnail in the feed), else null */
+    public Video previewVideoAt(int position) {
+        if (position < 0 || position >= mItems.size() || getItemViewType(position) != VT_VIDEO) {
+            return null;
+        }
+        Object item = mItems.get(position);
+        return item instanceof Video ? (Video) item : null;
+    }
+
     /** Payload: only the watch progress bars changed (a video was just watched) */
     private static final Object PROGRESS = new Object();
 

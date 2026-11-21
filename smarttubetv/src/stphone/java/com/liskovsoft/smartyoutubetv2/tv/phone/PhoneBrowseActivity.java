@@ -97,6 +97,18 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         applyInsets(findViewById(R.id.phone_root), findViewById(R.id.phone_top_bar), mBottomBar);
         setupList(this);
+        mFeedPreview = new PhoneFeedPreview(this, mList, new PhoneFeedPreview.Host() {
+            @Override
+            public boolean previewsWanted() {
+                // Home and Subscriptions (not the You page, Music, the topic chips or Settings)
+                return !mYouDashboard && (isSection(MediaGroup.TYPE_HOME) || isSection(MediaGroup.TYPE_SUBSCRIPTIONS));
+            }
+
+            @Override
+            public Video previewVideoAt(int position) {
+                return mAdapter != null ? mAdapter.previewVideoAt(position) : null;
+            }
+        });
         setupPullToRefresh();
         setupBars();
         setupTopBar();
@@ -183,6 +195,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (!mIsFirstResume) {
             mPresenter.onViewResumed();
         }
+        if (mFeedPreview != null) {
+            mFeedPreview.onResume();
+        }
         if (mTabStyle != PhoneTweaks.tabStyle(this)) {
             applyTabStyle(); // changed in Customize
         }
@@ -256,9 +271,22 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         }
     }
 
+    /** Playback in feeds: the card most in view plays in its thumbnail (Home and Subscriptions) */
+    private PhoneFeedPreview mFeedPreview;
+
+    @Override
+    protected void onFeedContentChanged() {
+        if (mFeedPreview != null) {
+            mFeedPreview.onFeedChanged();
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
+        if (mFeedPreview != null) {
+            mFeedPreview.onPause(); // the player, another page, the home screen, screen off: no preview
+        }
         if (mCurrentTab == TAB_YOU && mYouDashboard) {
             mBackToYou = true;
         }
@@ -1021,6 +1049,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         clearSubscriptionsChannel();
         mYouDashboard = true;
         showTopBar();
+        if (mFeedPreview != null) {
+            mFeedPreview.stopNow();
+        }
         mCurrentTab = TAB_YOU;
         mCurrentSection = null;
         mLoadedSection = null;
@@ -1149,6 +1180,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
     private void focusSection(BrowseSection section) {
         clearSubscriptionsChannel();
         mYouDashboard = false;
+        if (mFeedPreview != null && (mCurrentSection == null || mCurrentSection.getId() != section.getId())) {
+            mFeedPreview.stopNow(); // another section: the preview stops before its card goes
+        }
         mCurrentSection = section;
         showTopBar();
         mCurrentTab = tabOf(section);
@@ -1725,6 +1759,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (isSection(MediaGroup.TYPE_MUSIC) && video != null) {
             // From the Music page: songs play in the music player, playlists open as music playlists
             PhoneMusic.markMusic(PhoneMusicFeed.isPlaylist(video) ? video.getTitle() : getString(R.string.phone_music_title));
+        }
+        if (mFeedPreview != null) {
+            mFeedPreview.onVideoOpened(video); // the player carries on from where the preview was
         }
         PhoneUi.prepareExpandLaunch(video);
         mPresenter.onVideoItemSelected(video);

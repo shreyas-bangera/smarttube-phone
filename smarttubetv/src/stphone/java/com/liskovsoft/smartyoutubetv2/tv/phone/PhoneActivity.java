@@ -347,10 +347,15 @@ public abstract class PhoneActivity extends MotherActivity {
         }
     }
 
+    /** The cards changed (more loaded, a refresh, another section): for screens that follow them */
+    protected void onFeedContentChanged() {
+    }
+
     private void onFeedChanged() {
         if (mAdapter == null) {
             return;
         }
+        onFeedContentChanged();
         // Loading started before the old cards were cleared (a refresh): switch the thin line to placeholders
         if (mAdapter.isEmpty() && mProgressBar != null && mProgressBar.getVisibility() == View.VISIBLE && wantsSkeleton()) {
             showSkeleton();

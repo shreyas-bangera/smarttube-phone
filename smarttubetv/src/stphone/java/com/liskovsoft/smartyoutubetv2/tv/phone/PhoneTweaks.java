@@ -13,6 +13,10 @@ final class PhoneTweaks {
     private static final String KEY_TAB_STYLE = "tab_style";
     private static final String KEY_AMBIENT = "ambient";
     private static final String KEY_LOCK_LYRICS = "lock_screen_lyrics";
+    private static final String KEY_FEED_PLAYBACK = "feed_playback";
+    static final int FEED_ALWAYS = 0;
+    static final int FEED_WIFI = 1;
+    static final int FEED_OFF = 2;
     private static final String KEY_AMBIENT_GLOW = "ambient_glow";
     static final int GLOW_SUBTLE = 0;
     static final int GLOW_BALANCED = 1;
@@ -40,6 +44,21 @@ final class PhoneTweaks {
 
     static void setTabStyle(Context context, int style) {
         prefs(context).edit().putInt(KEY_TAB_STYLE, style).apply();
+    }
+
+    /** Playback in feeds: videos play in their thumbnails on Home and Subscriptions (Always, Wi-Fi only or Off) */
+    static int feedPlayback(Context context) {
+        return prefs(context).getInt(KEY_FEED_PLAYBACK, FEED_WIFI);
+    }
+
+    static void setFeedPlayback(Context context, int mode) {
+        prefs(context).edit().putInt(KEY_FEED_PLAYBACK, mode).apply();
+    }
+
+    static int feedPlaybackNameRes(int mode) {
+        return mode == FEED_ALWAYS ? com.liskovsoft.smartyoutubetv2.tv.R.string.phone_feed_always
+                : mode == FEED_OFF ? com.liskovsoft.smartyoutubetv2.tv.R.string.phone_feed_off
+                : com.liskovsoft.smartyoutubetv2.tv.R.string.phone_feed_wifi;
     }
 
     /** The lyric line being sung on the lock screen and in the media controls (music player) */

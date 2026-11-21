@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# README screenshots of the music player (run 7): the Music page, the player with its living background, lyrics,
-# Up next, Cover Flow (portrait and landscape), a few songs' scenes and the music bar. Each is a screenshot in the
-# log (base64 JPEG between ==IMG name== and ==END==, also kept in ./screens). The player never stops moving, so
-# after it opens the taps go to fixed places (no waiting for the screen to settle) and every step has a time limit.
+# Emulator test of playback in feeds (run 1): Home with the video in view playing in its thumbnail, after scrolling
+# down and back up, Subscriptions, a preview opened in the player, and back from the home screen. Screenshots in the
+# log (base64 JPEG between ==IMG name== and ==END==), and the preview's own log lines (PhoneFeedPreview).
 set -x
 PKG=org.smarttube.phone
 SPLASH=com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity
@@ -37,75 +36,48 @@ portrait() { adb shell settings put system accelerometer_rotation 0; adb shell s
 landscape() { adb shell settings put system accelerometer_rotation 0; adb shell settings put system user_rotation 1; }
 
 portrait
+adb logcat -c
 adb shell am start -n "$PKG/$SPLASH"
 sleep 45
 adb shell input keyevent KEYCODE_BACK   # a What's new card, if any
 sleep 2
 adb shell am start -n "$PKG/$SPLASH"
+sleep 4
+# Feed previews on (the emulator's network may not count as Wi-Fi): Settings > Customize > Playback in feeds > Always
+adb shell "run-as $PKG sh -c 'mkdir -p shared_prefs; echo \"<?xml version=\\\"1.0\\\" encoding=\\\"utf-8\\\" standalone=\\\"yes\\\" ?><map><int name=\\\"feed_playback\\\" value=\\\"0\\\" /></map>\" > shared_prefs/phone_tweaks.xml'" || true
+adb shell am force-stop $PKG
+adb shell am start -n "$PKG/$SPLASH"
+sleep 30
+shot f1_home
 sleep 6
-
-# The Music page
-tap 'text="Music"'
-sleep 12
-shot 14_music
-
-# A song from a music search
-tap 'content-desc="Search YouTube"'
-sleep 4
-tap 'content-desc="Music search"'
-sleep 1
-adb shell input text "perfect%sed%ssheeran"
-adb shell input keyevent 66
-sleep 15
-adb shell input tap 540 700
-sleep 40
-adb shell input tap 540 1864   # play (the emulator may start it paused)
-sleep 8
-shot 15_music_player
-
-# Lyrics: tap the line being sung
-adb shell input tap 300 1400
-sleep 4
-shot 16_music_lyrics
-adb shell input keyevent KEYCODE_BACK
-sleep 3
-
-# Up next
-adb shell input tap 540 2045
-sleep 3
-shot 28_up_next
-adb shell input keyevent KEYCODE_BACK
-sleep 3
-
-# Cover Flow in portrait: a long press on the artwork
-adb shell input swipe 540 750 540 750 1300
-sleep 3
-adb shell input swipe 760 1100 420 1100 300
-sleep 3
-shot 29_cover_flow
-adb shell input keyevent KEYCODE_BACK
-sleep 3
-
-# Cover Flow in landscape: the player itself
-landscape
-sleep 8
-shot 30_cover_flow_landscape
-adb shell input swipe 1500 480 1150 480 300
-sleep 3
-shot 31_cover_flow_landscape_swiped
-portrait
-sleep 8
-
-# Other songs, other scenes behind them: Next
-for n in 1 2 3; do
-  adb shell input tap 750 1864
-  sleep 25
-  shot 3$((n+1))_scene_$n
-done
-
-# The music bar: the arrow at the top left
-adb shell input tap 100 210
+shot f2_home_playing
+# Down a few cards (slow), the next one takes over
+adb shell input swipe 540 1700 540 1000 600
 sleep 5
-shot 17_music_bar
+shot f3_scrolled
+# Fast scrolling both ways
+adb shell input swipe 540 1900 540 400 150
+adb shell input swipe 540 1900 540 400 150
+sleep 1
+adb shell input swipe 540 500 540 1900 150
+sleep 5
+shot f4_fast_back
+# Subscriptions, then Home again
+tap 'text="Subscriptions"' || tap 'content-desc="Subscriptions"'
+sleep 6
+shot f5_subscriptions
+tap 'text="Home"' || tap 'content-desc="Home"'
+sleep 8
+shot f6_home_again
+# Home screen and back
+adb shell input keyevent KEYCODE_HOME
+sleep 4
+adb shell am start -n "$PKG/$SPLASH"
+sleep 8
+shot f7_back_from_home
+# Open the preview playing (tap its card's picture)
+adb shell input tap 540 600
+sleep 12
+shot f8_opened
 
-timeout 20 adb logcat -d | grep -E "AndroidRuntime|FATAL" | tail -30
+timeout 20 adb logcat -d | grep -E "PhoneFeedPreview|AndroidRuntime|FATAL" | tail -60
