@@ -183,6 +183,45 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         }
     }
 
+    private android.graphics.Bitmap mLyricsArt;
+    private android.graphics.Bitmap mLyricsArtFrom;
+
+    /**
+     * The artwork with a lyrics badge: a round glow of the artwork's own colour in the bottom right corner, a dark disc
+     * in it and a white note (made once per song)
+     */
+    private android.graphics.Bitmap lyricsArt(android.graphics.Bitmap art) {
+        if (art == mLyricsArtFrom && mLyricsArt != null) {
+            return mLyricsArt;
+        }
+        int w = art.getWidth();
+        int h = art.getHeight();
+        android.graphics.Bitmap badged = art.copy(android.graphics.Bitmap.Config.ARGB_8888, true);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(badged);
+        int[] palette = PhoneMusicFx.palette(android.graphics.Bitmap.createScaledBitmap(art, 48, 27, true));
+        float size = Math.min(w, h) * 0.34f;
+        // In the square middle of the picture (where the lock screen crops it), bottom right
+        float cx = (w + Math.min(w, h)) / 2f - size * 0.62f;
+        float cy = (h + Math.min(w, h)) / 2f - size * 0.62f;
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        int glow = palette[0] & 0x00FFFFFF;
+        paint.setShader(new android.graphics.RadialGradient(cx, cy, size, new int[] {glow | 0xE6000000, glow | 0x66000000, glow},
+                new float[] {0f, 0.55f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+        canvas.drawCircle(cx, cy, size, paint);
+        paint.setShader(null);
+        paint.setColor(0xD9000000 | (PhoneMusicPlayer.darken(palette[0], 0.7f) & 0x00FFFFFF));
+        canvas.drawCircle(cx, cy, size * 0.42f, paint);
+        paint.setColor(android.graphics.Color.WHITE);
+        paint.setTextAlign(android.graphics.Paint.Align.CENTER);
+        paint.setTextSize(size * 0.5f);
+        paint.setFakeBoldText(true);
+        android.graphics.Paint.FontMetrics m = paint.getFontMetrics();
+        canvas.drawText("\u266A", cx, cy - (m.ascent + m.descent) / 2f, paint);
+        mLyricsArtFrom = art;
+        mLyricsArt = badged;
+        return badged;
+    }
+
     private android.support.v4.media.MediaMetadataCompat carInfo(com.google.android.exoplayer2.Player player) {
         Video video = getVideo();
         if (video == null) {
@@ -215,7 +254,7 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         String album = app;
         if (!android.text.TextUtils.isEmpty(mLyricLine)) {
             album = artist;
-            artist = title + " \u00B7 " + artist;
+            artist = getString(com.liskovsoft.smartyoutubetv2.tv.R.string.phone_music_lyrics) + " \u00B7 " + title + " \u00B7 " + artist;
             title = mLyricLine;
         }
         android.support.v4.media.MediaMetadataCompat.Builder info = new android.support.v4.media.MediaMetadataCompat.Builder()
@@ -233,8 +272,10 @@ public class PhonePlaybackFragment extends PlaybackFragment {
             info.putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, duration);
         }
         if (mArt != null && video.videoId != null && video.videoId.equals(mArtVideoId)) {
-            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, mArt);
-            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, mArt);
+            // Lyrics showing: the artwork with a glowing note in its corner, so the line reads as lyrics
+            android.graphics.Bitmap art = !android.text.TextUtils.isEmpty(mLyricLine) ? lyricsArt(mArt) : mArt;
+            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art);
+            info.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, art);
         }
         return info.build();
     }
@@ -251,8 +292,12 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         mArt = null;
         com.bumptech.glide.Glide.with(context.getApplicationContext())
                 .asBitmap()
-                .load("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg")
-                .override(320, 240)
+                // The 16:9 picture (no black bars), cut square like a song's cover
+                .load("https://i.ytimg.com/vi/" + id + "/hq720.jpg")
+                .error(com.bumptech.glide.Glide.with(context.getApplicationContext()).asBitmap()
+                        .load("https://i.ytimg.com/vi/" + id + "/mqdefault.jpg").centerCrop().override(320, 320))
+                .centerCrop()
+                .override(400, 400)
                 .into(new com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
                     @Override
                     public void onResourceReady(@androidx.annotation.NonNull android.graphics.Bitmap bitmap,
