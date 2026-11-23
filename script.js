@@ -65,9 +65,50 @@
   const prev = document.getElementById("shotPrev");
   const next = document.getElementById("shotNext");
   if (shots && prev && next) {
+    /* An endless, gently moving gallery: the screenshots twice in a row, and on reaching the second set it steps
+       back by one set (no visible jump). It pauses while hovered, touched or focused, and when off screen. */
+    const originals = Array.from(shots.children);
+    originals.forEach((node) => {
+      const copy = node.cloneNode(true);
+      copy.setAttribute("aria-hidden", "true");
+      shots.appendChild(copy);
+    });
+    shots.style.scrollSnapType = "none";
+    const half = () => shots.scrollWidth / 2;
+    const wrap = () => {
+      if (shots.scrollLeft >= half()) shots.scrollLeft -= half();
+      else if (shots.scrollLeft <= 0) shots.scrollLeft += half();
+    };
+    let pos = 0;
+    let paused = false;
+    let resumeAt = 0;
+    let onScreen = false;
+    let last = 0;
+    const SPEED = 0.04; // px per ms: a slow drift
+    const hold = (ms) => { resumeAt = performance.now() + ms; };
+    const frame = (t) => {
+      const dt = last ? Math.min(48, t - last) : 0;
+      last = t;
+      if (!reduceMotion && onScreen && !paused && t >= resumeAt) {
+        pos += SPEED * dt;
+        if (pos >= half()) pos -= half();
+        shots.scrollLeft = Math.round(pos);
+      } else {
+        pos = shots.scrollLeft; // carry on from wherever it was moved to
+      }
+      requestAnimationFrame(frame);
+    };
+    new IntersectionObserver((entries) => { onScreen = entries[0].isIntersecting; }, { threshold: 0.1 }).observe(shots);
+    shots.addEventListener("pointerenter", () => { paused = true; });
+    shots.addEventListener("pointerleave", () => { paused = false; hold(400); });
+    shots.addEventListener("touchstart", () => hold(3000), { passive: true });
+    shots.addEventListener("focusin", () => { paused = true; });
+    shots.addEventListener("focusout", () => { paused = false; });
+    shots.addEventListener("scroll", wrap, { passive: true });
     const step = () => Math.min(shots.clientWidth * 0.8, 560);
-    prev.addEventListener("click", () => shots.scrollBy({ left: -step(), behavior: "smooth" }));
-    next.addEventListener("click", () => shots.scrollBy({ left: step(), behavior: "smooth" }));
+    prev.addEventListener("click", () => { hold(2500); wrap(); shots.scrollBy({ left: -step(), behavior: "smooth" }); });
+    next.addEventListener("click", () => { hold(2500); wrap(); shots.scrollBy({ left: step(), behavior: "smooth" }); });
+    requestAnimationFrame(frame);
   }
 
   /* ---------- hero phone tilt (desktop, motion allowed) ---------- */

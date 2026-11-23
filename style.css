@@ -601,6 +601,9 @@ section[id] { scroll-margin-top: 84px; }
   padding: 30px 8px 26px;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  /* The ends fade softly instead of cutting a phone in half */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
 }
 .shots::-webkit-scrollbar { display: none; }
 
