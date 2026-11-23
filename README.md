@@ -16,6 +16,8 @@
   &nbsp;·&nbsp;
   <a href="https://github.com/shreyas-bangera/smarttube-phone/releases">All releases</a>
   &nbsp;·&nbsp;
+  <a href="https://shreyas-bangera.github.io/smarttube-phone/"><b>Website</b></a>
+  &nbsp;·&nbsp;
   <a href="#install">How to install</a>
 </p>
 
