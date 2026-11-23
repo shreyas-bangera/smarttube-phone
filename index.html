@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
 
@@ -75,23 +75,23 @@
 
     <div class="container hero-inner">
       <div class="hero-copy">
-        <span class="badge reveal">
+        <span class="badge">
           <img class="badge-ic" src="assets/mark.png" alt="" width="320" height="245" />
           A port of SmartTube, built for Android phones
         </span>
 
-        <h1 class="reveal" style="--d:.08s">
-          YouTube, <span class="grad">without&nbsp;the&nbsp;ads</span><br />
+        <h1>
+          YouTube, <span class="grad">without the ads</span><br />
           on your phone.
         </h1>
 
-        <p class="lead reveal" style="--d:.16s">
+        <p class="lead">
           StreamTube keeps SmartTube's engine and swaps the TV remote for touch:
           a portrait player, an in-app mini player, swipeable Shorts, comments you
           can write, downloads, background play and SponsorBlock, all in about 29&nbsp;MB.
         </p>
 
-        <div class="hero-cta reveal" style="--d:.24s">
+        <div class="hero-cta">
           <a class="btn btn-red btn-lg" href="https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-arm64.apk">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
             Download latest APK
@@ -102,7 +102,7 @@
           </a>
         </div>
 
-        <ul class="hero-meta reveal" style="--d:.32s">
+        <ul class="hero-meta">
           <li><b>~29&nbsp;MB</b><span>download</span></li>
           <li><b>Android&nbsp;8.0+</b></li>
           <li><b>Up to 8K</b><span>· 60&nbsp;fps · HDR</span></li>
@@ -110,11 +110,11 @@
         </ul>
       </div>
 
-      <div class="hero-visual reveal" style="--d:.2s" id="heroVisual">
+      <div class="hero-visual" id="heroVisual">
         <div class="phone-tilt" id="phoneTilt">
           <div class="phone phone-float">
             <span class="phone-notch" aria-hidden="true"></span>
-            <img src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/01_home.jpg" alt="StreamTube Home feed on a phone" width="1080" height="2400" fetchpriority="high" />
+            <img src="assets/screenshots/01_home.webp" srcset="assets/screenshots/01_home-320.webp 320w, assets/screenshots/01_home.webp 540w" sizes="(max-width: 419px) calc(68vw - 20px), 265px" alt="StreamTube Home feed on a phone" width="540" height="1200" decoding="async" fetchpriority="high" />
           </div>
           <div class="float-chip chip-a"><span class="chip-ic">🚫</span><div><b>No ads</b><small>and no tracking</small></div></div>
           <div class="float-chip chip-b"><span class="chip-ic">▶</span><div><b>Background play</b><small>with lock-screen controls</small></div></div>
@@ -268,22 +268,22 @@
         </ul>
 
         <div class="music-phones reveal" style="--d:.1s">
-          <div class="phone mp-side mp-left"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/16_music_lyrics.jpg" alt="Lyrics in place of the artwork, the line being sung lit up" width="720" height="1511"></div>
-          <div class="phone mp-side mp-right"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/29_cover_flow.jpg" alt="Cover Flow over the player" width="720" height="1511"></div>
-          <div class="phone mp-center phone-float"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/15_music_player.jpg" alt="The music player with its living background and glowing controls" width="720" height="1511"></div>
+          <div class="phone mp-side mp-left"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/16_music_lyrics.webp" srcset="assets/screenshots/16_music_lyrics-320.webp 320w, assets/screenshots/16_music_lyrics.webp 540w" sizes="auto, 270px" alt="Lyrics in place of the artwork, the line being sung lit up" width="540" height="1122" decoding="async"></div>
+          <div class="phone mp-side mp-right"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/29_cover_flow.webp" srcset="assets/screenshots/29_cover_flow-320.webp 320w, assets/screenshots/29_cover_flow.webp 540w" sizes="auto, 270px" alt="Cover Flow over the player" width="540" height="1134" decoding="async"></div>
+          <div class="phone mp-center phone-float"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/15_music_player.webp" srcset="assets/screenshots/15_music_player-320.webp 320w, assets/screenshots/15_music_player.webp 540w" sizes="auto, 270px" alt="The music player with its living background and glowing controls" width="540" height="1133" decoding="async"></div>
           <div class="float-chip mp-chip"><b>&#9835; Boy, you should know</b><small>lyrics in time</small></div>
         </div>
       </div>
 
       <figure class="landscape-wrap reveal">
-        <div class="landscape"><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/30_cover_flow_landscape.jpg" alt="Cover Flow in landscape: the covers in a row, the controls under them" width="1600" height="727"></div>
+        <div class="landscape"><img loading="lazy" src="assets/screenshots/30_cover_flow_landscape.webp" srcset="assets/screenshots/30_cover_flow_landscape-480.webp 480w, assets/screenshots/30_cover_flow_landscape.webp 960w" sizes="auto, (max-width: 1065px) 92vw, 980px" alt="Cover Flow in landscape: the covers in a row, the controls under them" width="960" height="436" decoding="async"></div>
         <figcaption><b>Turn it sideways.</b> Cover Flow becomes the player: covers in a row, the one playing in the middle, controls underneath.</figcaption>
       </figure>
 
       <div class="music-row reveal">
-        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/14_music.jpg" alt="The Music page" width="720" height="1511"></div><figcaption>The Music page: hits, mixes &amp; charts</figcaption></figure>
-        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/31_cover_flow_2.jpg" alt="Cover Flow with hearts drifting behind" width="720" height="1511"></div><figcaption>A scene for every song</figcaption></figure>
-        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/17_music_bar.jpg" alt="The music bar at the bottom of the app" width="720" height="1511"></div><figcaption>The music bar: keep browsing</figcaption></figure>
+        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/14_music.webp" srcset="assets/screenshots/14_music-320.webp 320w, assets/screenshots/14_music.webp 540w" sizes="auto, 270px" alt="The Music page" width="540" height="1200" decoding="async"></div><figcaption>The Music page: hits, mixes &amp; charts</figcaption></figure>
+        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/31_cover_flow_2.webp" srcset="assets/screenshots/31_cover_flow_2-320.webp 320w, assets/screenshots/31_cover_flow_2.webp 540w" sizes="auto, 270px" alt="Cover Flow with hearts drifting behind" width="540" height="1123" decoding="async"></div><figcaption>A scene for every song</figcaption></figure>
+        <figure class="shot"><div class="phone "><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/17_music_bar.webp" srcset="assets/screenshots/17_music_bar-320.webp 320w, assets/screenshots/17_music_bar.webp 540w" sizes="auto, 270px" alt="The music bar at the bottom of the app" width="540" height="1200" decoding="async"></div><figcaption>The music bar: keep browsing</figcaption></figure>
       </div>
     </div>
   </section>
@@ -303,18 +303,18 @@
         </button>
 
         <div class="shots" id="shots" tabindex="0" aria-label="Screenshot gallery, scrolls horizontally">
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/01_home.jpg" alt="Home feed with topic chips" width="1080" height="2400"></div><figcaption>Home: topic chips &amp; shelves</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/02_player.jpg" alt="Portrait video player" width="1080" height="2400"></div><figcaption>Player: portrait, tap for controls</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/03_comments.jpg" alt="Comments sheet" width="1080" height="2400"></div><figcaption>Comments: threads you can join</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/04_mini_player.jpg" alt="Mini player over Home" width="1080" height="2400"></div><figcaption>Mini player: keeps playing</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/05_shorts.jpg" alt="Shorts feed" width="1080" height="2400"></div><figcaption>Shorts: full-screen feed</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/06_search_suggestions.jpg" alt="Search suggestions" width="1080" height="2400"></div><figcaption>Search: live suggestions</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/07_search_results.jpg" alt="Search results" width="1080" height="2400"></div><figcaption>Results: videos, channels, playlists</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/08_you.jpg" alt="You tab" width="1080" height="2400"></div><figcaption>You: account, history &amp; playlists</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/09_settings.jpg" alt="Settings screen" width="1080" height="2400"></div><figcaption>Settings: tuned your way</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/10_sign_in.jpg" alt="Sign in screen with a device code" width="1080" height="2400"></div><figcaption>Sign in: TV-style code</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/11_home_light.jpg" alt="Home in light appearance" width="1080" height="2400"></div><figcaption>Light mode: the bright side</figcaption></figure>
-          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/13_channel.jpg" alt="Channel page" width="1080" height="2400"></div><figcaption>Channels: videos, shorts, live</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/01_home.webp" srcset="assets/screenshots/01_home-320.webp 320w, assets/screenshots/01_home.webp 540w" sizes="auto, 270px" alt="Home feed with topic chips" width="540" height="1200" decoding="async"></div><figcaption>Home: topic chips &amp; shelves</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/02_player.webp" srcset="assets/screenshots/02_player-320.webp 320w, assets/screenshots/02_player.webp 540w" sizes="auto, 270px" alt="Portrait video player" width="540" height="1200" decoding="async"></div><figcaption>Player: portrait, tap for controls</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/03_comments.webp" srcset="assets/screenshots/03_comments-320.webp 320w, assets/screenshots/03_comments.webp 540w" sizes="auto, 270px" alt="Comments sheet" width="540" height="1015" decoding="async"></div><figcaption>Comments: threads you can join</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/04_mini_player.webp" srcset="assets/screenshots/04_mini_player-320.webp 320w, assets/screenshots/04_mini_player.webp 540w" sizes="auto, 270px" alt="Mini player over Home" width="540" height="1200" decoding="async"></div><figcaption>Mini player: keeps playing</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/05_shorts.webp" srcset="assets/screenshots/05_shorts-320.webp 320w, assets/screenshots/05_shorts.webp 540w" sizes="auto, 270px" alt="Shorts feed" width="540" height="1200" decoding="async"></div><figcaption>Shorts: full-screen feed</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/06_search_suggestions.webp" srcset="assets/screenshots/06_search_suggestions-320.webp 320w, assets/screenshots/06_search_suggestions.webp 540w" sizes="auto, 270px" alt="Search suggestions" width="540" height="1200" decoding="async"></div><figcaption>Search: live suggestions</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/07_search_results.webp" srcset="assets/screenshots/07_search_results-320.webp 320w, assets/screenshots/07_search_results.webp 540w" sizes="auto, 270px" alt="Search results" width="540" height="1200" decoding="async"></div><figcaption>Results: videos, channels, playlists</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/08_you.webp" srcset="assets/screenshots/08_you-320.webp 320w, assets/screenshots/08_you.webp 540w" sizes="auto, 270px" alt="You tab" width="540" height="1200" decoding="async"></div><figcaption>You: account, history &amp; playlists</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/09_settings.webp" srcset="assets/screenshots/09_settings-320.webp 320w, assets/screenshots/09_settings.webp 540w" sizes="auto, 270px" alt="Settings screen" width="540" height="1200" decoding="async"></div><figcaption>Settings: tuned your way</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/10_sign_in.webp" srcset="assets/screenshots/10_sign_in-320.webp 320w, assets/screenshots/10_sign_in.webp 540w" sizes="auto, 270px" alt="Sign in screen with a device code" width="540" height="1200" decoding="async"></div><figcaption>Sign in: TV-style code</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/11_home_light.webp" srcset="assets/screenshots/11_home_light-320.webp 320w, assets/screenshots/11_home_light.webp 540w" sizes="auto, 270px" alt="Home in light appearance" width="540" height="1200" decoding="async"></div><figcaption>Light mode: the bright side</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/13_channel.webp" srcset="assets/screenshots/13_channel-320.webp 320w, assets/screenshots/13_channel.webp 540w" sizes="auto, 270px" alt="Channel page" width="540" height="1200" decoding="async"></div><figcaption>Channels: videos, shorts, live</figcaption></figure>
         </div>
 
         <button class="shot-btn shot-next" id="shotNext" aria-label="Scroll screenshots right">
@@ -343,7 +343,7 @@
             <li>Background play with media controls in the notification and on the lock screen.</li>
           </ul>
           <div class="panel-img">
-            <img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/04_mini_player.jpg" alt="Mini player floating over the Home feed" width="1080" height="2400" />
+            <img loading="lazy" src="assets/screenshots/04_mini_player.webp" srcset="assets/screenshots/04_mini_player-320.webp 320w, assets/screenshots/04_mini_player.webp 540w" sizes="auto, 270px" alt="Mini player floating over the Home feed" width="540" height="1200" decoding="async" />
           </div>
         </article>
 
@@ -392,7 +392,7 @@
           <a class="btn btn-ghost" href="https://github.com/shreyas-bangera/streamtube/blob/main/PRIVACY.md" target="_blank" rel="noopener">Read PRIVACY.md →</a>
         </div>
         <div class="signin-visual">
-          <div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/streamtube/main/images/phone/10_sign_in.jpg" alt="Sign-in screen showing the device code" width="1080" height="2400" /></div>
+          <div class="phone"><span class="phone-notch"></span><img loading="lazy" src="assets/screenshots/10_sign_in.webp" srcset="assets/screenshots/10_sign_in-320.webp 320w, assets/screenshots/10_sign_in.webp 540w" sizes="auto, 270px" alt="Sign-in screen showing the device code" width="540" height="1200" decoding="async" /></div>
         </div>
       </div>
     </div>

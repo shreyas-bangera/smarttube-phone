@@ -1076,7 +1076,7 @@ section[id] { scroll-margin-top: 84px; }
   .hero-inner { grid-template-columns: 1fr; gap: 60px; text-align: center; }
   .hero-copy { display: flex; flex-direction: column; align-items: center; }
   .lead { margin-inline: auto; }
-  .hero-visual { order: -1; }
+  .hero-cta { justify-content: center; }
   .chip-a { left: 2%; }
   .chip-b { right: 0; }
   .chip-c { left: 4%; }
@@ -1105,7 +1105,11 @@ section[id] { scroll-margin-top: 84px; }
   .card h3 { font-size: 0.94rem; }
   .card p { font-size: 0.82rem; }
   .section { padding: 80px 0; }
-  .hero { padding-top: 110px; }
+  .hero { padding-top: 98px; }
+  .hero-inner { gap: 40px; }
+  .hero h1 { font-size: clamp(2rem, 9vw, 2.5rem); margin: 16px 0 12px; }
+  .hero-copy .lead { font-size: 1rem; line-height: 1.5; }
+  .hero-copy .hero-cta { margin-top: 22px; }
   .float-chip { padding: 8px 11px; }
   .float-chip small { display: none; }
   .signin { padding: 30px 22px; }
