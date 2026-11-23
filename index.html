@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StreamTube — Ad-free YouTube for Android phones</title>
+  <meta name="description" content="StreamTube: ad-free YouTube for Android phones. A port of SmartTube with a touch UI, in-app mini player, Shorts, comments, downloads, background play and SponsorBlock." />
+  <meta property="og:title" content="StreamTube — Ad-free YouTube for Android phones" />
+  <meta property="og:description" content="A port of SmartTube to Android phones: touch UI, mini player, Shorts, comments, downloads, background play, SponsorBlock." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/01_home.jpg" />
+  <meta name="theme-color" content="#ff1f3d" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff1f3d'/%3E%3Cpath d='M26 20l18 12-18 12z' fill='%23fff'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- scroll progress -->
+  <div class="progress" id="progress"></div>
+
+  <!-- ================= NAV ================= -->
+  <header class="nav" id="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="StreamTube home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="22" height="22"><rect width="64" height="64" rx="16" fill="url(#lg)"/><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff1f3d"/><stop offset="1" stop-color="#ff7a59"/></linearGradient></defs><path d="M26 20l18 12-18 12z" fill="#fff"/></svg>
+        </span>
+        <span class="brand-name">Stream<b>Tube</b></span>
+      </a>
+
+      <nav class="nav-links" id="navLinks" aria-label="Main">
+        <a href="#features">Features</a>
+        <a href="#screens">Screenshots</a>
+        <a href="#touch">Touch &amp; gestures</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a class="btn btn-ghost btn-sm" href="https://github.com/shreyas-bangera/smarttube-phone" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <a class="btn btn-red btn-sm" href="#install">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+          <span>Get the app</span>
+        </a>
+        <button class="nav-burger" id="burger" aria-label="Open menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+    <div class="nav-mobile" id="navMobile">
+      <a href="#features">Features</a>
+      <a href="#screens">Screenshots</a>
+      <a href="#touch">Touch &amp; gestures</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </header>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero" id="top">
+    <div class="hero-bg" aria-hidden="true">
+      <span class="orb orb-a"></span>
+      <span class="orb orb-b"></span>
+      <span class="orb orb-c"></span>
+      <div class="hero-grid"></div>
+    </div>
+
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <span class="badge reveal">
+          <span class="badge-dot"></span>
+          A port of SmartTube, built for Android phones
+        </span>
+
+        <h1 class="reveal" style="--d:.08s">
+          YouTube, <span class="grad">without&nbsp;the&nbsp;ads</span><br />
+          on your phone.
+        </h1>
+
+        <p class="lead reveal" style="--d:.16s">
+          StreamTube keeps SmartTube's engine and swaps the TV remote for touch:
+          a portrait player, an in-app mini player, swipeable Shorts, comments you
+          can write, downloads, background play and SponsorBlock — all in about 29&nbsp;MB.
+        </p>
+
+        <div class="hero-cta reveal" style="--d:.24s">
+          <a class="btn btn-red btn-lg" href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+            Download latest APK
+          </a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/shreyas-bangera/smarttube-phone" target="_blank" rel="noopener">
+            <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            View source
+          </a>
+        </div>
+
+        <ul class="hero-meta reveal" style="--d:.32s">
+          <li><b>~29&nbsp;MB</b><span>download</span></li>
+          <li><b>Android&nbsp;8.0+</b></li>
+          <li><b>Up to 8K</b><span>· 60&nbsp;fps · HDR</span></li>
+          <li><b>MIT</b><span>open source</span></li>
+        </ul>
+      </div>
+
+      <div class="hero-visual reveal" style="--d:.2s" id="heroVisual">
+        <div class="phone-tilt" id="phoneTilt">
+          <div class="phone phone-float">
+            <span class="phone-notch" aria-hidden="true"></span>
+            <img src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/01_home.jpg" alt="StreamTube Home feed on a phone" width="1080" height="2400" fetchpriority="high" />
+          </div>
+          <div class="float-chip chip-a"><span class="chip-ic">🚫</span><div><b>No ads</b><small>and no tracking</small></div></div>
+          <div class="float-chip chip-b"><span class="chip-ic">▶</span><div><b>Background play</b><small>with lock-screen controls</small></div></div>
+          <div class="float-chip chip-c"><span class="chip-ic">⏭</span><div><b>SponsorBlock</b><small>skips sponsor segments</small></div></div>
+        </div>
+        <div class="hero-glow" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <a class="scroll-hint" href="#features" aria-label="Scroll to features">
+      <span></span>
+    </a>
+  </section>
+
+  <!-- ================= MARQUEE ================= -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>No ads</span><i>▶</i><span>SponsorBlock</span><i>▶</i><span>In-app mini player</span><i>▶</i><span>Background play</span><i>▶</i><span>Swipeable Shorts</span><i>▶</i><span>Comments</span><i>▶</i><span>Downloads</span><i>▶</i><span>8K · 60fps · HDR</span><i>▶</i><span>No Play services needed</span><i>▶</i><span>Built-in updates</span><i>▶</i><span>Open source · MIT</span><i>▶</i>
+      <span>No ads</span><i>▶</i><span>SponsorBlock</span><i>▶</i><span>In-app mini player</span><i>▶</i><span>Background play</span><i>▶</i><span>Swipeable Shorts</span><i>▶</i><span>Comments</span><i>▶</i><span>Downloads</span><i>▶</i><span>8K · 60fps · HDR</span><i>▶</i><span>No Play services needed</span><i>▶</i><span>Built-in updates</span><i>▶</i><span>Open source · MIT</span><i>▶</i>
+    </div>
+  </div>
+
+  <!-- ================= FEATURES ================= -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Features</span>
+        <h2>Everything you love.<br /><span class="grad">Nothing you don't.</span></h2>
+        <p>It looks and feels like the official app — with the ads removed and the good parts turned up.</p>
+      </div>
+
+      <div class="features-grid" data-stagger>
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z"/><path d="m9.3 11.6 2 2 3.6-3.6"/></svg></span>
+          <h3>No ads. No tracking.</h3>
+          <p>Videos start fast — 1080p by default on phones, and nothing extra is loaded before the first frame.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5.5 13.5 12 6 18.5v-13z"/><path d="M18 5.5v13"/></svg></span>
+          <h3>SponsorBlock built in</h3>
+          <p>Automatically skips sponsor segments, intros, outros and reminders to subscribe.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></span>
+          <h3>Portrait player</h3>
+          <p>Video on top, then title, channel, buttons, comments and recommendations. Rotate for full screen.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><rect x="12" y="11" width="7.5" height="6" rx="1.2" fill="currentColor" stroke="none"/></svg></span>
+          <h3>In-app mini player</h3>
+          <p>Swipe the video down and keep watching in a small draggable player while you browse.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a8 8 0 0 1 16 0"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg></span>
+          <h3>Background play</h3>
+          <p>Lock the screen or switch apps — sound keeps going, with controls on the lock screen.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg></span>
+          <h3>Swipeable Shorts</h3>
+          <p>A full-screen vertical feed. Swipe up for the next one, like, comment and share on the right.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H9.5L4 20V6.5z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span>
+          <h3>Real comments</h3>
+          <p>Total count, Top or Newest, reply threads — write and delete your own when signed in.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5V14"/><path d="m7.5 10 4.5 4.5L16.5 10"/><path d="M4.5 20h15"/></svg></span>
+          <h3>Downloads</h3>
+          <p>Save MP4 from 1080p down to 360p, or audio-only M4A, straight to <b>Download/StreamTube</b>.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.4L19.5 10l-5.6 1.9L12 17l-1.9-5.1L4.5 10l5.6-1.6L12 3z"/><path d="M19 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7.7-2z"/></svg></span>
+          <h3>Up to 8K · 60fps · HDR</h3>
+          <p>Every quality your phone can handle, plus speed, captions, zoom gestures and quick seeking.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/><path d="M13 7h5M21 7h-3M3 17h5M3 21h8" opacity=".55"/></svg></span>
+          <h3>No Play services needed</h3>
+          <p>Works on de-Googled devices and installs beside the official YouTube app without conflicts.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg></span>
+          <h3>Dark, Light or Auto</h3>
+          <p>Pure black for AMOLED screens, a clean light mode, or follow your system — it switches instantly.</p>
+        </article>
+
+        <article class="card reveal">
+          <span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.5 5.8"/><path d="M20 4.5V11h-6.5"/></svg></span>
+          <h3>Built-in updater</h3>
+          <p>See what's new and install fresh builds from inside the app. You stay signed in.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SCREENSHOTS ================= -->
+  <section class="section section-alt" id="screens">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Screenshots</span>
+        <h2>Looks like YouTube.<br /><span class="grad">Feels better.</span></h2>
+        <p>Swipe through the app — from the Home feed to Shorts, comments and the mini player.</p>
+      </div>
+
+      <div class="shots-wrap reveal">
+        <button class="shot-btn shot-prev" id="shotPrev" aria-label="Scroll screenshots left">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5-7 7 7 7"/></svg>
+        </button>
+
+        <div class="shots" id="shots" tabindex="0" aria-label="Screenshot gallery, scrolls horizontally">
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/01_home.jpg" alt="Home feed with topic chips" width="1080" height="2400"></div><figcaption>Home — topic chips &amp; shelves</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/02_player.jpg" alt="Portrait video player" width="1080" height="2400"></div><figcaption>Player — portrait, tap for controls</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/03_comments.jpg" alt="Comments sheet" width="1080" height="2400"></div><figcaption>Comments — threads you can join</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/04_mini_player.jpg" alt="Mini player over Home" width="1080" height="2400"></div><figcaption>Mini player — keeps playing</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/05_shorts.jpg" alt="Shorts feed" width="1080" height="2400"></div><figcaption>Shorts — full-screen feed</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/06_search_suggestions.jpg" alt="Search suggestions" width="1080" height="2400"></div><figcaption>Search — live suggestions</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/07_search_results.jpg" alt="Search results" width="1080" height="2400"></div><figcaption>Results — videos, channels, playlists</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/08_you.jpg" alt="You tab" width="1080" height="2400"></div><figcaption>You — account, history &amp; playlists</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/09_settings.jpg" alt="Settings screen" width="1080" height="2400"></div><figcaption>Settings — tuned your way</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/10_sign_in.jpg" alt="Sign in screen with a device code" width="1080" height="2400"></div><figcaption>Sign in — TV-style code</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/11_home_light.jpg" alt="Home in light appearance" width="1080" height="2400"></div><figcaption>Light mode — the bright side</figcaption></figure>
+          <figure class="shot"><div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/13_channel.jpg" alt="Channel page" width="1080" height="2400"></div><figcaption>Channels — videos, shorts, live</figcaption></figure>
+        </div>
+
+        <button class="shot-btn shot-next" id="shotNext" aria-label="Scroll screenshots right">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TOUCH & GESTURES ================= -->
+  <section class="section" id="touch">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Built for thumbs</span>
+        <h2>Touch first.<br /><span class="grad">Remote never.</span></h2>
+        <p>SmartTube's engine underneath, a gesture-driven phone UI on top.</p>
+      </div>
+
+      <div class="touch-grid">
+        <article class="panel reveal">
+          <h3><span class="panel-ic">📱</span> The mini player</h3>
+          <ul class="tick-list">
+            <li>Swipe the video down or press Back — it shrinks into a small player and keeps playing while you browse.</li>
+            <li>Drag it anywhere; it settles against the nearest edge. Tap to reopen, ✕ to close.</li>
+            <li>Open another video and it takes the full player — the mini one keeps its place.</li>
+            <li>Background play with media controls in the notification and on the lock screen.</li>
+          </ul>
+          <div class="panel-img">
+            <img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/04_mini_player.jpg" alt="Mini player floating over the Home feed" width="1080" height="2400" />
+          </div>
+        </article>
+
+        <article class="panel reveal">
+          <h3><span class="panel-ic">✋</span> Full-screen gestures</h3>
+          <table class="gesture-table">
+            <tbody>
+              <tr><td><b>Tap</b></td><td>Show or hide the controls</td></tr>
+              <tr><td><b>Double-tap</b> left / right</td><td>Jump back or forward</td></tr>
+              <tr><td><b>Swipe</b> left half</td><td>Brightness</td></tr>
+              <tr><td><b>Swipe</b> right half</td><td>Volume</td></tr>
+              <tr><td><b>Pinch out / in</b></td><td>Zoom to fill / original size</td></tr>
+              <tr><td><b>Rotate</b></td><td>Enter or leave full screen</td></tr>
+            </tbody>
+          </table>
+          <p class="panel-note">Videos open with a smooth expand-from-thumbnail animation — and seeking is just dragging the red bar.</p>
+        </article>
+      </div>
+
+      <div class="signin reveal" id="signin">
+        <div class="signin-copy">
+          <span class="eyebrow">Sign in &amp; privacy</span>
+          <h3>Your password never touches StreamTube</h3>
+          <p>Signing in works exactly like a smart TV: the app shows a short code, you approve it on Google's own website. That's it.</p>
+          <ol class="steps-inline">
+            <li><b>You</b> tab → <b>Sign in</b></li>
+            <li>Get the code</li>
+            <li>Approve at <b>yt.be/activate</b></li>
+            <li>Signed in, automatically</li>
+          </ol>
+          <ul class="tick-list">
+            <li>It keeps only the access token Google gives it — on your phone.</li>
+            <li>It talks to YouTube, GitHub (updates) and SponsorBlock if enabled.</li>
+          </ul>
+          <a class="btn btn-ghost" href="https://github.com/shreyas-bangera/smarttube-phone/blob/main/PRIVACY.md" target="_blank" rel="noopener">Read PRIVACY.md →</a>
+        </div>
+        <div class="signin-visual">
+          <div class="phone"><span class="phone-notch"></span><img loading="lazy" src="https://raw.githubusercontent.com/shreyas-bangera/smarttube-phone/main/images/phone/10_sign_in.jpg" alt="Sign-in screen showing the device code" width="1080" height="2400" /></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INSTALL ================= -->
+  <section class="section section-alt" id="install">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Install</span>
+        <h2>Three steps.<br /><span class="grad">Sixty seconds.</span></h2>
+        <p>No Play Store, no account required to watch. Android 8.0+ on an ARM phone.</p>
+      </div>
+
+      <div class="install-steps" data-stagger>
+        <article class="step reveal">
+          <span class="step-num">1</span>
+          <h3>Pick your APK</h3>
+          <p>arm64 for almost every phone since 2017. Not sure? Grab the universal one — the in-app updater picks the right build next time.</p>
+          <div class="apk-table">
+            <a class="apk-row" href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk">
+              <span class="apk-name"><b>arm64</b><small>Recommended · most phones</small></span>
+              <span class="apk-dl">↓ APK</span>
+            </a>
+            <a class="apk-row" href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm32.apk">
+              <span class="apk-name"><b>arm32</b><small>Older or budget 32-bit phones</small></span>
+              <span class="apk-dl">↓ APK</span>
+            </a>
+            <a class="apk-row" href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-universal.apk">
+              <span class="apk-name"><b>universal</b><small>Any device, emulators, Chromebooks</small></span>
+              <span class="apk-dl">↓ APK</span>
+            </a>
+          </div>
+        </article>
+
+        <article class="step reveal">
+          <span class="step-num">2</span>
+          <h3>Allow the install</h3>
+          <p>Tap the finished download, then let your browser install apps when Android asks — <b>Settings → Allow from this source</b>.</p>
+          <p>If Play Protect warns about an unknown app, tap <b>More details → Install anyway</b>. Every build is made and signed by GitHub Actions from this public repository.</p>
+        </article>
+
+        <article class="step reveal">
+          <span class="step-num">3</span>
+          <h3>Open &amp; watch</h3>
+          <p>Home shows popular videos straight away — sign in only if you want your subscriptions, playlists and comments.</p>
+          <p>Allow notifications when asked; they're used for background-play controls and update news.</p>
+        </article>
+      </div>
+
+      <div class="update-note reveal">
+        <b>Already have it?</b> Updates install from inside the app (<b>You → Settings → Check for updates</b>), or grab the latest APK above and install it over the old one — your settings stay. On builds 39–51 install the latest APK manually once; from build 38 or older, uninstall once first.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section class="section" id="faq">
+    <div class="container container-narrow">
+      <div class="section-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Good to <span class="grad">know</span></h2>
+      </div>
+
+      <div class="faq-list" data-stagger>
+        <details class="faq reveal">
+          <summary>Is StreamTube really free and open source?<span class="faq-x"></span></summary>
+          <p>Yes — MIT licensed, source public, builds signed by GitHub Actions. It's an independent project: not affiliated with SmartTube's developer, YouTube or Google.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>Play Protect says “Harmful app blocked”. Now what?<span class="faq-x"></span></summary>
+          <p>Play Protect sometimes flags open-source apps installed outside the Play Store. Tap <b>More details → Install anyway</b>. The code and build pipeline are public in this repository.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>I get “App not installed” when updating<span class="faq-x"></span></summary>
+          <p>On builds 39–51: install the latest APK manually once — it installs over your app and keeps your settings. From build 38 or older: those used a temporary signing key, so uninstall once, then install the latest APK. Every update after that is normal.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>The sign-in code doesn't appear<span class="faq-x"></span></summary>
+          <p>Check your connection and turn off Private DNS, ad-blocking DNS or VPN apps that block YouTube or Google, then tap <b>Try again</b>.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>“Sign in to confirm you're not a bot”<span class="faq-x"></span></summary>
+          <p>YouTube sometimes asks this on shared or busy networks and with VPNs. Signing in usually fixes it; switching between Wi-Fi and mobile data can help too.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>Videos buffer a lot<span class="faq-x"></span></summary>
+          <p>Open the player settings and pick a lower quality (1080p is the default on phones), or turn off high frame rate.</p>
+        </details>
+        <details class="faq reveal">
+          <summary>No sound in the background, no lock-screen controls<span class="faq-x"></span></summary>
+          <p>Turn on notifications (<b>You → Settings → Notifications</b>) and set StreamTube's battery usage to <b>Unrestricted</b> — on OnePlus, Xiaomi, Samsung and similar phones.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section class="cta">
+    <div class="container cta-inner reveal">
+      <span class="cta-flare" aria-hidden="true"></span>
+      <h2>Ready to watch <span class="grad">without the ads?</span></h2>
+      <p>Free, open source, about 29 MB. Installs beside the official YouTube app.</p>
+      <div class="hero-cta cta-btns">
+        <a class="btn btn-red btn-lg" href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+          Download StreamTube
+        </a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/shreyas-bangera/smarttube-phone/releases" target="_blank" rel="noopener">All releases</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#top">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="22" height="22"><rect width="64" height="64" rx="16" fill="#ff1f3d"/><path d="M26 20l18 12-18 12z" fill="#fff"/></svg>
+          </span>
+          <span class="brand-name">Stream<b>Tube</b></span>
+        </a>
+        <p>Ad-free YouTube for Android phones — a port of SmartTube with a touch UI.</p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Site</h4>
+        <a href="#features">Features</a>
+        <a href="#screens">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Project</h4>
+        <a href="https://github.com/shreyas-bangera/smarttube-phone" target="_blank" rel="noopener">GitHub repository</a>
+        <a href="https://github.com/shreyas-bangera/smarttube-phone/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/shreyas-bangera/smarttube-phone/issues" target="_blank" rel="noopener">Report an issue</a>
+        <a href="https://github.com/shreyas-bangera/smarttube-phone/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Credits</h4>
+        <a href="https://github.com/yuliskov/SmartTube" target="_blank" rel="noopener">SmartTube by Yuriy Liskov</a>
+        <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">SponsorBlock</a>
+        <a href="https://github.com/androidx/media" target="_blank" rel="noopener">ExoPlayer</a>
+      </div>
+    </div>
+
+    <div class="container footer-base">
+      <p>© <span id="year">2026</span> shreyas-bangera · MIT License</p>
+      <p class="footer-note">Independent open-source project, not affiliated with YouTube or Google.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
