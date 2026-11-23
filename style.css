@@ -111,14 +111,13 @@ section[id] { scroll-margin-top: 84px; }
 }
 
 .brand { display: inline-flex; align-items: center; gap: 10px; }
-.brand-mark { display: grid; place-items: center; filter: drop-shadow(0 0 10px rgba(255, 31, 61, 0.5)); }
-.brand-name {
-  font-family: var(--font-head);
-  font-weight: 600;
-  font-size: 1.2rem;
-  letter-spacing: -0.02em;
+.brand-logo {
+  height: 30px;
+  width: auto;
+  filter: drop-shadow(0 0 12px rgba(255, 31, 61, 0.3));
+  transition: filter 0.3s ease;
 }
-.brand-name b { color: var(--red); font-weight: 800; }
+.brand:hover .brand-logo { filter: drop-shadow(0 0 18px rgba(255, 31, 61, 0.6)); }
 
 .nav-links { display: flex; gap: 26px; }
 .nav-links a {
@@ -309,10 +308,10 @@ section[id] { scroll-margin-top: 84px; }
   border: 1px solid rgba(255, 31, 61, 0.3);
   border-radius: 999px;
 }
-.badge-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--red);
+.badge-ic {
+  width: 20px;
+  height: auto;
+  border-radius: 6px;
   box-shadow: 0 0 0 0 rgba(255, 31, 61, 0.6);
   animation: pulse 2s infinite;
 }
@@ -924,6 +923,13 @@ section[id] { scroll-margin-top: 84px; }
   overflow: hidden;
 }
 .cta-inner { text-align: center; position: relative; }
+.cta-mark {
+  width: 80px;
+  height: auto;
+  margin: 0 auto 26px;
+  filter: drop-shadow(0 10px 34px rgba(255, 31, 61, 0.5));
+  animation: floatY 5.5s ease-in-out infinite;
+}
 .cta h2 { font-size: clamp(2rem, 4.6vw, 3.2rem); font-weight: 800; margin-bottom: 14px; }
 .cta p { color: var(--muted); margin-bottom: 32px; }
 .cta-btns { justify-content: center; margin-top: 0; }
