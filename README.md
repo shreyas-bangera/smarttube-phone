@@ -18,8 +18,6 @@
   &nbsp;·&nbsp;
   <a href="https://shreyas-bangera.github.io/streamtube/"><b>Website</b></a>
   &nbsp;·&nbsp;
-  <a href="https://shreyas-bangera.github.io/smarttube-phone/"><b>Website</b></a>
-  &nbsp;·&nbsp;
   <a href="#install">How to install</a>
 </p>
 
