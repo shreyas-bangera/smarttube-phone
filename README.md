@@ -12,11 +12,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk"><b>Download the latest APK</b></a>
+  <a href="https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-arm64.apk"><b>Download the latest APK</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/shreyas-bangera/smarttube-phone/releases">All releases</a>
+  <a href="https://github.com/shreyas-bangera/streamtube/releases">All releases</a>
   &nbsp;·&nbsp;
-  <a href="https://shreyas-bangera.github.io/smarttube-phone/"><b>Website</b></a>
+  <a href="https://shreyas-bangera.github.io/streamtube/"><b>Website</b></a>
   &nbsp;·&nbsp;
   <a href="#install">How to install</a>
 </p>
@@ -131,9 +131,9 @@
 
 | APK | For |
 |---|---|
-| [StreamTube-arm64.apk](https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk) | Almost every phone made since 2017, including all recent Samsung, Pixel, OnePlus, Xiaomi and Motorola phones. Start with this one. |
-| [StreamTube-arm32.apk](https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm32.apk) | Older or budget phones with a 32-bit processor (armeabi-v7a), where the arm64 APK says "App not installed". |
-| [StreamTube-universal.apk](https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-universal.apk) | Any device, including x86 emulators and Chromebooks. It's a bigger download. |
+| [StreamTube-arm64.apk](https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-arm64.apk) | Almost every phone made since 2017, including all recent Samsung, Pixel, OnePlus, Xiaomi and Motorola phones. Start with this one. |
+| [StreamTube-arm32.apk](https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-arm32.apk) | Older or budget phones with a 32-bit processor (armeabi-v7a), where the arm64 APK says "App not installed". |
+| [StreamTube-universal.apk](https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-universal.apk) | Any device, including x86 emulators and Chromebooks. It's a bigger download. |
 
 Not sure? Install the universal APK. The in-app updater then picks the right APK for your phone.
 
@@ -141,7 +141,7 @@ It installs as its own app, so it can sit next to the official YouTube app witho
 
 ## Install
 
-1. On your phone, open this link: **[StreamTube-arm64.apk](https://github.com/shreyas-bangera/smarttube-phone/releases/latest/download/StreamTube-arm64.apk)** (or the arm32 or universal APK, see [Requirements](#requirements))
+1. On your phone, open this link: **[StreamTube-arm64.apk](https://github.com/shreyas-bangera/streamtube/releases/latest/download/StreamTube-arm64.apk)** (or the arm32 or universal APK, see [Requirements](#requirements))
 2. When the download finishes, tap the notification (or open the file from your Downloads folder).
 3. The first time, Android asks for permission to install apps from your browser. Tap **Settings**, turn on **Allow from this source**, then go back.
 4. Tap **Install**. If Google Play Protect warns about an unknown app, tap **More details** and then **Install anyway**. This warning appears for apps that don't come from the Play Store.
@@ -151,7 +151,7 @@ When Android asks to allow notifications, tap **Allow**. StreamTube uses notific
 
 ## Update to a new build
 
-Each build is listed on the [releases page](https://github.com/shreyas-bangera/smarttube-phone/releases). The download link above always points to the newest one.
+Each build is listed on the [releases page](https://github.com/shreyas-bangera/streamtube/releases). The download link above always points to the newest one.
 
 **From inside the app (recommended)**
 
@@ -397,7 +397,7 @@ Open the player settings and pick a lower quality (1080p is the default on phone
 Turn on notifications (**You**, **Settings**, **Notifications**) and check your phone's battery settings. On OnePlus, Xiaomi, Samsung and similar phones, set StreamTube's battery usage to **Unrestricted**.
 
 **The app crashed**
-When it opens again it offers a crash report. Please [open an issue](https://github.com/shreyas-bangera/smarttube-phone/issues) with the report and the steps that led to it.
+When it opens again it offers a crash report. Please [open an issue](https://github.com/shreyas-bangera/streamtube/issues) with the report and the steps that led to it.
 
 ## Privacy
 
@@ -412,11 +412,11 @@ StreamTube is the Gradle flavor `stphone`. The phone code lives in [`smarttubetv
 Every push to `main` is built and released by GitHub Actions ([`.github/workflows/phone.yml`](.github/workflows/phone.yml)), which also applies the phone changes to the `MediaServiceCore` submodule from [`.github/patches/`](.github/patches/). Pull requests are built and tried on an emulator first ([`.github/workflows/pr-check.yml`](.github/workflows/pr-check.yml)). To build locally with JDK 17 and the Android SDK:
 
 ```bash
-git clone --recursive https://github.com/shreyas-bangera/smarttube-phone.git
+git clone --recursive https://github.com/shreyas-bangera/streamtube.git
 ```
 
 ```bash
-cd smarttube-phone && git -C MediaServiceCore apply --ignore-whitespace ../.github/patches/mediaservicecore.patch
+cd streamtube && git -C MediaServiceCore apply --ignore-whitespace ../.github/patches/mediaservicecore.patch
 ```
 
 ```bash
@@ -427,7 +427,7 @@ cd smarttube-phone && git -C MediaServiceCore apply --ignore-whitespace ../.gith
 
 StreamTube is a port of [SmartTube](https://github.com/yuliskov/SmartTube) by Yuriy Liskov and its contributors. Their engine (the YouTube client, sign in, playback, SponsorBlock and settings) runs underneath, with a phone interface on top. If you enjoy StreamTube, please star [SmartTube](https://github.com/yuliskov/SmartTube) too. Thanks also to [SponsorBlock](https://sponsor.ajay.app/) and [ExoPlayer](https://github.com/google/ExoPlayer).
 
-StreamTube is an independent project, not affiliated with YouTube or Google. Please report problems [here](https://github.com/shreyas-bangera/smarttube-phone/issues).
+StreamTube is an independent project, not affiliated with YouTube or Google. Please report problems [here](https://github.com/shreyas-bangera/streamtube/issues).
 
 ## License
 

@@ -7,7 +7,7 @@ OLD_TAG="${OLD_TAG:-build-52}"  # first build whose install prompt opens
 OUT=smoke
 mkdir -p $OUT
 for i in 1 2 3 4 5; do
-  curl -fsSL -o old.apk "https://github.com/shreyas-bangera/smarttube-phone/releases/download/$OLD_TAG/SmartTube-Phone-arm64.apk" && break
+  curl -fsSL -o old.apk "https://github.com/shreyas-bangera/streamtube/releases/download/$OLD_TAG/SmartTube-Phone-arm64.apk" && break
   sleep 10
 done
 adb shell settings put global hide_error_dialogs 1
