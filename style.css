@@ -792,9 +792,11 @@ section[id] { scroll-margin-top: 84px; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch; /* the three cards the same height */
 }
 .step {
+  display: flex;
+  flex-direction: column;
   position: relative;
   background: var(--card);
   border: 1px solid var(--line);
@@ -995,6 +997,16 @@ section[id] { scroll-margin-top: 84px; }
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+/* Steps 2 and 3: their key points in the same rows as step 1's downloads, kept at the bottom so the cards line up */
+.step .apk-table { margin-top: auto; }
+.step p + .apk-table { padding-top: 6px; }
+.apk-info { cursor: default; }
+.apk-info .apk-dl { color: var(--red-hot); font-weight: 700; }
+
+.panel-wide { grid-column: 1 / -1; }
+.tick-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; }
+@media (max-width: 900px) { .tick-cols { grid-template-columns: 1fr; } }
+
 /* ---------- music ---------- */
 .music { position: relative; overflow: hidden; isolation: isolate; }
 .music-orbs { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
