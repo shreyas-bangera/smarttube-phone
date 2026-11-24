@@ -1,24 +1,24 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:layout_marginStart="16dp" android:layout_marginEnd="16dp" android:orientation="vertical"
-    android:focusable="true" android:clipToOutline="true" android:foreground="@drawable/phone_ripple">
+    android:focusable="true" android:background="@drawable/phone_ripple">
 
     <View android:layout_width="match_parent" android:layout_height="1dp"
-        android:layout_marginStart="12dp" android:layout_marginEnd="12dp"
+        android:layout_marginEnd="8dp"
         android:importantForAccessibility="no" android:background="@color/phone_divider" />
 
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="52dp"
-        android:paddingStart="16dp" android:paddingEnd="2dp" android:gravity="center_vertical">
+        android:paddingEnd="2dp" android:gravity="center_vertical">
         <ImageView android:layout_width="16dp" android:layout_height="16dp"
             android:importantForAccessibility="no" android:src="@drawable/ic_phone_play" android:tint="@color/phone_accent" />
-        <TextView android:id="@id/phone_moment_time"
+        <TextView android:id="@+id/phone_moment_time"
             android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp"
             android:fontFamily="@font/roboto_medium" android:fontFeatureSettings="tnum"
             android:importantForAccessibility="no" android:textSize="14sp" android:textColor="@color/phone_text" />
         <FrameLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:layout_marginStart="12dp" android:paddingTop="8dp" android:paddingBottom="8dp">
-            <TextView android:id="@id/phone_moment_note"
+            <TextView android:id="@+id/phone_moment_note"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:importantForAccessibility="no" android:textSize="14sp" android:textColor="@color/phone_text_2" />
         </FrameLayout>

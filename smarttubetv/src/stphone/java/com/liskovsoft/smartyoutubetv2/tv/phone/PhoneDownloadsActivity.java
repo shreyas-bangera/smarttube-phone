@@ -690,10 +690,15 @@ public class PhoneDownloadsActivity extends PhoneActivity {
             super(ITEM_DIFF);
         }
 
+        @Override
+        public int getItemViewType(int position) {
+            return getItem(position).kind == Kind.VIDEO ? R.layout.phone_item_row : R.layout.phone_download_row;
+        }
+
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.phone_download_row, parent, false);
+            View view = LayoutInflater.from(parent.getContext()).inflate(viewType, parent, false);
             return new RecyclerView.ViewHolder(view) {
             };
         }
@@ -704,22 +709,26 @@ public class PhoneDownloadsActivity extends PhoneActivity {
             View view = holder.itemView;
             ImageView thumb = view.findViewById(R.id.phone_thumb);
             TextView badge = view.findViewById(R.id.phone_badge);
-            View cover = (View) thumb.getParent();
-            ViewGroup.LayoutParams coverParams = cover.getLayoutParams();
-            int videoWidth = getResources().getConfiguration().screenWidthDp >= 360 ? 136 : 112;
-            coverParams.width = dp(item.kind == Kind.VIDEO ? videoWidth : item.kind == Kind.SHORT ? 56 : 72);
-            coverParams.height = dp(item.kind == Kind.VIDEO ? Math.round(videoWidth * 9f / 16)
-                    : item.kind == Kind.SHORT ? 88 : 72);
-            cover.setLayoutParams(coverParams);
             ((TextView) view.findViewById(R.id.phone_title)).setText(item.title);
-            TextView author = view.findViewById(R.id.phone_download_author);
-            author.setText(item.author);
-            author.setVisibility(TextUtils.isEmpty(item.author) ? View.GONE : View.VISIBLE);
-
             String size = Formatter.formatShortFileSize(view.getContext(), item.size);
             CharSequence metadata = item.addedMs > 0
                     ? size + " · " + DateUtils.getRelativeTimeSpanString(item.addedMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
                     : size;
+            if (item.kind == Kind.VIDEO) {
+                view.findViewById(R.id.phone_progress).setVisibility(View.GONE);
+                if (!TextUtils.isEmpty(item.author)) {
+                    metadata = TextUtils.concat(item.author, "\n", metadata);
+                }
+            } else {
+                View cover = (View) thumb.getParent();
+                ViewGroup.LayoutParams coverParams = cover.getLayoutParams();
+                coverParams.width = dp(item.kind == Kind.SHORT ? 56 : 72);
+                coverParams.height = dp(item.kind == Kind.SHORT ? 88 : 72);
+                cover.setLayoutParams(coverParams);
+                TextView author = view.findViewById(R.id.phone_download_author);
+                author.setText(item.author);
+                author.setVisibility(TextUtils.isEmpty(item.author) ? View.GONE : View.VISIBLE);
+            }
             ((TextView) view.findViewById(R.id.phone_meta)).setText(metadata);
 
             badge.setText(DateUtils.formatElapsedTime(item.durationMs / 1000));

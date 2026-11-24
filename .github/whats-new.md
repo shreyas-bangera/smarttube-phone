@@ -1,3 +1,1 @@
-- Downloads — Swipe between Videos, Shorts, and Music with pages that follow your finger and a sliding tab indicator. Each tab remembers where you left off.
-- Downloads library — Larger artwork, creator names where available, clearer storage totals, and animated loading, empty states, and list updates.
-- Downloaded videos — Swipe down to keep watching in Android’s floating Picture-in-Picture player. In fullscreen, swipe down from the middle so the sides still handle brightness and volume.
+- A consistent look for video cards — Saved moments and Downloads → Videos now use the same wide thumbnails, title styling, and spacing as Notifications.

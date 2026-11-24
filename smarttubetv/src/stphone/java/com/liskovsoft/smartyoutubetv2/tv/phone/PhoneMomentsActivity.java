@@ -81,7 +81,7 @@ public class PhoneMomentsActivity extends PhoneActivity {
 
         @Override
         public int getItemViewType(int position) {
-            return startsVideo(position) ? R.layout.phone_moment_header : R.layout.phone_moment_row;
+            return startsVideo(position) ? R.layout.phone_item_row : R.layout.phone_moment_row;
         }
 
         @Override
@@ -97,23 +97,32 @@ public class PhoneMomentsActivity extends PhoneActivity {
             String time = moment.time();
             String playLabel = getString(R.string.phone_moment_play, time);
             row.setOnClickListener(v -> play(moment));
-            boolean first = holder.getItemViewType() == R.layout.phone_moment_header;
-            boolean last = position + 1 == rows.size() || startsVideo(position + 1);
+            boolean first = holder.getItemViewType() == R.layout.phone_item_row;
+            TextView timestamp;
+            TextView note;
             if (first) {
-                row.setBackgroundResource(last ? R.drawable.phone_card_bg : R.drawable.phone_moment_card_top);
                 ((TextView) row.findViewById(R.id.phone_title)).setText(moment.title);
                 ImageView thumb = row.findViewById(R.id.phone_thumb);
                 PhoneUi.loadThumb(thumb, Video.from(moment.videoId), false);
+                row.findViewById(R.id.phone_progress).setVisibility(View.GONE);
+                timestamp = row.findViewById(R.id.phone_badge);
+                android.graphics.drawable.Drawable playIcon = getDrawable(R.drawable.ic_phone_play).mutate();
+                int iconSize = Math.round(12 * getResources().getDisplayMetrics().density);
+                playIcon.setBounds(0, 0, iconSize, iconSize);
+                playIcon.setTint(getColor(R.color.phone_accent));
+                timestamp.setCompoundDrawablesRelative(playIcon, null, null, null);
+                timestamp.setCompoundDrawablePadding(Math.round(3 * getResources().getDisplayMetrics().density));
+                note = row.findViewById(R.id.phone_meta);
             } else {
-                row.setBackgroundResource(last ? R.drawable.phone_moment_card_bottom : R.color.phone_surface_2);
+                timestamp = row.findViewById(R.id.phone_moment_time);
+                note = row.findViewById(R.id.phone_moment_note);
             }
-            ((TextView) row.findViewById(R.id.phone_moment_time)).setText(time);
-            TextView note = row.findViewById(R.id.phone_moment_note);
+            timestamp.setText(time);
             note.setText(moment.note);
             note.setVisibility(TextUtils.isEmpty(moment.note) ? View.GONE : View.VISIBLE);
             String description = moment.title + ", " + playLabel;
             row.setContentDescription(TextUtils.isEmpty(moment.note) ? description : description + ", " + moment.note);
-            View more = row.findViewById(R.id.phone_moment_options);
+            View more = row.findViewById(first ? R.id.phone_more : R.id.phone_moment_options);
             more.setContentDescription(getString(R.string.phone_moment_menu, time));
             more.setOnClickListener(v -> options(v, moment));
         }
