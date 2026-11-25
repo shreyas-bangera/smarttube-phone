@@ -106,7 +106,7 @@ final class PhoneCastSheet {
                 if (dialog.isShowing()) {
                     searching.setText(tvs.getChildCount() == 0 ? R.string.phone_cast_none : R.string.phone_cast_search_done);
                 }
-            }, 4_500);
+            }, 6_000);
         }
 
         FrameLayout frame = new FrameLayout(activity);

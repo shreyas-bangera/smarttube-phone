@@ -66,13 +66,16 @@ final class PhoneCast {
         long tokenExpires;
         /** On the Wi-Fi: where to ask the TV to open YouTube (DIAL), null for TVs linked by code */
         String dialUrl;
+        /** On the Wi-Fi, a Google Cast TV (Google TV, Android TV, Chromecast): its address */
+        String castHost;
+        int castPort;
 
         Tv(String name) {
             this.name = name;
         }
 
         boolean onWifi() {
-            return dialUrl != null;
+            return dialUrl != null || castHost != null;
         }
     }
 
@@ -124,9 +127,15 @@ final class PhoneCast {
         Context app = context.getApplicationContext();
         WORKER.execute(() -> {
             try {
-                if (tv.onWifi() && tv.screenId == null) {
-                    launchOnWifi(tv, videoId, positionMs); // opens YouTube on the TV with the video, and links it
-                    remember(app, tv);
+                if (tv.castHost != null) {
+                    // A Google Cast TV: YouTube opens on it and says which screen it is
+                    String screenId = PhoneCastV2.openYouTube(wifiSockets(app), tv.castHost, tv.castPort);
+                    if (!screenId.equals(tv.screenId)) {
+                        tv.screenId = screenId;
+                        tv.loungeToken = null;
+                    }
+                } else if (tv.dialUrl != null && tv.screenId == null) {
+                    launchOnWifi(app, tv, videoId, positionMs); // opens YouTube on the TV with the video, and links it
                 }
                 ensureToken(tv);
                 connect(tv);
@@ -354,36 +363,65 @@ final class PhoneCast {
 
     // endregion
 
-    // region TVs on the Wi-Fi (DIAL)
+    // region TVs on the Wi-Fi (DIAL for smart TVs, Google Cast for Google TV, Android TV and Chromecast)
 
-    /** Looks for TVs on the Wi-Fi for a few seconds; saved TVs come first, those found are added as they answer */
+    /** The Wi-Fi network (not mobile data, which a phone may use at the same time) */
+    private static android.net.Network wifiNetwork(Context app) {
+        android.net.ConnectivityManager manager = (android.net.ConnectivityManager) app.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (manager == null) {
+            return null;
+        }
+        for (android.net.Network network : manager.getAllNetworks()) {
+            android.net.NetworkCapabilities caps = manager.getNetworkCapabilities(network);
+            if (caps != null && (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                    || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET))) {
+                return network;
+            }
+        }
+        return null;
+    }
+
+    private static javax.net.SocketFactory wifiSockets(Context app) {
+        android.net.Network wifi = wifiNetwork(app);
+        return wifi != null ? wifi.getSocketFactory() : null;
+    }
+
+    /** For talking to TVs: over the Wi-Fi */
+    private static OkHttpClient local(Context app) {
+        javax.net.SocketFactory sockets = wifiSockets(app);
+        return sockets != null ? HTTP.newBuilder().socketFactory(sockets).build() : HTTP;
+    }
+
+    /**
+     * Looks for TVs on the Wi-Fi for a few seconds, two ways at once (smart TVs answer a DIAL search, Google Cast TVs
+     * a Cast search); saved TVs come first, those found are added as they answer
+     */
     static void find(Context context, Found found) {
         Context app = context.getApplicationContext();
+        List<Tv> tvs = java.util.Collections.synchronizedList(saved(app));
+        Runnable report = () -> {
+            List<Tv> copy;
+            synchronized (tvs) {
+                copy = new ArrayList<>(tvs);
+            }
+            MAIN.post(() -> found.found(copy));
+        };
+        report.run();
+        findCast(app, tvs, report);
         SEARCH.execute(() -> {
-            List<Tv> tvs = saved(app);
-            MAIN.post(() -> found.found(new ArrayList<>(tvs)));
             WifiManager wifi = (WifiManager) app.getSystemService(Context.WIFI_SERVICE);
             WifiManager.MulticastLock lock = wifi != null ? wifi.createMulticastLock("streamtube-cast") : null;
             try {
                 if (lock != null) {
+                    lock.setReferenceCounted(false);
                     lock.acquire();
                 }
-                for (String location : search()) {
-                    Tv tv = describe(location);
-                    if (tv == null) {
-                        continue;
+                for (String location : search(app)) {
+                    Tv tv = describe(app, location);
+                    if (tv != null) {
+                        add(tvs, tv);
+                        report.run();
                     }
-                    boolean known = false;
-                    for (Tv saved : tvs) {
-                        if (saved.name.equals(tv.name)) {
-                            saved.dialUrl = tv.dialUrl; // the same TV, on the Wi-Fi now
-                            known = true;
-                        }
-                    }
-                    if (!known) {
-                        tvs.add(tv);
-                    }
-                    MAIN.post(() -> found.found(new ArrayList<>(tvs)));
                 }
             } catch (Exception e) {
                 Log.d(TAG, "search: " + e);
@@ -395,21 +433,130 @@ final class PhoneCast {
         });
     }
 
-    /** Asks the network who can open apps (DIAL), for three seconds: the addresses of their descriptions */
-    private static List<String> search() throws Exception {
+    /** A TV found: added, or merged with the saved one of the same name (it's on the Wi-Fi now) */
+    private static void add(List<Tv> tvs, Tv tv) {
+        synchronized (tvs) {
+            for (Tv other : tvs) {
+                if (other.name.equalsIgnoreCase(tv.name)) {
+                    if (tv.dialUrl != null) {
+                        other.dialUrl = tv.dialUrl;
+                    }
+                    if (tv.castHost != null) {
+                        other.castHost = tv.castHost;
+                        other.castPort = tv.castPort;
+                    }
+                    return;
+                }
+            }
+            tvs.add(tv);
+        }
+    }
+
+    /** Google Cast TVs, by their announcement on the Wi-Fi (_googlecast._tcp), for five seconds */
+    private static void findCast(Context app, List<Tv> tvs, Runnable report) {
+        android.net.nsd.NsdManager nsd = (android.net.nsd.NsdManager) app.getSystemService(Context.NSD_SERVICE);
+        if (nsd == null) {
+            return;
+        }
+        java.util.concurrent.LinkedBlockingQueue<android.net.nsd.NsdServiceInfo> toResolve = new java.util.concurrent.LinkedBlockingQueue<>();
+        android.net.nsd.NsdManager.DiscoveryListener listener = new android.net.nsd.NsdManager.DiscoveryListener() {
+            @Override
+            public void onStartDiscoveryFailed(String serviceType, int errorCode) {
+                Log.d(TAG, "cast search failed: " + errorCode);
+            }
+
+            @Override
+            public void onStopDiscoveryFailed(String serviceType, int errorCode) {
+            }
+
+            @Override
+            public void onDiscoveryStarted(String serviceType) {
+            }
+
+            @Override
+            public void onDiscoveryStopped(String serviceType) {
+            }
+
+            @Override
+            public void onServiceFound(android.net.nsd.NsdServiceInfo service) {
+                toResolve.offer(service);
+            }
+
+            @Override
+            public void onServiceLost(android.net.nsd.NsdServiceInfo service) {
+            }
+        };
+        try {
+            nsd.discoverServices("_googlecast._tcp", android.net.nsd.NsdManager.PROTOCOL_DNS_SD, listener);
+        } catch (Exception e) {
+            Log.d(TAG, "cast search: " + e);
+            return;
+        }
+        // One at a time: Android resolves one service at once
+        new Thread(() -> {
+            long until = System.currentTimeMillis() + 5_000;
+            try {
+                while (System.currentTimeMillis() < until) {
+                    android.net.nsd.NsdServiceInfo service = toResolve.poll(300, TimeUnit.MILLISECONDS);
+                    if (service == null) {
+                        continue;
+                    }
+                    java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+                    nsd.resolveService(service, new android.net.nsd.NsdManager.ResolveListener() {
+                        @Override
+                        public void onResolveFailed(android.net.nsd.NsdServiceInfo info, int errorCode) {
+                            done.countDown();
+                        }
+
+                        @Override
+                        public void onServiceResolved(android.net.nsd.NsdServiceInfo info) {
+                            Map<String, byte[]> attributes = info.getAttributes();
+                            byte[] fn = attributes != null ? attributes.get("fn") : null;
+                            Tv tv = new Tv(fn != null ? new String(fn, StandardCharsets.UTF_8) : info.getServiceName());
+                            tv.castHost = info.getHost().getHostAddress();
+                            tv.castPort = info.getPort() > 0 ? info.getPort() : 8009;
+                            Log.d(TAG, "cast device " + tv.name + " at " + tv.castHost + ":" + tv.castPort);
+                            add(tvs, tv);
+                            report.run();
+                            done.countDown();
+                        }
+                    });
+                    done.await(3, TimeUnit.SECONDS);
+                }
+            } catch (InterruptedException ignored) {
+                // done
+            } finally {
+                try {
+                    nsd.stopServiceDiscovery(listener);
+                } catch (Exception ignored) {
+                    // already stopped
+                }
+            }
+        }, "cast-search").start();
+    }
+
+    /** Asks the Wi-Fi who can open apps (DIAL), for three seconds: the addresses of their descriptions */
+    private static List<String> search(Context app) throws Exception {
         List<String> locations = new ArrayList<>();
         String message = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\n"
                 + "ST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n";
         try (MulticastSocket socket = new MulticastSocket()) {
-            socket.setSoTimeout(800);
+            android.net.Network wifi = wifiNetwork(app);
+            if (wifi != null) {
+                wifi.bindSocket(socket); // the search goes out on the Wi-Fi, not mobile data
+            }
+            socket.setTimeToLive(4);
+            socket.setSoTimeout(700);
             byte[] bytes = message.getBytes(StandardCharsets.US_ASCII);
             InetAddress group = InetAddress.getByName("239.255.255.250");
-            for (int i = 0; i < 2; i++) {
-                socket.send(new DatagramPacket(bytes, bytes.length, group, 1900));
-            }
-            long until = System.currentTimeMillis() + 3_000;
+            long until = System.currentTimeMillis() + 3_500;
+            long nextSend = 0;
             byte[] buffer = new byte[2048];
             while (System.currentTimeMillis() < until) {
+                if (System.currentTimeMillis() >= nextSend) {
+                    socket.send(new DatagramPacket(bytes, bytes.length, group, 1900)); // again: some TVs miss the first
+                    nextSend = System.currentTimeMillis() + 1_000;
+                }
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 try {
                     socket.receive(packet);
@@ -420,6 +567,7 @@ final class PhoneCast {
                 Matcher location = Pattern.compile("(?im)^location:\\s*(\\S+)").matcher(answer);
                 if (location.find() && !locations.contains(location.group(1))) {
                     locations.add(location.group(1));
+                    Log.d(TAG, "dial device at " + location.group(1));
                 }
             }
         }
@@ -427,8 +575,9 @@ final class PhoneCast {
     }
 
     /** A TV's description: its name, and where its apps are opened (only TVs with YouTube) */
-    private static Tv describe(String location) {
-        try (Response response = HTTP.newCall(new Request.Builder().url(location).build()).execute()) {
+    private static Tv describe(Context app, String location) {
+        OkHttpClient http = local(app);
+        try (Response response = http.newCall(new Request.Builder().url(location).build()).execute()) {
             String apps = response.header("Application-URL");
             String xml = response.body() != null ? response.body().string() : "";
             if (apps == null) {
@@ -438,10 +587,11 @@ final class PhoneCast {
             Tv tv = new Tv(name.find() ? name.group(1).trim() : "TV");
             tv.dialUrl = (apps.endsWith("/") ? apps : apps + "/") + "YouTube";
             // Only TVs that have YouTube (or SmartTube answering as it)
-            try (Response app = HTTP.newCall(new Request.Builder().url(tv.dialUrl).build()).execute()) {
-                return app.isSuccessful() ? tv : null;
+            try (Response youtube = http.newCall(new Request.Builder().url(tv.dialUrl).build()).execute()) {
+                return youtube.isSuccessful() ? tv : null;
             }
         } catch (Exception e) {
+            Log.d(TAG, "describe " + location + ": " + e);
             return null;
         }
     }
@@ -450,14 +600,14 @@ final class PhoneCast {
      * Opens YouTube on the TV with the video (DIAL), handing it a code of the phone's: once the TV registers it, the
      * code leads to the TV's screen, and the phone joins its lounge as a remote
      */
-    private static void launchOnWifi(Tv tv, String videoId, long positionMs) throws Exception {
+    private static void launchOnWifi(Context app, Tv tv, String videoId, long positionMs) throws Exception {
         String code = UUID.randomUUID().toString();
         String body = "pairingCode=" + code + "&v=" + videoId + "&t=" + Math.max(0, positionMs / 1000) + "&theme=cl";
         Request request = new Request.Builder()
                 .url(tv.dialUrl)
                 .post(RequestBody.create(MediaType.parse("text/plain; charset=utf-8"), body))
                 .build();
-        try (Response response = HTTP.newCall(request).execute()) {
+        try (Response response = local(app).newCall(request).execute()) {
             if (response.code() >= 400) {
                 throw new Exception("The TV didn't open YouTube (" + response.code() + ")");
             }
