@@ -132,6 +132,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             updateProgress();
             syncPlaybackService();
             ambientTick();
+            castTick();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
@@ -1982,6 +1983,160 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
     };
 
+    // region Cast
+
+    /** Over the video while casting: the TV's name, Play/Pause and Stop casting */
+    private View mCastPanel;
+    private ImageView mCastPlay;
+    private TextView mCastTitle;
+
+    /** The cast button: pick a TV (or, while casting, stop) */
+    private void openCast() {
+        mHandler.removeCallbacks(mAutoHide);
+        PhoneCastSheet.show(this, new PhoneCastSheet.Listener() {
+            @Override
+            public void onTvPicked(PhoneCast.Tv tv) {
+                startCast(tv);
+            }
+
+            @Override
+            public void onStopCasting() {
+                stopCast();
+            }
+        });
+    }
+
+    private void startCast(PhoneCast.Tv tv) {
+        Video video = currentVideo();
+        if (video == null || video.videoId == null || mPlayer == null) {
+            return;
+        }
+        long position = mPlayer.getPositionMs();
+        android.widget.Toast.makeText(this, getString(R.string.phone_cast_connecting, tv.name), android.widget.Toast.LENGTH_SHORT).show();
+        PhoneCast.start(this, tv, video.videoId, position, (ok, error) -> {
+            if (isDestroyed()) {
+                return;
+            }
+            if (!ok) {
+                android.widget.Toast.makeText(this, getString(R.string.phone_cast_failed, tv.name), android.widget.Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (mPlayer != null) {
+                mPlayer.setPlayWhenReady(false); // the TV plays it now
+            }
+            showCastPanel(true);
+            showPhoneControls(false);
+        });
+    }
+
+    /** Stops casting: the TV pauses, and the phone carries on from where the TV got to */
+    private void stopCast() {
+        String videoId = PhoneCast.videoId();
+        long position = PhoneCast.positionMs();
+        PhoneCast.stop();
+        showCastPanel(false);
+        Video video = currentVideo();
+        if (mPlayer != null && video != null && video.videoId != null && video.videoId.equals(videoId)) {
+            mPlayer.setPositionMs(position);
+            mPlayer.setPlayWhenReady(true);
+        }
+    }
+
+    /** Each tick: the cast button shows casting, the phone's player stays quiet, the panel follows the TV */
+    private void castTick() {
+        ImageView button = findViewById(R.id.phone_ctl_cast);
+        boolean casting = PhoneCast.isCasting();
+        if (button != null) {
+            button.setImageResource(casting ? R.drawable.ic_phone_cast_on : R.drawable.ic_phone_cast);
+            button.setImageTintList(android.content.res.ColorStateList.valueOf(casting
+                    ? getResources().getColor(R.color.phone_accent) : 0xFFFFFFFF));
+        }
+        if (!casting) {
+            if (mCastPanel != null && mCastPanel.getVisibility() == View.VISIBLE) {
+                showCastPanel(false);
+            }
+            return;
+        }
+        if (mPlayer != null && mPlayer.getPlayWhenReady() && !mShortsMode) {
+            mPlayer.setPlayWhenReady(false); // a new video loaded while casting: the TV plays it, not the phone
+        }
+        if (mCastPanel == null || mCastPanel.getVisibility() != View.VISIBLE) {
+            showCastPanel(true);
+        }
+        mCastPlay.setImageResource(PhoneCast.isPlaying() ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play);
+    }
+
+    private void showCastPanel(boolean show) {
+        if (!show) {
+            if (mCastPanel != null) {
+                mCastPanel.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (mCastPanel == null) {
+            float d = getResources().getDisplayMetrics().density;
+            android.widget.FrameLayout panel = new android.widget.FrameLayout(this);
+            panel.setBackgroundColor(0xF20B0B0D);
+            panel.setClickable(true); // the video under it isn't touched
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            column.setGravity(android.view.Gravity.CENTER);
+            ImageView icon = new ImageView(this);
+            icon.setImageResource(R.drawable.ic_phone_cast_on);
+            icon.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.phone_accent)));
+            column.addView(icon, new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d)));
+            mCastTitle = new TextView(this);
+            mCastTitle.setTextColor(0xFFFFFFFF);
+            mCastTitle.setTextSize(15);
+            mCastTitle.setTypeface(PhoneUi.medium(this));
+            mCastTitle.setGravity(android.view.Gravity.CENTER);
+            mCastTitle.setPadding(Math.round(16 * d), Math.round(10 * d), Math.round(16 * d), Math.round(12 * d));
+            column.addView(mCastTitle);
+            LinearLayout buttons = new LinearLayout(this);
+            buttons.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            mCastPlay = new ImageView(this);
+            android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+            circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circle.setColor(0xFFFFFFFF);
+            mCastPlay.setBackground(circle);
+            mCastPlay.setImageTintList(android.content.res.ColorStateList.valueOf(0xFF000000));
+            int pad = Math.round(11 * d);
+            mCastPlay.setPadding(pad, pad, pad, pad);
+            mCastPlay.setContentDescription(getString(R.string.phone_widget_play_pause));
+            mCastPlay.setOnClickListener(v -> {
+                PhoneCast.togglePlay();
+                castTick();
+            });
+            buttons.addView(mCastPlay, new LinearLayout.LayoutParams(Math.round(46 * d), Math.round(46 * d)));
+            TextView stop = new TextView(this);
+            stop.setText(R.string.phone_cast_stop);
+            stop.setTextColor(0xFFFFFFFF);
+            stop.setTextSize(14);
+            stop.setTypeface(PhoneUi.medium(this));
+            stop.setGravity(android.view.Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setCornerRadius(23 * d);
+            pill.setColor(0x33FFFFFF);
+            stop.setBackground(pill);
+            stop.setPadding(Math.round(18 * d), 0, Math.round(18 * d), 0);
+            stop.setOnClickListener(v -> stopCast());
+            LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Math.round(46 * d));
+            stopParams.setMarginStart(Math.round(14 * d));
+            buttons.addView(stop, stopParams);
+            column.addView(buttons);
+            panel.addView(column, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT, android.view.Gravity.CENTER));
+            mVideoBox.addView(panel, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            mCastPanel = panel;
+        }
+        mCastTitle.setText(getString(R.string.phone_cast_playing_on, PhoneCast.tvName()));
+        mCastPanel.setVisibility(View.VISIBLE);
+        mCastPanel.bringToFront();
+    }
+
+    // endregion
+
     /** Ambient mode: the video's colours glowing around it (portrait, dark appearance) */
     private PhoneAmbient mAmbient;
     private long mAmbientAt;
@@ -2296,6 +2451,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         findViewById(R.id.phone_ctl_cc).setOnClickListener(v -> clickButton(R.id.lb_control_closed_captioning));
         findViewById(R.id.phone_ctl_speed).setOnClickListener(v -> openSpeedMenu());
         findViewById(R.id.phone_ctl_autoplay).setOnClickListener(v -> toggleAutoplay());
+        findViewById(R.id.phone_ctl_cast).setOnClickListener(v -> openCast());
         // Same list as SmartTube's playback mode button: play next, pause, repeat, shuffle, play the list, close
         findViewById(R.id.phone_ctl_mode).setOnClickListener(v ->
                 presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat)));
@@ -4082,6 +4238,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         Boolean music = PhoneMusic.consumeChoice(); // opened from the Music page: the music player
         if (music != null) {
             mMusicMode = music;
+        }
+        if (PhoneCast.isCasting() && video != null && video.videoId != null && !mShortsMode
+                && !video.videoId.equals(PhoneCast.videoId())) {
+            PhoneCast.cast(video.videoId, Math.max(0, video.pendingPosMs)); // another video while casting: the TV plays it
         }
         if (video != null && video.videoId != null && !video.videoId.equals(mQueueFor)) {
             mQueueFor = video.videoId;

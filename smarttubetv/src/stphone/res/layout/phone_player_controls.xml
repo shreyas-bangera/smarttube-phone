@@ -45,6 +45,17 @@
         android:layout_margin="4dp"
         android:orientation="horizontal">
 
+        <!-- Cast: play on a TV (PhoneCast) -->
+        <ImageView
+            android:id="@+id/phone_ctl_cast"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_cast"
+            android:src="@drawable/ic_phone_cast"
+            android:tint="#FFFFFF" />
+
         <!-- Autoplay the next video: on/off switch (YouTube style) -->
         <ImageView
             android:id="@+id/phone_ctl_autoplay"
