@@ -176,6 +176,7 @@ public class PhoneApplication extends MainApplication {
         int inApp = android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION;
         // A video tapped while the player floats in Android's window: the player opens it itself, so its window
         // expands with the new video (from the app's screen, a second player would open and the tap seemed to do nothing)
+        PhoneShareSheet.install(); // every Share button: the YouTube app's share sheet
         viewManager.setCallerOverride(activityClass -> activityClass == PhonePlaybackActivity.class
                 ? PhonePlaybackActivity.floatingPlayer() : null);
         viewManager.setLaunchFlags(activityClass -> {
@@ -192,6 +193,7 @@ public class PhoneApplication extends MainApplication {
             @Override
             public void onActivityResumed(android.app.Activity activity) {
                 lifecycle(activity, "resumed");
+                sFront = new java.lang.ref.WeakReference<>(activity);
                 if (android.os.Build.VERSION.SDK_INT < 24 || !activity.isInPictureInPictureMode()) {
                     viewManager.setCallerActivity(activity);
                 }
@@ -244,6 +246,14 @@ public class PhoneApplication extends MainApplication {
             }
         });
     }
+    private static java.lang.ref.WeakReference<android.app.Activity> sFront = new java.lang.ref.WeakReference<>(null);
+
+    /** The screen last brought to the front (null once it's gone) */
+    static android.app.Activity frontActivity() {
+        android.app.Activity activity = sFront.get();
+        return activity != null && !activity.isFinishing() && !activity.isDestroyed() ? activity : null;
+    }
+
     /** Every screen's lifecycle, for the debug log (where the floating window and the mini player go wrong) */
     private static void lifecycle(android.app.Activity activity, String event) {
         boolean pip = android.os.Build.VERSION.SDK_INT >= 24 && activity.isInPictureInPictureMode();

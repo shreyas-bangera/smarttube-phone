@@ -299,7 +299,7 @@
     <string name="phone_sleep_timer">Timer de suspensão</string>
     <string name="phone_sleep_minutes">%d minutos</string>
     <string name="phone_sleep_end_of_video">Fim do vídeo</string>
-    <string name="phone_sleep_left">%d min restantes</string>
+    <string name="phone_sleep_left">%s restantes</string>
     <string name="phone_sleep_set">Timer de suspensão: %s</string>
     <string name="phone_sleep_off">Timer de suspensão desativado</string>
     <string name="phone_sleep_done">Timer de suspensão: vídeo pausado</string>
@@ -311,4 +311,20 @@
     <string name="phone_playlist_remove_ask">Remover “%s” da sua biblioteca?</string>
     <string name="phone_playlist_sign_in">Faça login para salvar playlists na biblioteca</string>
     <string name="phone_playlist_save_failed">Não foi possível atualizar a biblioteca. Tente de novo.</string>
+    <string name="phone_more">mais</string>
+    <string name="phone_less">menos</string>
+    <string name="phone_close">Fechar</string>
+    <string name="phone_share_copy">Copiar link</string>
+    <string name="phone_share_more">Mais</string>
+    <string name="phone_share_copied">Link copiado</string>
+    <string name="phone_share_start_at">Começar em %s</string>
+    <string name="phone_sleep_hour">1 hora</string>
+    <string name="phone_sleep_hours">%d horas</string>
+    <string name="phone_sleep_min">%d min</string>
+    <string name="phone_sleep_hr">%d h</string>
+    <string name="phone_sleep_hr_min">%1$d h %2$d min</string>
+    <string name="phone_playlist">Playlist</string>
+    <string name="phone_playlist_mix">Mix</string>
+    <string name="phone_playlist_next">A seguir: %s</string>
+    <string name="phone_playlist_mix_about">Os mixes são playlists que o YouTube cria para você</string>
 </resources>

@@ -292,7 +292,7 @@
     <string name="phone_sleep_timer">Pemasa tidur</string>
     <string name="phone_sleep_minutes">%d minit</string>
     <string name="phone_sleep_end_of_video">Hujung video</string>
-    <string name="phone_sleep_left">%d min lagi</string>
+    <string name="phone_sleep_left">%s lagi</string>
     <string name="phone_sleep_set">Pemasa tidur: %s</string>
     <string name="phone_sleep_off">Pemasa tidur dimatikan</string>
     <string name="phone_sleep_done">Pemasa tidur: video dijeda</string>
@@ -304,4 +304,20 @@
     <string name="phone_playlist_remove_ask">Alih keluar “%s” daripada pustaka anda?</string>
     <string name="phone_playlist_sign_in">Log masuk untuk menyimpan senarai main ke pustaka</string>
     <string name="phone_playlist_save_failed">Tidak dapat mengemas kini pustaka. Cuba lagi.</string>
+    <string name="phone_more">lagi</string>
+    <string name="phone_less">kurang</string>
+    <string name="phone_close">Tutup</string>
+    <string name="phone_share_copy">Salin pautan</string>
+    <string name="phone_share_more">Lagi</string>
+    <string name="phone_share_copied">Pautan disalin</string>
+    <string name="phone_share_start_at">Mula pada %s</string>
+    <string name="phone_sleep_hour">1 jam</string>
+    <string name="phone_sleep_hours">%d jam</string>
+    <string name="phone_sleep_min">%d min</string>
+    <string name="phone_sleep_hr">%d jam</string>
+    <string name="phone_sleep_hr_min">%1$d jam %2$d min</string>
+    <string name="phone_playlist">Senarai main</string>
+    <string name="phone_playlist_mix">Campuran</string>
+    <string name="phone_playlist_next">Seterusnya: %s</string>
+    <string name="phone_playlist_mix_about">Campuran ialah senarai main yang dibuat oleh YouTube untuk anda</string>
 </resources>

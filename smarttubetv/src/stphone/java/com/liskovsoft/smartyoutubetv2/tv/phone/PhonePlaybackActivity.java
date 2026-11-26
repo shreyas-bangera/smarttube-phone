@@ -143,6 +143,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             peekTick();
             shortsAutoAdvance();
             portraitTick();
+            if (mPlaylistPanel != null) {
+                mPlaylistPanel.tick();
+            }
+            sleepTick();
+            keepDetailsClearOfBar();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
             boolean waitingForShort = mShortsMode && mPoster != null && mPoster.getVisibility() == View.VISIBLE;
             mHandler.postDelayed(this, waitingForShort ? SHORT_TICK_MS : TICK_MS);
@@ -551,6 +556,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mMusicPlayer != null && mMusicPlayer.onBack()) {
             return; // the full lyrics close first
         }
+        if (mPlaylistPanel != null && mPlaylistPanel.isOpen()) {
+            mPlaylistPanel.close(true); // the playlist panel closes first, as the YouTube app
+            return;
+        }
         if (mTallFull && mPortrait && !isPip()) {
             toggleFullscreen(); // leave the upright full screen first
             return;
@@ -905,6 +914,148 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * the next); the regular player would show it as a thin strip, and sideways in full screen. Known once the video
      * plays (its picture's shape), then remembered, so it opens in the Shorts player straight away next time.
      */
+    // region Playlist: its bar at the bottom and its panel (PhonePlaylistPanel)
+
+    private PhonePlaylistPanel mPlaylistPanel;
+
+    private int playlistBarRoom() {
+        return mPlaylistPanel != null ? mPlaylistPanel.barRoom() : 0;
+    }
+
+    /** The end of the details list scrolls clear of the playlist bar */
+    private void keepDetailsClearOfBar() {
+        if (mDetails == null) {
+            return;
+        }
+        int bottom = dp(8) + playlistBarRoom();
+        if (mDetails.getPaddingBottom() != bottom) {
+            mDetails.setPadding(mDetails.getPaddingLeft(), mDetails.getPaddingTop(), mDetails.getPaddingRight(), bottom);
+        }
+    }
+
+    private void setPlaybackModeFromPlaylist(int mode) {
+        com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).setPlaybackMode(mode);
+        if (mPlayer != null) {
+            mPlayer.setButtonState(R.id.action_repeat, mode);
+        }
+        refreshPlaybackMode();
+    }
+
+    private int playbackMode() {
+        return com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).getPlaybackMode();
+    }
+
+    private PhonePlaylistPanel.Host playlistHost() {
+        return new PhonePlaylistPanel.Host() {
+            @Override
+            public Video current() {
+                return currentVideo();
+            }
+
+            @Override
+            public void play(Video video) {
+                presenter().onSuggestionItemClicked(video);
+            }
+
+            @Override
+            public void loadMore(Video last) {
+                presenter().onScrollEnd(last);
+            }
+
+            @Override
+            public boolean allowed() {
+                return mPortrait && !mShortsMode && !mMusicMode && !isPip() && !mMinimized && !mMinimizing && !mTallFull
+                        && !PhoneCast.isCasting();
+            }
+
+            @Override
+            public View videoBox() {
+                return mVideoBox;
+            }
+
+            @Override
+            public int navInset() {
+                return mNavInset;
+            }
+
+            @Override
+            public boolean isRepeat() {
+                return playbackMode() == PlayerConstants.PLAYBACK_MODE_LIST;
+            }
+
+            @Override
+            public boolean isShuffle() {
+                return playbackMode() == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
+            }
+
+            @Override
+            public void setRepeat(boolean on) {
+                setPlaybackModeFromPlaylist(on ? PlayerConstants.PLAYBACK_MODE_LIST : PlayerConstants.PLAYBACK_MODE_ALL);
+            }
+
+            @Override
+            public void setShuffle(boolean on) {
+                setPlaybackModeFromPlaylist(on ? PlayerConstants.PLAYBACK_MODE_SHUFFLE : PlayerConstants.PLAYBACK_MODE_ALL);
+            }
+        };
+    }
+
+    // endregion
+
+    // region Sleep timer: "10 min left" under everything, as the YouTube app
+
+    private TextView mSleepBadge;
+
+    private void sleepTick() {
+        boolean show = PhoneSleepTimer.isOn() && mPortrait && !mShortsMode && !isPip() && !mMinimized && !mMinimizing
+                && !mTallFull;
+        if (!show) {
+            if (mSleepBadge != null && mSleepBadge.getVisibility() != View.GONE) {
+                mSleepBadge.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (mSleepBadge == null) {
+            ViewGroup content = findViewById(android.R.id.content);
+            if (content == null) {
+                return;
+            }
+            mSleepBadge = new TextView(this);
+            mSleepBadge.setTextColor(Color.WHITE);
+            mSleepBadge.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
+            mSleepBadge.setGravity(Gravity.CENTER);
+            mSleepBadge.setSingleLine(true);
+            int size = PhoneSheetLayout.dp(16);
+            android.graphics.drawable.Drawable moon = getResources().getDrawable(R.drawable.ic_phone_sleep).mutate();
+            moon.setTint(Color.WHITE);
+            moon.setBounds(0, 0, size, size);
+            mSleepBadge.setCompoundDrawablesRelative(moon, null, null, null);
+            mSleepBadge.setCompoundDrawablePadding(PhoneSheetLayout.dp(6));
+            mSleepBadge.setPadding(PhoneSheetLayout.dp(12), PhoneSheetLayout.dp(5), PhoneSheetLayout.dp(14), PhoneSheetLayout.dp(5));
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(0xCC1F1F1F);
+            bg.setCornerRadius(PhoneSheetLayout.dp(14));
+            mSleepBadge.setBackground(bg);
+            mSleepBadge.setOnClickListener(v -> {
+                Video video = currentVideo();
+                PhonePlayerSheet.showSleepTimer(this, video != null ? video.videoId : null);
+            });
+            content.addView(mSleepBadge, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        }
+        android.widget.FrameLayout.LayoutParams params = (android.widget.FrameLayout.LayoutParams) mSleepBadge.getLayoutParams();
+        int bottom = mNavInset + PhoneSheetLayout.dp(10) + playlistBarRoom();
+        if (params.bottomMargin != bottom) {
+            params.bottomMargin = bottom;
+            mSleepBadge.setLayoutParams(params);
+        }
+        mSleepBadge.setText(PhoneSleepTimer.label(this));
+        mSleepBadge.setVisibility(View.VISIBLE);
+        mSleepBadge.bringToFront();
+    }
+
+    // endregion
+
     private void portraitTick() {
         if (mShortsMode || mTallVideo || mMusicMode || mAwaitingNewVideo || isPip() || mMinimized || mMinimizing || mStopped
                 || PhoneCast.isCasting()) {
@@ -4371,6 +4522,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private void clickButton(int buttonId) {
+        if (buttonId == R.id.action_share) {
+            shareCurrent(); // the YouTube app's share sheet (a Short's too)
+            return;
+        }
         if (buttonId == R.id.action_chat && mLiveChat != null && mLiveChat.hasChat() && !mLiveChat.isShowing()) {
             mLiveChat.reopen(); // closed with its X: back (the chat kept coming in)
             return;
@@ -4393,24 +4548,26 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         // The layout manager must exist before anything is inflated against the RecyclerView
         mDetails.setLayoutManager(new LinearLayoutManager(this));
         mHeader = LayoutInflater.from(this).inflate(R.layout.phone_player_header, mDetails, false);
-        mHeader.findViewById(R.id.phone_player_title).setOnClickListener(v -> {
+        View.OnClickListener expand = v -> {
             mDescriptionExpanded = !mDescriptionExpanded;
             refreshDetails();
-        });
-        mHeader.findViewById(R.id.phone_player_channel).setOnClickListener(v -> clickButton(R.id.action_channel));
+        };
+        mHeader.findViewById(R.id.phone_player_title).setOnClickListener(expand);
+        mHeader.findViewById(R.id.phone_player_meta_row).setOnClickListener(expand);
         mHeader.findViewById(R.id.phone_player_subscribe).setOnClickListener(v -> clickButton(R.id.action_subscribe));
 
+        // As the YouTube app: the channel's picture, Subscribe, like | dislike, then the actions as icons, the most
+        // used first. Speed and quality are in the player's gear.
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
-        // Listen: this video (and the next ones) in the music player
-        addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
-        addAction(actions, R.id.action_thumbs_up, R.drawable.ic_phone_like, getString(R.string.phone_like));
-        addAction(actions, R.id.action_thumbs_down, R.drawable.ic_phone_dislike, ""); // Return YouTube Dislike count
+        addRating(actions);
+        addAction(actions, R.id.action_share, R.drawable.ic_phone_share_arrow, getString(R.string.phone_share));
         addAction(actions, R.id.action_chat, R.drawable.ic_phone_comments, getString(R.string.phone_comments));
-        addAction(actions, R.id.action_share, R.drawable.ic_phone_share, getString(R.string.phone_share));
         addAction(actions, R.id.action_playlist_add, R.drawable.ic_phone_save, getString(R.string.phone_save));
         addAction(actions, R.id.phone_action_download, R.drawable.ic_phone_download, getString(R.string.phone_download));
-        addAction(actions, R.id.lb_control_high_quality, R.drawable.ic_phone_settings, getString(R.string.phone_quality));
-        addAction(actions, R.id.action_video_speed, R.drawable.ic_phone_speed, getString(R.string.phone_speed));
+        // Listen: this video (and the next ones) in the music player
+        addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
+
+        mPlaylistPanel = new PhonePlaylistPanel(this, playlistHost());
 
         // Details on top, recommended videos below (TV overlay rows stay hidden)
         mAdapter = new FeedAdapter(this);
@@ -4432,37 +4589,71 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         });
     }
 
-    private void addAction(LinearLayout container, int buttonId, int icon, String label) {
+    /** Like | dislike in one pill (counts beside the thumbs), as in the YouTube app */
+    private void addRating(LinearLayout container) {
         LinearLayout pill = new LinearLayout(this);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER_VERTICAL);
         pill.setBackgroundResource(R.drawable.phone_pill_bg);
-        pill.setPadding(dp(14), 0, label != null ? dp(16) : dp(14), 0);
+        pill.setClipToOutline(true);
+        pill.addView(ratingHalf(R.id.action_thumbs_up, R.drawable.ic_phone_like_o, getString(R.string.phone_like)),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        View divider = new View(this);
+        divider.setBackgroundColor((getResources().getColor(R.color.phone_text) & 0x00FFFFFF) | 0x40000000);
+        pill.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(20)));
+        pill.addView(ratingHalf(R.id.action_thumbs_down, R.drawable.ic_phone_dislike_o, getString(R.string.phone_dislike)),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        params.setMarginEnd(dp(8));
+        container.addView(pill, params);
+    }
+
+    private View ratingHalf(int buttonId, int icon, String description) {
+        LinearLayout half = new LinearLayout(this);
+        half.setOrientation(LinearLayout.HORIZONTAL);
+        half.setGravity(Gravity.CENTER_VERTICAL);
+        half.setBackgroundResource(R.drawable.phone_ripple);
+        half.setPadding(dp(14), 0, dp(14), 0);
+        half.setTag(buttonId);
+        half.setContentDescription(description);
+        ImageView image = new ImageView(this);
+        image.setImageResource(icon);
+        image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
+        half.addView(image, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        TextView count = new TextView(this);
+        count.setTextColor(getResources().getColor(R.color.phone_text));
+        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        count.setTypeface(PhoneUi.medium(this));
+        count.setVisibility(View.GONE); // the count, when there is one
+        LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        countParams.setMarginStart(dp(8));
+        half.addView(count, countParams);
+        half.setOnClickListener(v -> clickButton(buttonId));
+        return half;
+    }
+
+    /** An action as an icon in a pill (its name read out by TalkBack, and shown on a long press) */
+    private void addAction(LinearLayout container, int buttonId, int icon, String label) {
+        LinearLayout pill = new LinearLayout(this);
+        pill.setOrientation(LinearLayout.HORIZONTAL);
+        pill.setGravity(Gravity.CENTER);
+        pill.setBackgroundResource(R.drawable.phone_pill_bg);
+        pill.setPadding(dp(18), 0, dp(18), 0);
         pill.setTag(buttonId);
+        pill.setContentDescription(label);
+        if (Build.VERSION.SDK_INT >= 26) {
+            pill.setTooltipText(label);
+        }
 
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
         image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
         pill.addView(image, new LinearLayout.LayoutParams(dp(20), dp(20)));
 
-        if (label != null) {
-            TextView text = new TextView(this);
-            text.setText(label);
-            if (label.isEmpty()) {
-                text.setVisibility(View.GONE); // filled in later (dislike count)
-            }
-            text.setTextColor(getResources().getColor(R.color.phone_text));
-            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-            text.setTypeface(PhoneUi.medium(text.getContext()));
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            textParams.setMarginStart(dp(8));
-            pill.addView(text, textParams);
-        }
-
         pill.setOnClickListener(v -> {
-            if (buttonId == R.id.action_video_speed) {
-                openSpeedMenu();
+            if (buttonId == R.id.action_share) {
+                shareCurrent();
             } else if (buttonId == R.id.phone_action_download) {
                 PhoneDownloads.showOptions(this, currentVideo());
             } else if (buttonId == R.id.phone_action_listen) {
@@ -4488,10 +4679,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
         });
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
-        params.setMarginStart(dp(4));
-        params.setMarginEnd(dp(4));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        params.setMarginEnd(dp(8));
         container.addView(pill, params);
+    }
+
+    /** The YouTube app's share sheet: apps, Copy link, and the link can start where the video is now */
+    private void shareCurrent() {
+        Video video = currentVideo();
+        if (video == null || video.videoId == null) {
+            return;
+        }
+        long position = mPlayer != null ? mPlayer.getPositionMs() : 0;
+        PhoneShareSheet.showVideo(this, video.getTitle(), video.videoId, video.isLive ? -1 : position);
     }
 
     private Video currentVideo() {
@@ -4527,26 +4727,39 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         TextView title = mHeader.findViewById(R.id.phone_player_title);
         TextView meta = mHeader.findViewById(R.id.phone_player_meta);
+        TextView more = mHeader.findViewById(R.id.phone_player_more);
         TextView description = mHeader.findViewById(R.id.phone_player_description);
-        TextView author = mHeader.findViewById(R.id.phone_player_author);
-        TextView subs = mHeader.findViewById(R.id.phone_player_subs);
         TextView subscribe = mHeader.findViewById(R.id.phone_player_subscribe);
         ImageView avatar = mHeader.findViewById(R.id.phone_avatar);
 
         title.setText(video.getTitle());
-        title.setMaxLines(mDescriptionExpanded ? 10 : 2);
+        // One line fading out at the end, as in the YouTube app; the whole title once opened
+        if (mDescriptionExpanded) {
+            title.setSingleLine(false);
+            title.setMaxLines(10);
+        } else {
+            title.setSingleLine(true);
+        }
 
-        CharSequence metaText = PhoneUi.meta(video);
-        meta.setText(metaText);
-        meta.setVisibility(TextUtils.isEmpty(metaText) ? View.GONE : View.VISIBLE);
+        meta.setText(detailsMeta(video));
+        more.setText(mDescriptionExpanded ? R.string.phone_less : R.string.phone_more);
 
-        boolean showDescription = mDescriptionExpanded && !TextUtils.isEmpty(video.description);
-        description.setText(showDescription ? video.description : null);
-        description.setVisibility(showDescription ? View.VISIBLE : View.GONE);
+        // Opened: the channel (and its subscribers), then the description
+        StringBuilder full = new StringBuilder();
+        if (mDescriptionExpanded) {
+            if (!TextUtils.isEmpty(video.getAuthor())) {
+                full.append(video.getAuthor());
+                if (!TextUtils.isEmpty(video.subscriberCount)) {
+                    full.append(" · ").append(video.subscriberCount);
+                }
+            }
+            if (!TextUtils.isEmpty(video.description)) {
+                full.append(full.length() > 0 ? "\n\n" : "").append(video.description);
+            }
+        }
+        description.setText(full.length() > 0 ? full : null);
+        description.setVisibility(full.length() > 0 ? View.VISIBLE : View.GONE);
 
-        author.setText(video.getAuthor());
-        subs.setText(video.subscriberCount);
-        subs.setVisibility(TextUtils.isEmpty(video.subscriberCount) ? View.GONE : View.VISIBLE);
         PhoneUi.bindAuthorAvatar(avatar, video);
         avatar.setOnClickListener(v -> clickButton(R.id.action_channel));
 
@@ -4556,25 +4769,42 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
-        for (int i = 0; i < actions.getChildCount(); i++) {
-            LinearLayout pill = (LinearLayout) actions.getChildAt(i);
-            int buttonId = (Integer) pill.getTag();
-            boolean on = getButtonState(buttonId) == PlayerUI.BUTTON_ON;
-            boolean isRating = buttonId == R.id.action_thumbs_up || buttonId == R.id.action_thumbs_down;
-            ((ImageView) pill.getChildAt(0)).setImageTintList(ColorStateList.valueOf(
-                    getResources().getColor(isRating && on ? R.color.phone_accent : R.color.phone_text)));
-            if (buttonId == R.id.action_thumbs_up && pill.getChildCount() > 1) {
-                ((TextView) pill.getChildAt(1)).setText(
-                        !TextUtils.isEmpty(video.likeCount) ? video.likeCount : getString(R.string.phone_like));
-            } else if (buttonId == R.id.action_thumbs_down && pill.getChildCount() > 1) {
-                // Dislikes from Return YouTube Dislike (SmartTube's likes counter setting, on by default)
-                boolean count = !TextUtils.isEmpty(video.dislikeCount);
-                TextView text = (TextView) pill.getChildAt(1);
-                text.setText(video.dislikeCount);
-                text.setVisibility(count ? View.VISIBLE : View.GONE);
-                pill.setPadding(dp(14), 0, count ? dp(16) : dp(14), 0);
+        // Liked / disliked: the filled thumb (as the YouTube app). Dislikes come from Return YouTube Dislike.
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_up), R.drawable.ic_phone_like, R.drawable.ic_phone_like_o, video.likeCount);
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_down), R.drawable.ic_phone_dislike, R.drawable.ic_phone_dislike_o, video.dislikeCount);
+    }
+
+    private void bindRating(View half, int onIcon, int offIcon, String count) {
+        if (!(half instanceof LinearLayout) || ((LinearLayout) half).getChildCount() < 2) {
+            return;
+        }
+        boolean on = getButtonState((Integer) half.getTag()) == PlayerUI.BUTTON_ON;
+        ((ImageView) ((LinearLayout) half).getChildAt(0)).setImageResource(on ? onIcon : offIcon);
+        TextView text = (TextView) ((LinearLayout) half).getChildAt(1);
+        text.setText(count);
+        text.setVisibility(TextUtils.isEmpty(count) ? View.GONE : View.VISIBLE);
+    }
+
+    private static final java.util.regex.Pattern HASHTAG = java.util.regex.Pattern.compile("(?<![\\w#])#[\\p{L}\\p{N}_]{2,}");
+
+    /** "Channel  4.3m views  9 mo ago  #tag", the YouTube app's line under the title (spaced, no dots) */
+    private CharSequence detailsMeta(Video video) {
+        CharSequence base = PhoneUi.meta(video);
+        StringBuilder line = new StringBuilder(base != null ? base.toString().replace(" · ", "   ") : "");
+        if (line.length() == 0 && !TextUtils.isEmpty(video.getAuthor())) {
+            line.append(video.getAuthor());
+        }
+        if (!TextUtils.isEmpty(video.description)) {
+            java.util.regex.Matcher tags = HASHTAG.matcher(video.description);
+            int added = 0;
+            while (added < 2 && tags.find()) {
+                if (line.indexOf(tags.group()) < 0) {
+                    line.append("   ").append(tags.group());
+                    added++;
+                }
             }
         }
+        return line;
     }
 
     private int dp(float value) {
@@ -4657,6 +4887,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         watchSongEnd();
         syncMusicPlayer();
+        if (mPlaylistPanel != null) {
+            mPlaylistPanel.onVideo(video);
+        }
         refreshDetails();
         if (mShortsMode) {
             preloadNextShorts();
@@ -4680,6 +4913,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         Video playing = currentVideo();
+        if (mPlaylistPanel != null && !mShortsMode && PhonePlaylistPanel.isPlaylistOf(group, playing)) {
+            // The playlist playing: in its bar and panel (as the YouTube app), not among the suggestions
+            mPlaylistPanel.setGroup(group, playing);
+            if (mMusicQueue == null) {
+                mMusicQueue = group;
+                applyShuffle(false);
+            }
+            return;
+        }
         mAdapter.setExcludedVideoId(playing != null ? playing.videoId : null);
         mAdapter.update(group);
         if (mMusicQueue == null) {
@@ -4738,9 +4980,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mHeader != null && (mChatLabelLive == null || mChatLabelLive != live)) {
             LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
             View pill = actions != null ? actions.findViewWithTag(R.id.action_chat) : null;
-            if (pill instanceof LinearLayout && ((LinearLayout) pill).getChildCount() > 1
-                    && ((LinearLayout) pill).getChildAt(1) instanceof TextView) {
-                ((TextView) ((LinearLayout) pill).getChildAt(1)).setText(live ? R.string.phone_live_chat : R.string.phone_comments);
+            if (pill != null) {
+                CharSequence label = getString(live ? R.string.phone_live_chat : R.string.phone_comments);
+                pill.setContentDescription(label);
+                if (Build.VERSION.SDK_INT >= 26) {
+                    pill.setTooltipText(label);
+                }
                 mChatLabelLive = live;
             }
         }

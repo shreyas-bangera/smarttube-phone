@@ -38,6 +38,14 @@
     <permission android:name="${applicationId}.ACCESS_VIDEO_DATA" tools:node="remove" />
     <uses-feature android:name="android.hardware.microphone" tools:node="remove" />
 
+    <!-- The share sheet lists the apps that take a link (Android 11+ shows an app only the ones it asks for) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <!-- Browsing uses the phone UI in portrait. The remaining Leanback screens (player, sign-in) stay landscape. -->
     <application
         android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneApplication"

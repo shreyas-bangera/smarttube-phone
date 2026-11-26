@@ -99,9 +99,9 @@ final class PhonePlayerSheet {
             sheet.dismiss();
             host.openMode();
         });
-        sheet.addRow(R.drawable.ic_phone_timer, activity.getString(R.string.phone_sleep_timer), host.sleepLabel(), false, () -> {
+        sheet.addRow(R.drawable.ic_phone_sleep, activity.getString(R.string.phone_sleep_timer), host.sleepLabel(), false, () -> {
             sheet.dismiss();
-            showSleepTimer(activity, host);
+            showSleepTimer(activity, host.videoId());
         });
         if (moment != null) {
             sheet.addRow(R.drawable.ic_phone_bookmark, activity.getString(R.string.phone_moment_save), moment.time(), false, () -> {
@@ -129,9 +129,10 @@ final class PhonePlayerSheet {
     }
 
     /** Sleep timer choices: off, minutes, or the end of this video (the one chosen has the check) */
-    static void showSleepTimer(Activity activity, Host host) {
+    static void showSleepTimer(Activity activity, String videoId) {
         Sheet sheet = new Sheet(activity, activity.getString(R.string.phone_sleep_timer));
         boolean on = PhoneSleepTimer.isOn();
+        int choice = PhoneSleepTimer.choice();
         sheet.addRow(0, activity.getString(R.string.phone_off), null, !on, () -> {
             sheet.dismiss();
             if (PhoneSleepTimer.isOn()) {
@@ -140,16 +141,17 @@ final class PhonePlayerSheet {
             }
         });
         for (int minutes : PhoneSleepTimer.MINUTES) {
-            sheet.addRow(0, activity.getString(R.string.phone_sleep_minutes, minutes), null, false, () -> {
+            sheet.addRow(0, PhoneSleepTimer.choiceName(activity, minutes), null, on && choice == minutes, () -> {
                 sheet.dismiss();
                 PhoneSleepTimer.startMinutes(activity, minutes);
                 android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
                         android.widget.Toast.LENGTH_SHORT).show();
             });
         }
-        String videoId = host.videoId();
         if (videoId != null) {
-            sheet.addRow(0, activity.getString(R.string.phone_sleep_end_of_video), null, false, () -> {
+            // with what's left of it, as the YouTube app
+            sheet.addRow(0, activity.getString(R.string.phone_sleep_end_of_video), PhoneSleepTimer.videoLeft(activity), null,
+                    on && choice == -1, () -> {
                 sheet.dismiss();
                 PhoneSleepTimer.startEndOfVideo(activity, videoId);
                 android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
@@ -270,7 +272,7 @@ final class PhonePlayerSheet {
     }
 
     /** A bottom sheet: a handle, an optional title, rows */
-    private static final class Sheet {
+    static final class Sheet {
         private final Activity mActivity;
         private final Dialog mDialog;
         private final LinearLayout mRows;
@@ -336,6 +338,11 @@ final class PhonePlayerSheet {
 
         /** icon 0: the tick column (ticked when selected); value: shown on the right */
         void addRow(int icon, String text, String value, boolean selected, Runnable onClick) {
+            addRow(icon, text, null, value, selected, onClick);
+        }
+
+        /** subtitle: a second, smaller line under the text */
+        void addRow(int icon, String text, String subtitle, String value, boolean selected, Runnable onClick) {
             LinearLayout row = new LinearLayout(mActivity);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setMinimumHeight(dp(48));
@@ -355,7 +362,20 @@ final class PhonePlayerSheet {
             label.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             labelParams.setMarginStart(dp(32));
-            row.addView(label, labelParams);
+            if (TextUtils.isEmpty(subtitle)) {
+                row.addView(label, labelParams);
+            } else {
+                LinearLayout texts = new LinearLayout(mActivity);
+                texts.setOrientation(LinearLayout.VERTICAL);
+                texts.setPadding(0, dp(8), 0, dp(8));
+                texts.addView(label);
+                TextView second = new TextView(mActivity);
+                second.setText(subtitle);
+                second.setTextColor(color(R.color.phone_text_2));
+                second.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
+                texts.addView(second);
+                row.addView(texts, labelParams);
+            }
 
             if (!TextUtils.isEmpty(value)) {
                 TextView right = new TextView(mActivity);
@@ -367,6 +387,15 @@ final class PhonePlayerSheet {
                 row.addView(right, rightParams);
             }
             mRows.addView(row);
+        }
+
+        /** Anything else, in the rows' column */
+        void addView(View view) {
+            mRows.addView(view);
+        }
+
+        void setOnDismiss(Runnable onDismiss) {
+            mDialog.setOnDismissListener(d -> onDismiss.run());
         }
 
         void show() {
@@ -383,7 +412,7 @@ final class PhonePlayerSheet {
             return mActivity.getResources().getColor(res);
         }
 
-        private int dp(float value) {
+        int dp(float value) {
             return Math.round(value * mDensity);
         }
     }

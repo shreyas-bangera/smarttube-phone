@@ -323,7 +323,7 @@
     <string name="phone_sleep_timer">Sleep timer</string>
     <string name="phone_sleep_minutes">%d minutes</string>
     <string name="phone_sleep_end_of_video">End of video</string>
-    <string name="phone_sleep_left">%d min left</string>
+    <string name="phone_sleep_left">%s left</string>
     <string name="phone_sleep_set">Sleep timer: %s</string>
     <string name="phone_sleep_off">Sleep timer off</string>
     <string name="phone_sleep_done">Sleep timer: video paused</string>
@@ -335,4 +335,20 @@
     <string name="phone_playlist_remove_ask">Remove “%s” from your library?</string>
     <string name="phone_playlist_sign_in">Sign in to save playlists to your library</string>
     <string name="phone_playlist_save_failed">Couldn\'t update your library. Try again.</string>
+    <string name="phone_more">more</string>
+    <string name="phone_less">less</string>
+    <string name="phone_close">Close</string>
+    <string name="phone_share_copy">Copy link</string>
+    <string name="phone_share_more">More</string>
+    <string name="phone_share_copied">Link copied</string>
+    <string name="phone_share_start_at">Start at %s</string>
+    <string name="phone_sleep_hour">1 hour</string>
+    <string name="phone_sleep_hours">%d hours</string>
+    <string name="phone_sleep_min">%d min</string>
+    <string name="phone_sleep_hr">%d hr</string>
+    <string name="phone_sleep_hr_min">%1$d hr %2$d min</string>
+    <string name="phone_playlist">Playlist</string>
+    <string name="phone_playlist_mix">Mix</string>
+    <string name="phone_playlist_next">Next: %s</string>
+    <string name="phone_playlist_mix_about">Mixes are playlists that YouTube makes for you</string>
 </resources>

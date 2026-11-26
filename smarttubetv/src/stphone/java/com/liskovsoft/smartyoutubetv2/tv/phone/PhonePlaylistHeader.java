@@ -138,7 +138,7 @@ final class PhonePlaylistHeader {
         mSave.setVisibility(View.GONE); // until it's known the playlist can be saved
         buttons.addView(mSave);
         buttons.addView(circle(context, R.drawable.ic_phone_mode_shuffle, v -> actions.shuffle()));
-        buttons.addView(circle(context, R.drawable.ic_phone_share, v -> share(context)));
+        buttons.addView(circle(context, R.drawable.ic_phone_share_arrow, v -> share(context)));
         column.addView(buttons);
     }
 
@@ -275,6 +275,10 @@ final class PhonePlaylistHeader {
 
     private void share(Context context) {
         if (mPlaylist == null || TextUtils.isEmpty(mPlaylist.playlistId)) {
+            return;
+        }
+        if (context instanceof android.app.Activity) {
+            PhoneShareSheet.showPlaylist((android.app.Activity) context, mPlaylist.getTitle(), mPlaylist.playlistId);
             return;
         }
         Intent send = new Intent(Intent.ACTION_SEND)
