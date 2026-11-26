@@ -3,12 +3,15 @@ package com.liskovsoft.smartyoutubetv2.tv.phone;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -27,6 +30,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.liskovsoft.mediaserviceinterfaces.data.ChatItem;
+import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiver;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiverImpl;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -35,81 +39,127 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * A live stream's chat, laid out as in the YouTube app: in portrait a panel under the video (in place of the
- * details), in full screen a column beside the video (the video moves over to make room), never over the video.
- * A header (Live chat, Top messages, close), the messages as they come, and a box to write in when signed in (or why
- * one can't: e.g. Subscribers-only mode).
+ * A live stream's chat, laid out as in the YouTube app:
+ * <ul>
+ *     <li>portrait: a sheet under the video (rounded top, a handle), with Live chat, Top messages and the number
+ *     watching, the X; the messages (picture, the name in grey, the message); the account's picture and a round
+ *     Chat... box, or why one can't chat (e.g. Subscribers-only mode)</li>
+ *     <li>full screen: the same as a column on the right, the video moved over beside it</li>
+ *     <li>an upright stream: on the video itself, the channel along the top, the messages and the Chat... box over
+ *     the bottom</li>
+ * </ul>
+ * Sizes are in the phone's own scale (the player screen's resources are scaled for the TV in full screen).
  */
 final class PhoneLiveChat {
     interface Host {
-        /** Where the video box is on screen, and whether the screen is in a mode where the chat shows at all */
         View videoBox();
 
         boolean chatAllowed();
 
         boolean landscape();
 
-        /** An upright stream filling the screen: the chat over the bottom of the video, as in the YouTube app */
+        /** An upright stream filling the screen: the chat over the bottom of the video */
         boolean overlay();
 
-        String videoId();
-
-        String channelId();
+        Video video();
 
         /** The chat was closed with its X */
         void onChatClosed();
 
         /** The video box needs room on its right (landscape), or none */
         void setVideoRightMargin(int px);
+
+        /** The channel bar's back arrow (upright streams) */
+        void onBack();
+
+        void onChannel();
+
+        void onSubscribe();
+
+        boolean isSubscribed();
     }
 
     private static final int MAX_MESSAGES = 250;
+    private static final int GREY = 0xFFAAAAAA;
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
+    private static final Pattern WATCHING = Pattern.compile("([\\d.,]+\\s*[KkMmLl]?)\\s*watching");
 
     private final Activity mActivity;
     private final Host mHost;
     private final Handler mMain = new Handler(Looper.getMainLooper());
     private final float mDensity;
     private final LinearLayout mPanel;
+    private final View mHandle;
+    private final View mHeader;
+    private final TextView mViewers;
+    private final View mTopDivider;
     private final RecyclerView mList;
     private final Adapter mAdapter = new Adapter();
-    private final EditText mInput;
-    private final View mSend;
-    private final TextView mNotice;
-    private final View mInputRow;
-    private final View mHeader;
-    private final View mTopDivider;
     private final View mBottomDivider;
+    private final LinearLayout mInputRow;
     private final ImageView mMe;
+    private final LinearLayout mPill;
+    private final EditText mInput;
+    private final ImageView mSend;
+    private final TextView mNotice;
+    // The channel bar over an upright stream
+    private final LinearLayout mTopBar;
+    private final ImageView mTopAvatar;
+    private final TextView mTopName;
+    private final TextView mTopViewers;
+    private final TextView mTopSubscribe;
+
     private ChatReceiver mReceiver;
-    private boolean mOverlay;
     private String mChatKey;
     private boolean mClosed;
+    private int mMode = -1; // 0 sheet, 1 side, 2 on the video
+    private String mTopState;
 
     PhoneLiveChat(Activity activity, Host host) {
         mActivity = activity;
         mHost = host;
-        // The phone's own scale (the player screen's resources are scaled for the TV in full screen)
         mDensity = PhoneSheetLayout.screen().density;
 
         mPanel = new LinearLayout(activity);
         mPanel.setOrientation(LinearLayout.VERTICAL);
-        mPanel.setBackgroundColor(color(R.color.phone_bg));
         mPanel.setClickable(true); // nothing under it gets the touches
         mPanel.setVisibility(View.GONE);
 
-        // Header: Live chat / Top messages, and the X
+        // The sheet's handle
+        mHandle = new View(activity);
+        GradientDrawable handle = new GradientDrawable();
+        handle.setColor(0x66888888);
+        handle.setCornerRadius(dp(2));
+        mHandle.setBackground(handle);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(40), dp(4));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        handleParams.topMargin = dp(10);
+        mPanel.addView(mHandle, handleParams);
+
+        // Live chat / Top messages · 42K watching, and the X
         LinearLayout header = new LinearLayout(activity);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(18), dp(10), dp(6), dp(10));
+        header.setPadding(dp(18), dp(8), dp(8), dp(10));
         LinearLayout titles = new LinearLayout(activity);
         titles.setOrientation(LinearLayout.VERTICAL);
-        TextView title = text(R.string.phone_live_chat, 18, R.color.phone_text);
-        title.setTypeface(PhoneUi.medium(activity));
+        TextView title = text(activity.getString(R.string.phone_live_chat), 21, color(R.color.phone_text));
+        title.setTypeface(PhoneUi.regular(activity));
         titles.addView(title);
-        titles.addView(text(R.string.phone_live_chat_top, 13, R.color.phone_text_2));
+        LinearLayout sub = new LinearLayout(activity);
+        sub.setGravity(Gravity.CENTER_VERTICAL);
+        sub.setPadding(0, dp(4), 0, 0);
+        sub.addView(text(activity.getString(R.string.phone_live_chat_top), 14, GREY));
+        mViewers = text("", 14, GREY);
+        mViewers.setCompoundDrawablePadding(dp(4));
+        mViewers.setCompoundDrawablesRelative(icon(R.drawable.ic_phone_person, 16, GREY), null, null, null);
+        LinearLayout.LayoutParams viewersParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        viewersParams.setMarginStart(dp(14));
+        sub.addView(mViewers, viewersParams);
+        titles.addView(sub);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageView close = new ImageView(activity);
         close.setImageResource(R.drawable.ic_phone_close);
@@ -136,33 +186,30 @@ final class PhoneLiveChat {
         mList.setLayoutManager(manager);
         mList.setAdapter(mAdapter);
         mList.setItemAnimator(null);
-        mList.setPadding(0, dp(6), 0, dp(6));
+        mList.setPadding(0, dp(4), 0, dp(4));
         mList.setClipToPadding(false);
         mPanel.addView(mList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         mBottomDivider = divider();
         mPanel.addView(mBottomDivider);
 
-        // Writing: a "Chat…" box and send, or why one can't
+        // The account's picture and a round Chat... box (send shows once there's something to send)
         mInputRow = new LinearLayout(activity);
-        ((LinearLayout) mInputRow).setGravity(Gravity.CENTER_VERTICAL);
-        mInputRow.setPadding(dp(14), dp(8), dp(6), dp(8));
-        // Who's writing: the signed-in account's picture, as in the YouTube app
+        mInputRow.setGravity(Gravity.CENTER_VERTICAL);
+        mInputRow.setPadding(dp(16), dp(10), dp(16), dp(10));
         mMe = new ImageView(activity);
         LinearLayout.LayoutParams meParams = new LinearLayout.LayoutParams(dp(32), dp(32));
-        meParams.setMarginEnd(dp(10));
-        ((LinearLayout) mInputRow).addView(mMe, meParams);
+        meParams.setMarginEnd(dp(12));
+        mInputRow.addView(mMe, meParams);
+        mPill = new LinearLayout(activity);
+        mPill.setGravity(Gravity.CENTER_VERTICAL);
+        mPill.setPadding(dp(18), 0, dp(6), 0);
         mInput = new EditText(activity);
+        mInput.setBackground(null);
+        mInput.setPadding(0, 0, 0, 0);
         mInput.setHint(R.string.phone_live_chat_hint);
         mInput.setSingleLine(true);
         mInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
-        mInput.setTextColor(color(R.color.phone_text));
-        mInput.setHintTextColor(color(R.color.phone_text_2));
-        mInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
-        GradientDrawable box = new GradientDrawable();
-        box.setColor(color(R.color.phone_surface));
-        box.setCornerRadius(dp(22));
-        mInput.setBackground(box);
-        mInput.setPadding(dp(16), 0, dp(16), 0);
+        mInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(16));
         mInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 send();
@@ -170,19 +217,34 @@ final class PhoneLiveChat {
             }
             return false;
         });
-        ((LinearLayout) mInputRow).addView(mInput, new LinearLayout.LayoutParams(0, dp(40), 1f));
-        ImageView send = new ImageView(activity);
-        send.setImageResource(R.drawable.ic_phone_send);
-        send.setImageTintList(ColorStateList.valueOf(color(R.color.phone_text)));
-        send.setPadding(dp(12), dp(12), dp(12), dp(12));
-        send.setBackgroundResource(R.drawable.phone_ripple);
-        send.setOnClickListener(v -> send());
-        mSend = send;
-        ((LinearLayout) mInputRow).addView(send, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        mPill.addView(mInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        mSend = new ImageView(activity);
+        mSend.setImageResource(R.drawable.ic_phone_send);
+        mSend.setPadding(dp(9), dp(9), dp(9), dp(9));
+        mSend.setBackgroundResource(R.drawable.phone_ripple);
+        mSend.setVisibility(View.GONE);
+        mSend.setOnClickListener(v -> send());
+        mPill.addView(mSend, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        mInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                mSend.setVisibility(s.toString().trim().isEmpty() ? View.GONE : View.VISIBLE);
+            }
+        });
+        mInputRow.addView(mPill, new LinearLayout.LayoutParams(0, dp(44), 1f));
         mPanel.addView(mInputRow);
-        mNotice = text(0, 14, R.color.phone_text_2);
-        mNotice.setPadding(dp(18), dp(14), dp(18), dp(16));
-        mNotice.setCompoundDrawablePadding(dp(12));
+        // Or why one can't chat: (i) Subscribers-only mode
+        mNotice = text("", 16, GREY);
+        mNotice.setPadding(dp(18), dp(16), dp(18), dp(18));
+        mNotice.setCompoundDrawablePadding(dp(22));
         mNotice.setGravity(Gravity.CENTER_VERTICAL);
         mNotice.setVisibility(View.GONE);
         mPanel.addView(mNotice);
@@ -197,13 +259,62 @@ final class PhoneLiveChat {
             return insets;
         });
 
+        // The channel bar over an upright stream: back, the channel, the number watching, Subscribe
+        mTopBar = new LinearLayout(activity);
+        mTopBar.setGravity(Gravity.CENTER_VERTICAL);
+        mTopBar.setPadding(dp(4), dp(6), dp(14), dp(6));
+        mTopBar.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {0x99000000, 0x00000000}));
+        mTopBar.setVisibility(View.GONE);
+        ImageView back = new ImageView(activity);
+        back.setImageResource(R.drawable.ic_phone_back);
+        back.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+        back.setPadding(dp(12), dp(12), dp(12), dp(12));
+        back.setBackgroundResource(R.drawable.phone_ripple);
+        back.setOnClickListener(v -> mHost.onBack());
+        mTopBar.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        mTopAvatar = new ImageView(activity);
+        mTopAvatar.setOnClickListener(v -> mHost.onChannel());
+        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        avatarParams.setMarginStart(dp(4));
+        mTopBar.addView(mTopAvatar, avatarParams);
+        LinearLayout names = new LinearLayout(activity);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setOnClickListener(v -> mHost.onChannel());
+        mTopName = text("", 16, 0xFFFFFFFF);
+        mTopName.setTypeface(PhoneUi.medium(activity));
+        mTopName.setSingleLine(true);
+        mTopName.setEllipsize(TextUtils.TruncateAt.END);
+        mTopName.setShadowLayer(dp(3), 0, 0, 0x99000000);
+        names.addView(mTopName);
+        mTopViewers = text("", 13, 0xFFFFFFFF);
+        mTopViewers.setCompoundDrawablePadding(dp(6));
+        mTopViewers.setShadowLayer(dp(3), 0, 0, 0x99000000);
+        mTopViewers.setPadding(0, dp(3), 0, 0);
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(0xFFFF0033);
+        dot.setBounds(0, 0, dp(8), dp(8));
+        mTopViewers.setCompoundDrawablesRelative(dot, null, null, null);
+        names.addView(mTopViewers);
+        LinearLayout.LayoutParams namesParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        namesParams.setMarginStart(dp(12));
+        mTopBar.addView(names, namesParams);
+        mTopSubscribe = text(activity.getString(R.string.phone_subscribe), 15, 0xFF0F0F0F);
+        mTopSubscribe.setTypeface(PhoneUi.medium(activity));
+        mTopSubscribe.setGravity(Gravity.CENTER);
+        mTopSubscribe.setPadding(dp(16), 0, dp(16), 0);
+        mTopSubscribe.setOnClickListener(v -> mHost.onSubscribe());
+        mTopBar.addView(mTopSubscribe, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)));
+
         FrameLayout content = activity.findViewById(android.R.id.content);
         content.addView(mPanel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0));
+        content.addView(mTopBar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         host.videoBox().addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (t != ot || b != ob || l != ol || r != or) {
                 mPanel.post(this::layout);
             }
         });
+        setMode(0);
     }
 
     /** The chat the player opened for this stream (null: closed, or not a stream with chat) */
@@ -241,88 +352,6 @@ final class PhoneLiveChat {
         return mPanel.getVisibility() == View.VISIBLE;
     }
 
-    /** Places the panel for the screen as it is now: under the video, beside it, or hidden */
-    void layout() {
-        boolean show = mReceiver != null && !mClosed && mHost.chatAllowed();
-        boolean landscape = mHost.landscape();
-        // Beside the video: a third of the screen, as in the YouTube app (measured on the screen itself: the player
-        // screen's own metrics are scaled for the TV)
-        View content0 = (View) mPanel.getParent();
-        int screenWidth = content0 != null && content0.getWidth() > 0 ? content0.getWidth() : PhoneSheetLayout.screen().widthPixels;
-        int sideWidth = show && landscape ? Math.max(dp(300), Math.min(dp(420), Math.round(screenWidth * 0.36f))) : 0;
-        mHost.setVideoRightMargin(sideWidth);
-        if (!show) {
-            if (mPanel.getVisibility() != View.GONE) {
-                hideKeyboard();
-                mPanel.setVisibility(View.GONE);
-            }
-            return;
-        }
-        FrameLayout content = (FrameLayout) mPanel.getParent();
-        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mPanel.getLayoutParams();
-        int width;
-        int height;
-        int gravity;
-        int top;
-        boolean overlay = mHost.overlay() && !landscape;
-        if (overlay != mOverlay) {
-            setOverlay(overlay);
-        }
-        if (overlay) {
-            // Over the bottom of the upright video
-            Rect video = new Rect();
-            Rect root = new Rect();
-            mHost.videoBox().getGlobalVisibleRect(video);
-            content.getGlobalVisibleRect(root);
-            width = ViewGroup.LayoutParams.MATCH_PARENT;
-            gravity = Gravity.TOP;
-            height = Math.round(video.height() * 0.42f);
-            top = Math.max(0, video.bottom - root.top - height);
-        } else if (landscape) {
-            width = sideWidth;
-            height = ViewGroup.LayoutParams.MATCH_PARENT;
-            gravity = Gravity.END | Gravity.TOP;
-            top = 0;
-        } else {
-            // Right under the video, down to the bottom
-            Rect video = new Rect();
-            Rect root = new Rect();
-            mHost.videoBox().getGlobalVisibleRect(video);
-            content.getGlobalVisibleRect(root);
-            width = ViewGroup.LayoutParams.MATCH_PARENT;
-            gravity = Gravity.TOP;
-            top = Math.max(0, video.bottom - root.top);
-            height = Math.max(dp(160), root.height() - top);
-        }
-        if (params.width != width || params.height != height || params.gravity != gravity || params.topMargin != top) {
-            params.width = width;
-            params.height = height;
-            params.gravity = gravity;
-            params.topMargin = top;
-            mPanel.setLayoutParams(params);
-        }
-        if (mPanel.getVisibility() != View.VISIBLE) {
-            mPanel.setVisibility(View.VISIBLE);
-        }
-    }
-
-    /** On the video (no panel, a shade behind the messages) or as a panel */
-    private void setOverlay(boolean overlay) {
-        mOverlay = overlay;
-        if (overlay) {
-            mPanel.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {0x00000000, 0x99000000, 0xCC000000}));
-        } else {
-            mPanel.setBackgroundColor(color(R.color.phone_bg));
-        }
-        mHeader.setVisibility(overlay ? View.GONE : View.VISIBLE);
-        mTopDivider.setVisibility(overlay ? View.GONE : View.VISIBLE);
-        mBottomDivider.setVisibility(overlay ? View.GONE : View.VISIBLE);
-        // The older messages fade out at the top over the video
-        mList.setVerticalFadingEdgeEnabled(overlay);
-        mList.setFadingEdgeLength(overlay ? dp(48) : 0);
-        mAdapter.notifyDataSetChanged();
-    }
-
     /** Opens the chat again after its X (the chat button) */
     void reopen() {
         mClosed = false;
@@ -335,6 +364,169 @@ final class PhoneLiveChat {
         }
         mReceiver = null;
     }
+
+    // region Where it goes
+
+    /** Places the chat for the screen as it is now: under the video, beside it, over it, or hidden */
+    void layout() {
+        boolean show = mReceiver != null && !mClosed && mHost.chatAllowed();
+        boolean landscape = mHost.landscape();
+        boolean overlay = !landscape && mHost.overlay();
+        FrameLayout content = (FrameLayout) mPanel.getParent();
+        int screenWidth = content != null && content.getWidth() > 0 ? content.getWidth() : PhoneSheetLayout.screen().widthPixels;
+        // Beside the video in full screen: 40% of the screen, as in the YouTube app
+        int sideWidth = show && landscape ? Math.max(dp(300), Math.round(screenWidth * 0.4f)) : 0;
+        mHost.setVideoRightMargin(sideWidth);
+        layoutTopBar(overlay && mHost.chatAllowed());
+        if (!show || content == null) {
+            if (mPanel.getVisibility() != View.GONE) {
+                hideKeyboard();
+                mPanel.setVisibility(View.GONE);
+            }
+            return;
+        }
+        setMode(overlay ? 2 : landscape ? 1 : 0);
+        Rect video = new Rect();
+        Rect root = new Rect();
+        mHost.videoBox().getGlobalVisibleRect(video);
+        content.getGlobalVisibleRect(root);
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mPanel.getLayoutParams();
+        int width;
+        int height;
+        int gravity;
+        int top;
+        if (overlay) {
+            width = ViewGroup.LayoutParams.MATCH_PARENT;
+            gravity = Gravity.TOP;
+            height = Math.round(video.height() * 0.40f);
+            top = Math.max(0, video.bottom - root.top - height);
+        } else if (landscape) {
+            width = sideWidth;
+            height = ViewGroup.LayoutParams.MATCH_PARENT;
+            gravity = Gravity.END | Gravity.TOP;
+            top = 0;
+        } else {
+            width = ViewGroup.LayoutParams.MATCH_PARENT;
+            gravity = Gravity.TOP;
+            top = Math.max(0, video.bottom - root.top);
+            height = Math.max(dp(200), root.height() - top);
+        }
+        if (params.width != width || params.height != height || params.gravity != gravity || params.topMargin != top) {
+            params.width = width;
+            params.height = height;
+            params.gravity = gravity;
+            params.topMargin = top;
+            mPanel.setLayoutParams(params);
+        }
+        if (mPanel.getVisibility() != View.VISIBLE) {
+            mPanel.setVisibility(View.VISIBLE);
+        }
+        updateViewers();
+    }
+
+    /** The look for where it is: a sheet, a side column, or on the video */
+    private void setMode(int mode) {
+        if (mode == mMode) {
+            return;
+        }
+        mMode = mode;
+        boolean onVideo = mode == 2;
+        if (onVideo) {
+            mPanel.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {0x00000000, 0x66000000}));
+        } else if (mode == 0) {
+            GradientDrawable sheet = new GradientDrawable();
+            sheet.setColor(color(R.color.phone_bg));
+            float r = dp(16);
+            sheet.setCornerRadii(new float[] {r, r, r, r, 0, 0, 0, 0});
+            mPanel.setBackground(sheet);
+        } else {
+            mPanel.setBackgroundColor(color(R.color.phone_bg));
+        }
+        mHandle.setVisibility(mode == 0 ? View.VISIBLE : View.GONE);
+        mHeader.setVisibility(onVideo ? View.GONE : View.VISIBLE);
+        mTopDivider.setVisibility(onVideo ? View.GONE : View.VISIBLE);
+        mBottomDivider.setVisibility(onVideo ? View.GONE : View.VISIBLE);
+        mMe.setVisibility(onVideo ? View.GONE : View.VISIBLE);
+        // The older messages fade out at the top over the video
+        mList.setVerticalFadingEdgeEnabled(onVideo);
+        mList.setFadingEdgeLength(onVideo ? dp(56) : 0);
+        GradientDrawable pill = new GradientDrawable();
+        pill.setColor(onVideo ? 0x59000000 : (isDark() ? 0xFF272727 : 0xFFF2F2F2));
+        if (onVideo) {
+            pill.setStroke(Math.max(1, dp(1)), 0x40FFFFFF);
+        }
+        pill.setCornerRadius(dp(22));
+        mPill.setBackground(pill);
+        int text = onVideo ? 0xFFFFFFFF : color(R.color.phone_text);
+        mInput.setTextColor(text);
+        mInput.setHintTextColor(onVideo ? 0xCCFFFFFF : GREY);
+        mSend.setImageTintList(ColorStateList.valueOf(text));
+        mAdapter.notifyDataSetChanged();
+    }
+
+    private void layoutTopBar(boolean show) {
+        if (!show) {
+            if (mTopBar.getVisibility() != View.GONE) {
+                mTopBar.setVisibility(View.GONE);
+            }
+            return;
+        }
+        Video video = mHost.video();
+        String viewers = viewers();
+        boolean subscribed = mHost.isSubscribed();
+        String state = (video != null ? video.videoId + video.getAuthor() : "") + "|" + viewers + "|" + subscribed;
+        if (!state.equals(mTopState)) {
+            // (called often: only when something changed, not a new picture load every time)
+            mTopState = state;
+            if (video != null) {
+                mTopName.setText(video.getAuthor());
+                PhoneUi.bindAuthorAvatar(mTopAvatar, video);
+            }
+            mTopViewers.setText(viewers != null ? viewers : "");
+            mTopViewers.setVisibility(viewers != null ? View.VISIBLE : View.GONE);
+            mTopSubscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(subscribed ? 0x40FFFFFF : 0xFFFFFFFF);
+            pill.setCornerRadius(dp(18));
+            mTopSubscribe.setBackground(pill);
+            mTopSubscribe.setTextColor(subscribed ? 0xFFFFFFFF : 0xFF0F0F0F);
+        }
+        Rect videoRect = new Rect();
+        Rect root = new Rect();
+        mHost.videoBox().getGlobalVisibleRect(videoRect);
+        ((View) mTopBar.getParent()).getGlobalVisibleRect(root);
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
+        int top = Math.max(0, videoRect.top - root.top);
+        if (params.topMargin != top) {
+            params.topMargin = top;
+            mTopBar.setLayoutParams(params);
+        }
+        if (mTopBar.getVisibility() != View.VISIBLE) {
+            mTopBar.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /** "42K": how many are watching (from the video's own line, "… · 42K watching") */
+    private String viewers() {
+        Video video = mHost.video();
+        CharSequence line = video != null ? video.getSecondTitle() : null;
+        if (line == null) {
+            return null;
+        }
+        Matcher matcher = WATCHING.matcher(line);
+        return matcher.find() ? matcher.group(1).trim() : null;
+    }
+
+    private void updateViewers() {
+        String viewers = viewers();
+        if (TextUtils.equals(viewers, mViewers.getText())) {
+            return;
+        }
+        mViewers.setText(viewers != null ? viewers : "");
+        mViewers.setVisibility(viewers != null ? View.VISIBLE : View.GONE);
+    }
+
+    // endregion
 
     // region Writing
 
@@ -368,7 +560,7 @@ final class PhoneLiveChat {
             try {
                 reason = com.liskovsoft.youtubeapi.chat.LiveChatWriter.whyNot(key);
             } catch (Throwable e) {
-                reason = null; // try when sending
+                reason = null; // tried when sending
             }
             String why = reason;
             mMain.post(() -> {
@@ -385,24 +577,19 @@ final class PhoneLiveChat {
         mNotice.setVisibility(why == null ? View.GONE : View.VISIBLE);
         if (why != null) {
             mNotice.setText(why);
-            android.graphics.drawable.Drawable info = mActivity.getDrawable(R.drawable.ic_phone_info);
-            if (info != null) {
-                info = info.mutate();
-                info.setTint(color(R.color.phone_text_2));
-                info.setBounds(0, 0, dp(22), dp(22));
-            }
-            mNotice.setCompoundDrawablesRelative(info, null, null, null);
+            mNotice.setCompoundDrawablesRelative(icon(R.drawable.ic_phone_info, 26, GREY), null, null, null);
         }
     }
 
     private void send() {
         String text = mInput.getText().toString().trim();
         String key = mChatKey;
-        String videoId = mHost.videoId();
-        if (TextUtils.isEmpty(text) || key == null || videoId == null) {
+        Video video = mHost.video();
+        if (TextUtils.isEmpty(text) || key == null || video == null || video.videoId == null) {
             return;
         }
-        String channelId = mHost.channelId();
+        String videoId = video.videoId;
+        String channelId = video.channelId;
         mSend.setEnabled(false);
         mInput.setEnabled(false);
         WORKER.execute(() -> {
@@ -471,16 +658,16 @@ final class PhoneLiveChat {
         @Override
         public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             LinearLayout row = new LinearLayout(parent.getContext());
-            row.setPadding(dp(16), dp(6), dp(16), dp(6));
+            row.setPadding(dp(16), dp(8), dp(16), dp(8));
             ImageView avatar = new ImageView(parent.getContext());
-            LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(24), dp(24));
-            row.addView(avatar, avatarParams);
+            row.addView(avatar, new LinearLayout.LayoutParams(dp(28), dp(28)));
             TextView text = new TextView(parent.getContext());
-            text.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(14));
-            text.setTextColor(color(R.color.phone_text));
-            text.setLineSpacing(0, 1.08f);
+            text.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
+            text.setTypeface(PhoneUi.regular(parent.getContext()));
+            text.setLineSpacing(0, 1.05f);
             LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            textParams.setMarginStart(dp(14));
+            textParams.setMarginStart(dp(16));
+            textParams.topMargin = dp(3);
             row.addView(text, textParams);
             row.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             return new Holder(row, avatar, text);
@@ -489,16 +676,15 @@ final class PhoneLiveChat {
         @Override
         public void onBindViewHolder(@NonNull Holder holder, int position) {
             ChatItem item = mItems.get(position);
+            boolean onVideo = mMode == 2;
             String author = item.getAuthorName() != null ? item.getAuthorName() : "";
-            // The name a little smaller and grey, then the message (on video: white names, shadowed)
+            // The name in grey, a gap, then the message (as in the YouTube app)
             SpannableStringBuilder line = new SpannableStringBuilder(author);
-            line.setSpan(new ForegroundColorSpan(mOverlay ? 0xCCFFFFFF : color(R.color.phone_text_2)), 0, author.length(),
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            line.setSpan(new android.text.style.RelativeSizeSpan(0.93f), 0, author.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            line.append("  ").append(item.getMessage());
+            line.setSpan(new ForegroundColorSpan(onVideo ? 0xD9FFFFFF : GREY), 0, author.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            line.append(" ").append(item.getMessage());
             holder.text.setText(line);
-            holder.text.setTextColor(mOverlay ? 0xFFFFFFFF : color(R.color.phone_text));
-            holder.text.setShadowLayer(mOverlay ? dp(3) : 0, 0, 0, 0xCC000000);
+            holder.text.setTextColor(onVideo ? 0xFFFFFFFF : color(R.color.phone_text));
+            holder.text.setShadowLayer(onVideo ? dp(3) : 0, 0, onVideo ? dp(1) : 0, 0xB3000000);
             PhoneUi.loadAvatar(holder.avatar, item.getAuthorPhoto());
         }
 
@@ -521,21 +707,36 @@ final class PhoneLiveChat {
 
     // endregion
 
-    private TextView text(int res, float sp, int colorRes) {
+    private TextView text(String value, float sp, int textColor) {
         TextView view = new TextView(mActivity);
-        if (res != 0) {
-            view.setText(res);
-        }
+        view.setText(value);
         view.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(sp));
-        view.setTextColor(color(colorRes));
+        view.setTextColor(textColor);
+        view.setIncludeFontPadding(false);
         return view;
+    }
+
+    private Drawable icon(int res, int sizeDp, int tint) {
+        Drawable drawable = mActivity.getDrawable(res);
+        if (drawable == null) {
+            return null;
+        }
+        drawable = drawable.mutate();
+        drawable.setTint(tint);
+        drawable.setBounds(0, 0, dp(sizeDp), dp(sizeDp));
+        return drawable;
     }
 
     private View divider() {
         View view = new View(mActivity);
-        view.setBackgroundColor(color(R.color.phone_divider));
+        view.setBackgroundColor(isDark() ? 0x33FFFFFF : 0x1A000000);
         view.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1))));
         return view;
+    }
+
+    private boolean isDark() {
+        int bg = color(R.color.phone_bg);
+        return (0.299 * ((bg >> 16) & 0xFF) + 0.587 * ((bg >> 8) & 0xFF) + 0.114 * (bg & 0xFF)) < 128;
     }
 
     private int color(int res) {

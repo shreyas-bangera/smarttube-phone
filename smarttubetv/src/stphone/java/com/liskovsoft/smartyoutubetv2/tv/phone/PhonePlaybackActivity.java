@@ -4651,15 +4651,29 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
-            public String videoId() {
-                Video video = currentVideo();
-                return video != null ? video.videoId : null;
+            public Video video() {
+                return currentVideo();
             }
 
             @Override
-            public String channelId() {
-                Video video = currentVideo();
-                return video != null ? video.channelId : null;
+            public void onBack() {
+                mTallFull = false; // the back arrow leaves the player, not just the upright full screen
+                onBackPressed();
+            }
+
+            @Override
+            public void onChannel() {
+                clickButton(R.id.action_channel);
+            }
+
+            @Override
+            public void onSubscribe() {
+                clickButton(R.id.action_subscribe);
+            }
+
+            @Override
+            public boolean isSubscribed() {
+                return getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
             }
 
             @Override
