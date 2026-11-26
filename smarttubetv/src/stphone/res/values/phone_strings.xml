@@ -294,6 +294,13 @@
     <string name="phone_live_chat_main_channel">Main channel (of this Google account)</string>
     <string name="phone_live_chat_message">Message</string>
     <string name="phone_live_chat_remove">Remove</string>
+    <string name="phone_on">On</string>
+    <string name="phone_off">Off</string>
+    <string name="phone_mode_next">Play next</string>
+    <string name="phone_mode_stop">Stop after each</string>
+    <string name="phone_mode_repeat_one">Repeat one</string>
+    <string name="phone_mode_repeat_list">Repeat list</string>
+    <string name="phone_mode_shuffle">Shuffle</string>
     <string name="phone_cast_failed">Couldn\'t cast to %1$s (%2$s).\n\nCheck the TV is on and on the same Wi-Fi as your phone.</string>
     <string name="phone_tweak_ambient">Ambient mode</string>
     <string name="phone_tweak_ambient_summary">A soft glow of the video\'s colours around the player, in the dark appearance</string>

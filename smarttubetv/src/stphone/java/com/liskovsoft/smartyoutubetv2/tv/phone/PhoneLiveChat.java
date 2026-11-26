@@ -216,6 +216,12 @@ final class PhoneLiveChat {
         mInput.setSingleLine(true);
         mInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
         mInput.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(16));
+        mInput.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+                hideEmojiPane(); // back to the keyboard
+            }
+            return false;
+        });
         mInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 send();
@@ -415,6 +421,7 @@ final class PhoneLiveChat {
         if (!show || content == null) {
             if (mPanel.getVisibility() != View.GONE) {
                 hideKeyboard();
+                hideEmojiPane();
                 mPanel.setVisibility(View.GONE);
             }
             return;
@@ -999,16 +1006,31 @@ final class PhoneLiveChat {
 
     // region Emoji
 
-    /** The emoji picker: tap one to add it to the message */
+    /** The emoji panel: in the chat, under the Chat box (like a keyboard, so the box stays in view) */
+    private android.widget.ScrollView mEmojiPane;
+
+    /** The emoji button: the panel opens (the keyboard goes) or closes; tap one to add it to the message */
     private void pickEmoji() {
-        LinearLayout content = sheetContent(null, null);
+        if (mEmojiPane != null && mEmojiPane.getVisibility() == View.VISIBLE) {
+            hideEmojiPane();
+            return;
+        }
+        hideKeyboard();
+        if (mEmojiPane == null) {
+            mEmojiPane = new android.widget.ScrollView(mActivity);
+            mEmojiPane.setVerticalScrollBarEnabled(false);
+            mPanel.addView(mEmojiPane, mPanel.indexOfChild(mInputRow) + 1,
+                    new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(232)));
+        }
+        // Laid out for the chat's width now (a column beside the video in full screen)
+        int width = mPanel.getWidth() > 0 ? mPanel.getWidth() : PhoneSheetLayout.screen().widthPixels;
+        int columns = Math.max(6, Math.min(9, Math.round(width / (float) dp(48))));
         android.widget.GridLayout grid = new android.widget.GridLayout(mActivity);
-        int columns = 8;
         grid.setColumnCount(columns);
-        grid.setPadding(dp(10), 0, dp(10), dp(8));
-        int size = (PhoneSheetLayout.screen().widthPixels - dp(20)) / columns;
+        grid.setPadding(dp(8), dp(4), dp(8), dp(8));
+        int size = (width - dp(16)) / columns;
         for (String emoji : EMOJI) {
-            TextView cell = text(emoji, 26, color(R.color.phone_text));
+            TextView cell = text(emoji, 24, color(R.color.phone_text));
             cell.setGravity(Gravity.CENTER);
             cell.setBackgroundResource(R.drawable.phone_ripple);
             cell.setOnClickListener(v -> {
@@ -1017,11 +1039,18 @@ final class PhoneLiveChat {
             });
             android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
             params.width = size;
-            params.height = size;
+            params.height = Math.min(size, dp(52));
             grid.addView(cell, params);
         }
-        content.addView(grid);
-        showSheet(content);
+        mEmojiPane.removeAllViews();
+        mEmojiPane.addView(grid);
+        mEmojiPane.setVisibility(View.VISIBLE);
+    }
+
+    private void hideEmojiPane() {
+        if (mEmojiPane != null) {
+            mEmojiPane.setVisibility(View.GONE);
+        }
     }
 
     private static final String[] EMOJI = {

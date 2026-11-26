@@ -2686,9 +2686,14 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         });
         mFullscreenButton.setOnClickListener(v -> toggleFullscreen());
         findViewById(R.id.phone_ctl_collapse).setOnClickListener(v -> onBackPressed());
+        // The top bar keeps cast, captions and the gear (as YouTube's); autoplay, playback mode and speed are in the
+        // gear's sheet
         ImageView playerMenu = findViewById(R.id.phone_ctl_settings);
-        playerMenu.setImageResource(R.drawable.ic_phone_more);
+        playerMenu.setImageResource(R.drawable.ic_phone_settings);
         playerMenu.setContentDescription(getString(R.string.phone_player_menu));
+        findViewById(R.id.phone_ctl_autoplay).setVisibility(View.GONE);
+        findViewById(R.id.phone_ctl_mode).setVisibility(View.GONE);
+        findViewById(R.id.phone_ctl_speed).setVisibility(View.GONE);
         playerMenu.setOnClickListener(v -> openPlayerSheet());
         findViewById(R.id.phone_ctl_cc).setOnClickListener(v -> clickButton(R.id.lb_control_closed_captioning));
         findViewById(R.id.phone_ctl_speed).setOnClickListener(v -> openSpeedMenu());
@@ -4332,6 +4337,41 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             @Override
             public void openSpeed() {
                 openSpeedMenu();
+            }
+
+            @Override
+            public String autoplayLabel() {
+                int mode = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(PhonePlaybackActivity.this).getPlaybackMode();
+                return getString(isAutoplay(mode) ? R.string.phone_on : R.string.phone_off);
+            }
+
+            @Override
+            public void toggleAutoplay() {
+                PhonePlaybackActivity.this.toggleAutoplay();
+            }
+
+            @Override
+            public String modeLabel() {
+                int mode = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(PhonePlaybackActivity.this).getPlaybackMode();
+                switch (mode) {
+                    case PlayerConstants.PLAYBACK_MODE_SHUFFLE:
+                        return getString(R.string.phone_mode_shuffle);
+                    case PlayerConstants.PLAYBACK_MODE_ONE:
+                        return getString(R.string.phone_mode_repeat_one);
+                    case PlayerConstants.PLAYBACK_MODE_LIST:
+                    case PlayerConstants.PLAYBACK_MODE_REVERSE_LIST:
+                        return getString(R.string.phone_mode_repeat_list);
+                    case PlayerConstants.PLAYBACK_MODE_PAUSE:
+                    case PlayerConstants.PLAYBACK_MODE_CLOSE:
+                        return getString(R.string.phone_mode_stop);
+                    default:
+                        return getString(R.string.phone_mode_next);
+                }
+            }
+
+            @Override
+            public void openMode() {
+                presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat));
             }
 
             @Override

@@ -52,6 +52,16 @@ final class PhonePlayerSheet {
 
         /** Float the video over the app (it stays floating when the app is left), as in NewTube's menu */
         void floatVideo();
+
+        /** Autoplay (the next video plays by itself): its value, and switching it */
+        String autoplayLabel();
+
+        void toggleAutoplay();
+
+        /** Playback mode (play next, repeat, shuffle...): its value, and its list */
+        String modeLabel();
+
+        void openMode();
     }
 
     private PhonePlayerSheet() {
@@ -73,6 +83,15 @@ final class PhonePlayerSheet {
         sheet.addRow(R.drawable.ic_phone_cc, activity.getString(R.string.phone_captions), null, false, () -> {
             sheet.dismiss();
             host.openCaptions();
+        });
+        // (these were buttons on the video; the top bar keeps only cast, captions and this gear, as YouTube's)
+        sheet.addRow(R.drawable.ic_phone_autoplay_on, activity.getString(R.string.phone_autoplay), host.autoplayLabel(), false, () -> {
+            sheet.dismiss();
+            host.toggleAutoplay();
+        });
+        sheet.addRow(R.drawable.ic_phone_mode_repeat, activity.getString(R.string.phone_playback_mode), host.modeLabel(), false, () -> {
+            sheet.dismiss();
+            host.openMode();
         });
         if (moment != null) {
             sheet.addRow(R.drawable.ic_phone_bookmark, activity.getString(R.string.phone_moment_save), moment.time(), false, () -> {

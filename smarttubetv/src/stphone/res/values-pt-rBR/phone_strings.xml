@@ -270,6 +270,13 @@
     <string name="phone_live_chat_main_channel">Canal principal (desta conta do Google)</string>
     <string name="phone_live_chat_message">Mensagem</string>
     <string name="phone_live_chat_remove">Remover</string>
+    <string name="phone_on">Ativado</string>
+    <string name="phone_off">Desativado</string>
+    <string name="phone_mode_next">Tocar o próximo</string>
+    <string name="phone_mode_stop">Parar após cada um</string>
+    <string name="phone_mode_repeat_one">Repetir um</string>
+    <string name="phone_mode_repeat_list">Repetir lista</string>
+    <string name="phone_mode_shuffle">Aleatório</string>
     <string name="phone_cast_failed">Não foi possível transmitir para %1$s (%2$s).\n\nVerifique se a TV está ligada e no mesmo Wi-Fi do celular.</string>
     <string name="phone_tweak_ambient">Modo ambiente</string>
     <string name="phone_tweak_ambient_summary">Um brilho suave das cores do vídeo ao redor do player, na aparência escura</string>

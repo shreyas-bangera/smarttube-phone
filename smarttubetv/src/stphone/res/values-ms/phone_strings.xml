@@ -263,6 +263,13 @@
     <string name="phone_live_chat_main_channel">Saluran utama (akaun Google ini)</string>
     <string name="phone_live_chat_message">Mesej</string>
     <string name="phone_live_chat_remove">Alih keluar</string>
+    <string name="phone_on">Hidup</string>
+    <string name="phone_off">Mati</string>
+    <string name="phone_mode_next">Main seterusnya</string>
+    <string name="phone_mode_stop">Berhenti selepas setiap satu</string>
+    <string name="phone_mode_repeat_one">Ulang satu</string>
+    <string name="phone_mode_repeat_list">Ulang senarai</string>
+    <string name="phone_mode_shuffle">Kocok</string>
     <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s (%2$s).\n\nPastikan TV dihidupkan dan pada Wi-Fi yang sama dengan telefon anda.</string>
     <string name="phone_tweak_ambient">Mod ambien</string>
     <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>
