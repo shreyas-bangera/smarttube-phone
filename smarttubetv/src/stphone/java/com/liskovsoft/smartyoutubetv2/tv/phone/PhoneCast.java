@@ -43,6 +43,9 @@ import okhttp3.Response;
  * it the video to play, where to start, play and pause. TVs linked once are remembered.
  *
  * SmartTube's engine has the TV's half of this (it receives casts); this is the phone's half.
+ *
+ * Google Cast TVs (Google TV, Android TV, Chromecast) are first cast to with no ads: their own media player plays
+ * the video, fed by the phone (PhoneCastDirect, as NewTube does); the YouTube app is the fallback.
  */
 final class PhoneCast {
     private static final String TAG = "PhoneCast";
@@ -109,22 +112,65 @@ final class PhoneCast {
         return sTv != null ? sTv.name : null;
     }
 
+    /** Casting with no ads: the TV's own media player plays the video, fed by the phone (see PhoneCastDirect) */
+    private static boolean sDirect;
+    private static Context sApp;
+
     static boolean isPlaying() {
-        return sPlaying;
+        return sDirect ? PhoneCastDirect.isPlaying() : sPlaying;
     }
 
     static String videoId() {
-        return sVideoId;
+        return sDirect ? PhoneCastDirect.videoId() : sVideoId;
     }
 
     /** Where the TV should be by now in the video (for picking up on the phone when casting stops) */
     static long positionMs() {
+        if (sDirect) {
+            return PhoneCastDirect.positionMs();
+        }
         return sPositionMs + (sPlaying ? System.currentTimeMillis() - sPositionAt : 0);
     }
 
-    /** Starts casting this video, from this moment, to this TV */
+    /**
+     * Starts casting this video, from this moment, to this TV. A Google Cast TV gets it with no ads (its own media
+     * player, fed by the phone); if that can't play this video (live, or no stream the TV can play), or for any
+     * other TV, the TV's YouTube (or SmartTube) app plays it.
+     */
     static void start(Context context, Tv tv, String videoId, long positionMs, Done done) {
         Context app = context.getApplicationContext();
+        sApp = app;
+        stop();
+        if (tv.castHost != null) {
+            PhoneCastDirect.start(tv.castHost, tv.castPort, videoId, positionMs, PhoneCast::directEnded, (ok, error) -> {
+                if (ok) {
+                    sTv = tv;
+                    sDirect = true;
+                    Log.d(TAG, "casting " + videoId + " to " + tv.name + " with no ads");
+                    remember(app, tv);
+                    done.done(true, null);
+                } else {
+                    Log.d(TAG, "no ad-free cast to " + tv.name + " (" + error + "): the TV's YouTube app");
+                    startYouTube(app, tv, videoId, positionMs, done);
+                }
+            });
+            return;
+        }
+        startYouTube(app, tv, videoId, positionMs, done);
+    }
+
+    /** The TV stopped its player (closed on the TV, or the Wi-Fi was lost) */
+    private static void directEnded() {
+        if (sDirect) {
+            sPositionMs = PhoneCastDirect.positionMs();
+            sDirect = false;
+            sTv = null;
+            sPlaying = false;
+        }
+    }
+
+    /** The TV's YouTube (or SmartTube) app plays it; the phone is its remote (the lounge) */
+    private static void startYouTube(Context app, Tv tv, String videoId, long positionMs, Done done) {
         WORKER.execute(() -> {
             try {
                 if (tv.castHost != null) {
@@ -156,6 +202,20 @@ final class PhoneCast {
         if (sTv == null || videoId == null) {
             return;
         }
+        if (sDirect) {
+            Tv tv = sTv;
+            PhoneCastDirect.load(videoId, positionMs, (ok, error) -> {
+                if (!ok && sDirect && sTv == tv) {
+                    // This one can't be cast with no ads (e.g. live): the TV's YouTube app plays it
+                    Log.d(TAG, "no ad-free cast of " + videoId + " (" + error + "): the TV's YouTube app");
+                    PhoneCastDirect.stop();
+                    sDirect = false;
+                    sTv = null;
+                    startYouTube(sApp, tv, videoId, positionMs, (started, e) -> { });
+                }
+            });
+            return;
+        }
         WORKER.execute(() -> {
             try {
                 play(videoId, positionMs);
@@ -167,6 +227,10 @@ final class PhoneCast {
 
     static void togglePlay() {
         if (sTv == null) {
+            return;
+        }
+        if (sDirect) {
+            PhoneCastDirect.togglePlay();
             return;
         }
         boolean play = !sPlaying;
@@ -184,6 +248,15 @@ final class PhoneCast {
 
     /** Stops casting: the TV pauses and the phone leaves its lounge */
     static void stop() {
+        if (sDirect) {
+            sPositionMs = PhoneCastDirect.positionMs();
+            sVideoId = PhoneCastDirect.videoId();
+            sDirect = false;
+            sTv = null;
+            sPlaying = false;
+            PhoneCastDirect.stop();
+            return;
+        }
         if (sTv == null) {
             return;
         }

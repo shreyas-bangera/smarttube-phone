@@ -2671,6 +2671,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         boolean visible = show && !mShortsMode && !isPip();
         mControls.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (mMiniProgress != null) {
+            // One progress line at a time: the controls' seek bar replaces the thin line under the video
+            mMiniProgress.setAlpha(visible ? 0f : 1f);
+        }
         if (visible) {
             updatePlayButton();
             updateProgress();
