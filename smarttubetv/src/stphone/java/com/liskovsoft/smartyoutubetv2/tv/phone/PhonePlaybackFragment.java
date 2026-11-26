@@ -23,6 +23,19 @@ public class PhonePlaybackFragment extends PlaybackFragment {
         void onPlayerButtonState(int buttonId, int buttonState);
 
         void onPlayerChannelIcon(String iconUrl);
+
+        /** A live stream's chat opened (or closed: null): the phone shows it in its own panel */
+        void onPlayerLiveChat(com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiver chatReceiver);
+    }
+
+    @Override
+    public void setChatReceiver(com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiver chatReceiver) {
+        Host host = getPhoneHost();
+        if (host != null) {
+            host.onPlayerLiveChat(chatReceiver); // not the TV's chat over the video
+            return;
+        }
+        super.setChatReceiver(chatReceiver);
     }
 
     @Override

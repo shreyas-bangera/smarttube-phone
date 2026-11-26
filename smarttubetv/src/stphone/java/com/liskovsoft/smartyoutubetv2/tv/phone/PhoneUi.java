@@ -165,7 +165,7 @@ final class PhoneUi {
             context = sApp;
         }
         if (sRegular == null && context != null) {
-            sRegular = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_regular);
+            sRegular = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL); // the phone's own font, as the YouTube app
         }
         return sRegular;
     }
@@ -175,7 +175,7 @@ final class PhoneUi {
             context = sApp;
         }
         if (sMedium == null && context != null) {
-            sMedium = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_medium);
+            sMedium = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL);
         }
         return sMedium;
     }
@@ -223,9 +223,84 @@ final class PhoneUi {
             } else {
                 badge.setVisibility(View.GONE);
             }
+            bindPlaylistBadge(badge, video);
         }
 
+        bindStack(root, video);
         bindProgress(root, video);
+    }
+
+    /** A playlist or a mix (not a single video): YouTube draws it as a small stack of pictures */
+    static boolean isPlaylistCard(Video video) {
+        return video != null && !video.isChannel() && !video.isLive && !video.isShorts
+                && ((video.videoId == null && video.playlistId != null) || video.isMix());
+    }
+
+    /** "((▶)) Mix" / "≡ 50 videos" on a playlist's picture */
+    private static void bindPlaylistBadge(TextView badge, Video video) {
+        if (!isPlaylistCard(video) || badge.getVisibility() != View.VISIBLE) {
+            badge.setCompoundDrawablesRelative(null, null, null, null);
+            return;
+        }
+        float density = badge.getResources().getDisplayMetrics().density;
+        boolean mix = video.playlistId != null && video.playlistId.startsWith("RD");
+        Drawable icon = badge.getResources().getDrawable(mix ? R.drawable.ic_phone_mix : R.drawable.ic_phone_playlist).mutate();
+        icon.setTint(0xFFFFFFFF);
+        int size = Math.round(14 * density);
+        icon.setBounds(0, 0, size, size);
+        badge.setCompoundDrawablesRelative(icon, null, null, null);
+        badge.setCompoundDrawablePadding(Math.round(4 * density));
+    }
+
+    /**
+     * Two thin cards peeking out above a playlist's picture (as the YouTube app). Added above the picture in cards
+     * that stack their picture over their text; hidden for single videos.
+     */
+    private static void bindStack(View root, Video video) {
+        View frame = root.findViewById(R.id.phone_thumb_frame);
+        if (frame == null || !(frame.getParent() instanceof android.widget.LinearLayout)) {
+            return;
+        }
+        android.widget.LinearLayout parent = (android.widget.LinearLayout) frame.getParent();
+        if (parent.getOrientation() != android.widget.LinearLayout.VERTICAL) {
+            return; // a row with the picture beside the text: no room above it
+        }
+        View stack = parent.findViewWithTag("phone_stack");
+        boolean show = isPlaylistCard(video);
+        if (stack == null) {
+            if (!show) {
+                return;
+            }
+            float density = root.getResources().getDisplayMetrics().density;
+            stack = new View(root.getContext());
+            stack.setTag("phone_stack");
+            stack.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            android.graphics.drawable.GradientDrawable back = new android.graphics.drawable.GradientDrawable();
+            back.setColor(0x33FFFFFF & root.getResources().getColor(R.color.phone_text) | 0x33000000);
+            back.setCornerRadii(topCorners(8 * density));
+            android.graphics.drawable.GradientDrawable front = new android.graphics.drawable.GradientDrawable();
+            front.setColor(0x66FFFFFF & root.getResources().getColor(R.color.phone_text) | 0x66000000);
+            front.setCornerRadii(topCorners(10 * density));
+            android.graphics.drawable.LayerDrawable layers = new android.graphics.drawable.LayerDrawable(
+                    new Drawable[] {back, front});
+            int backInset = Math.round(28 * density);
+            int frontInset = Math.round(14 * density);
+            layers.setLayerInset(0, backInset, 0, backInset, Math.round(5 * density));
+            layers.setLayerInset(1, frontInset, Math.round(5 * density), frontInset, 0);
+            stack.setBackground(layers);
+            android.view.ViewGroup.MarginLayoutParams frameParams = (android.view.ViewGroup.MarginLayoutParams) frame.getLayoutParams();
+            android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT, Math.round(10 * density));
+            params.setMarginStart(frameParams.getMarginStart());
+            params.setMarginEnd(frameParams.getMarginEnd());
+            params.topMargin = Math.round(2 * density);
+            parent.addView(stack, parent.indexOfChild(frame), params);
+        }
+        stack.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private static float[] topCorners(float radius) {
+        return new float[] {radius, radius, radius, radius, 0, 0, 0, 0};
     }
 
     /**

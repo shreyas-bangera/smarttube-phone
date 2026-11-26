@@ -25,6 +25,7 @@ public class PhoneApplication extends MainApplication {
         CrashReport.install(this);
         PhoneUi.init(this);
         PhoneDebugLog.record(this); // the app's own log lines, kept across restarts for Settings > Share debug log
+        PhoneChatSignInActivity.apply(this); // the live chat's website login, if one was made
         // Videos open faster: formats requested on tap, playback after 0.5 s of media, recommendations alongside
         com.liskovsoft.smartyoutubetv2.common.misc.FastStart.enable();
         // The music player plays a song's recording, not its music video (see PhoneMusic.streamFor)
@@ -173,6 +174,11 @@ public class PhoneApplication extends MainApplication {
         // Every screen the app opens itself is marked "no user action": Android then doesn't treat it as the user leaving
         // the app, so the player's floating window (Android 12+ automatic entry) never opens on an in-app screen change
         int inApp = android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION;
+        // A video tapped while the player floats in Android's window: the player opens it itself, so its window
+        // expands with the new video (from the app's screen, a second player would open and the tap seemed to do nothing)
+        PhoneShareSheet.install(); // every Share button: the YouTube app's share sheet
+        viewManager.setCallerOverride(activityClass -> activityClass == PhonePlaybackActivity.class
+                ? PhonePlaybackActivity.floatingPlayer() : null);
         viewManager.setLaunchFlags(activityClass -> {
             if (activityClass == PhonePlaybackActivity.class) {
                 return inApp | android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP;
@@ -187,6 +193,7 @@ public class PhoneApplication extends MainApplication {
             @Override
             public void onActivityResumed(android.app.Activity activity) {
                 lifecycle(activity, "resumed");
+                sFront = new java.lang.ref.WeakReference<>(activity);
                 if (android.os.Build.VERSION.SDK_INT < 24 || !activity.isInPictureInPictureMode()) {
                     viewManager.setCallerActivity(activity);
                 }
@@ -239,6 +246,14 @@ public class PhoneApplication extends MainApplication {
             }
         });
     }
+    private static java.lang.ref.WeakReference<android.app.Activity> sFront = new java.lang.ref.WeakReference<>(null);
+
+    /** The screen last brought to the front (null once it's gone) */
+    static android.app.Activity frontActivity() {
+        android.app.Activity activity = sFront.get();
+        return activity != null && !activity.isFinishing() && !activity.isDestroyed() ? activity : null;
+    }
+
     /** Every screen's lifecycle, for the debug log (where the floating window and the mini player go wrong) */
     private static void lifecycle(android.app.Activity activity, String event) {
         boolean pip = android.os.Build.VERSION.SDK_INT >= 24 && activity.isInPictureInPictureMode();

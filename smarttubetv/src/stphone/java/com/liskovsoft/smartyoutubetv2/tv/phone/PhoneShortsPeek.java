@@ -82,6 +82,18 @@ final class PhoneShortsPeek {
         return mActive;
     }
 
+    /** The hidden player holds this Short, its first frame drawn: it can come in live while the user swipes to it */
+    boolean hasFrameOf(String videoId) {
+        return !mActive && videoId != null && videoId.equals(mVideoId) && mFirstFrame && !mFailed && mPlayer != null;
+    }
+
+    /** While swiping: the waiting Short's first frame shows (as the page coming in), or is hidden again */
+    void showWaiting(boolean show) {
+        if (!mActive) {
+            mTexture.setAlpha(show ? 1f : 0f);
+        }
+    }
+
     /** Loads this Short in the hidden player, paused on its first frame (nothing happens if it's already there) */
     void prepare(String videoId) {
         if (videoId == null || mActive || videoId.equals(mVideoId)) {
@@ -302,6 +314,15 @@ final class PhoneShortsPeek {
         if (done != null && reason == null) {
             done.run(); // handed over: the main player shows this Short now
         }
+    }
+
+    /** Silent and still, whatever it was doing (it keeps what it loaded) */
+    void pause() {
+        if (mPlayer != null) {
+            mPlayer.setPlayWhenReady(false);
+            mPlayer.setVolume(0f);
+        }
+        mTexture.setAlpha(0f);
     }
 
     void release(SimpleExoPlayer main) {

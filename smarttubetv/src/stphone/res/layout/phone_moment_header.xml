@@ -20,7 +20,7 @@
                 android:src="@drawable/ic_phone_play" android:tint="@color/phone_accent" />
             <TextView android:id="@+id/phone_moment_time"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:fontFamily="@font/roboto_medium" android:fontFeatureSettings="tnum"
+                android:fontFamily="sans-serif-medium" android:fontFeatureSettings="tnum"
                 android:includeFontPadding="false" android:textColor="@android:color/white" android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
@@ -30,7 +30,7 @@
         android:layout_marginStart="12dp" android:orientation="vertical" android:importantForAccessibility="noHideDescendants">
         <TextView android:id="@id/phone_title"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:maxLines="3" android:ellipsize="end" android:fontFamily="@font/roboto_medium"
+            android:maxLines="3" android:ellipsize="end" android:fontFamily="sans-serif-medium"
             android:textSize="16sp" android:textColor="@color/phone_text" />
         <TextView android:id="@+id/phone_moment_note"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"

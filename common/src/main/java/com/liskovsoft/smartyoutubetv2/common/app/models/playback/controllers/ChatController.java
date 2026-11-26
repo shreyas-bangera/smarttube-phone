@@ -58,7 +58,8 @@ public class ChatController extends BasePlayerController {
             return;
         }
 
-        ChatReceiver chatReceiver = new ChatReceiverImpl();
+        ChatReceiverImpl chatReceiver = new ChatReceiverImpl();
+        chatReceiver.setChatKey(mLiveChatKey);
         getPlayer().setChatReceiver(chatReceiver);
 
         mChatAction = mChatService.openLiveChatObserve(mLiveChatKey)

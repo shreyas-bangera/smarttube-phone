@@ -36,7 +36,20 @@ public class CommentsController extends BasePlayerController {
     public CommentsController(Context context, MediaItemMetadata metadata) {
         setAltContext(context);
         onInit();
+        mOffPlayer = true; // another video's comments (a menu's): not the playing one's
         onMetadata(metadata);
+    }
+
+    /** Phone UI: the playing video's comments (its key, count, and whether it has a live chat instead) */
+    public interface CommentsListener {
+        void onComments(String commentsKey, String commentsCount, boolean liveChat);
+    }
+
+    private static CommentsListener sCommentsListener;
+    private boolean mOffPlayer;
+
+    public static void setCommentsListener(CommentsListener listener) {
+        sCommentsListener = listener;
     }
 
     @Override
@@ -50,6 +63,9 @@ public class CommentsController extends BasePlayerController {
             mSortedByNewest = false; // a new video starts with Top comments
         }
         mTitle = metadata != null ? metadata.getTitle() : null;
+        if (sCommentsListener != null && !mOffPlayer) {
+            sCommentsListener.onComments(mCommentsKey, mCommentsCount, mLiveChatKey != null);
+        }
         if (mBackup != null && !Helpers.equals(mBackup.first, mCommentsKey) && !Helpers.equals(mBackup.first, mNewestCommentsKey)) {
             mBackup = null;
         }

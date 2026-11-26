@@ -52,6 +52,22 @@ final class PhonePlayerSheet {
 
         /** Float the video over the app (it stays floating when the app is left), as in NewTube's menu */
         void floatVideo();
+
+        /** Autoplay (the next video plays by itself): its value, and switching it */
+        String autoplayLabel();
+
+        void toggleAutoplay();
+
+        /** Playback mode (play next, repeat, shuffle...): its value, and its list */
+        String modeLabel();
+
+        void openMode();
+
+        /** Sleep timer: Off, "23 min left" or "End of video" */
+        String sleepLabel();
+
+        /** The video playing now (for "end of video") */
+        String videoId();
     }
 
     private PhonePlayerSheet() {
@@ -73,6 +89,19 @@ final class PhonePlayerSheet {
         sheet.addRow(R.drawable.ic_phone_cc, activity.getString(R.string.phone_captions), null, false, () -> {
             sheet.dismiss();
             host.openCaptions();
+        });
+        // (these were buttons on the video; the top bar keeps only cast, captions and this gear, as YouTube's)
+        sheet.addRow(R.drawable.ic_phone_autoplay_on, activity.getString(R.string.phone_autoplay), host.autoplayLabel(), false, () -> {
+            sheet.dismiss();
+            host.toggleAutoplay();
+        });
+        sheet.addRow(R.drawable.ic_phone_mode_repeat, activity.getString(R.string.phone_playback_mode), host.modeLabel(), false, () -> {
+            sheet.dismiss();
+            host.openMode();
+        });
+        sheet.addRow(R.drawable.ic_phone_sleep, activity.getString(R.string.phone_sleep_timer), host.sleepLabel(), false, () -> {
+            sheet.dismiss();
+            showSleepTimer(activity, host.videoId());
         });
         if (moment != null) {
             sheet.addRow(R.drawable.ic_phone_bookmark, activity.getString(R.string.phone_moment_save), moment.time(), false, () -> {
@@ -96,6 +125,39 @@ final class PhonePlayerSheet {
             sheet.dismiss();
             host.openMoreSettings();
         });
+        sheet.show();
+    }
+
+    /** Sleep timer choices: off, minutes, or the end of this video (the one chosen has the check) */
+    static void showSleepTimer(Activity activity, String videoId) {
+        Sheet sheet = new Sheet(activity, activity.getString(R.string.phone_sleep_timer));
+        boolean on = PhoneSleepTimer.isOn();
+        int choice = PhoneSleepTimer.choice();
+        sheet.addRow(0, activity.getString(R.string.phone_off), null, !on, () -> {
+            sheet.dismiss();
+            if (PhoneSleepTimer.isOn()) {
+                PhoneSleepTimer.stop();
+                android.widget.Toast.makeText(activity, R.string.phone_sleep_off, android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+        for (int minutes : PhoneSleepTimer.MINUTES) {
+            sheet.addRow(0, PhoneSleepTimer.choiceName(activity, minutes), null, on && choice == minutes, () -> {
+                sheet.dismiss();
+                PhoneSleepTimer.startMinutes(activity, minutes);
+                android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (videoId != null) {
+            // with what's left of it, as the YouTube app
+            sheet.addRow(0, activity.getString(R.string.phone_sleep_end_of_video), PhoneSleepTimer.videoLeft(activity), null,
+                    on && choice == -1, () -> {
+                sheet.dismiss();
+                PhoneSleepTimer.startEndOfVideo(activity, videoId);
+                android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }
         sheet.show();
     }
 
@@ -210,7 +272,7 @@ final class PhonePlayerSheet {
     }
 
     /** A bottom sheet: a handle, an optional title, rows */
-    private static final class Sheet {
+    static final class Sheet {
         private final Activity mActivity;
         private final Dialog mDialog;
         private final LinearLayout mRows;
@@ -276,6 +338,11 @@ final class PhonePlayerSheet {
 
         /** icon 0: the tick column (ticked when selected); value: shown on the right */
         void addRow(int icon, String text, String value, boolean selected, Runnable onClick) {
+            addRow(icon, text, null, value, selected, onClick);
+        }
+
+        /** subtitle: a second, smaller line under the text */
+        void addRow(int icon, String text, String subtitle, String value, boolean selected, Runnable onClick) {
             LinearLayout row = new LinearLayout(mActivity);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setMinimumHeight(dp(48));
@@ -295,7 +362,20 @@ final class PhonePlayerSheet {
             label.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             labelParams.setMarginStart(dp(32));
-            row.addView(label, labelParams);
+            if (TextUtils.isEmpty(subtitle)) {
+                row.addView(label, labelParams);
+            } else {
+                LinearLayout texts = new LinearLayout(mActivity);
+                texts.setOrientation(LinearLayout.VERTICAL);
+                texts.setPadding(0, dp(8), 0, dp(8));
+                texts.addView(label);
+                TextView second = new TextView(mActivity);
+                second.setText(subtitle);
+                second.setTextColor(color(R.color.phone_text_2));
+                second.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
+                texts.addView(second);
+                row.addView(texts, labelParams);
+            }
 
             if (!TextUtils.isEmpty(value)) {
                 TextView right = new TextView(mActivity);
@@ -307,6 +387,15 @@ final class PhonePlayerSheet {
                 row.addView(right, rightParams);
             }
             mRows.addView(row);
+        }
+
+        /** Anything else, in the rows' column */
+        void addView(View view) {
+            mRows.addView(view);
+        }
+
+        void setOnDismiss(Runnable onDismiss) {
+            mDialog.setOnDismissListener(d -> onDismiss.run());
         }
 
         void show() {
@@ -323,7 +412,7 @@ final class PhonePlayerSheet {
             return mActivity.getResources().getColor(res);
         }
 
-        private int dp(float value) {
+        int dp(float value) {
             return Math.round(value * mDensity);
         }
     }

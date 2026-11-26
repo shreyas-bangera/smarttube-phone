@@ -41,6 +41,7 @@ final class PhonePlaylistHeader {
     private final TextView mMeta;
     private final TextView mDescription;
     private Video mPlaylist;
+    private final PhonePlaylistSaver mSaver;
 
     PhonePlaylistHeader(Context context, Actions actions) {
         mRoot = new FrameLayout(context);
@@ -124,8 +125,12 @@ final class PhonePlaylistHeader {
         play.setPadding(dp(context, 20), 0, dp(context, 24), 0);
         play.setOnClickListener(v -> actions.playAll());
         buttons.addView(play, new LinearLayout.LayoutParams(0, dp(context, 48), 1f));
+        ImageView save = (ImageView) circle(context, R.drawable.ic_phone_library_add, null);
+        save.setVisibility(View.GONE); // until it's known the playlist can be saved
+        mSaver = new PhonePlaylistSaver(save, true); // its page knows the owner: unsaving is safe here
+        buttons.addView(save);
         buttons.addView(circle(context, R.drawable.ic_phone_mode_shuffle, v -> actions.shuffle()));
-        buttons.addView(circle(context, R.drawable.ic_phone_share, v -> share(context)));
+        buttons.addView(circle(context, R.drawable.ic_phone_share_arrow, v -> share(context)));
         column.addView(buttons);
     }
 
@@ -149,6 +154,9 @@ final class PhonePlaylistHeader {
         String description = playlist.description;
         mDescription.setText(description);
         mDescription.setVisibility(TextUtils.isEmpty(description) ? View.GONE : View.VISIBLE);
+        if (changed) {
+            mSaver.bind(context, playlist.playlistId, playlist.getTitle(), playlist.getAuthor(), playlist.mediaItem);
+        }
         if (changed && PhoneUi.isAlive(context)) {
             String url = playlist.getCardImageUrl();
             Glide.with(context).load(url).centerCrop().transition(DrawableTransitionOptions.withCrossFade(200)).into(mArt);
@@ -157,8 +165,16 @@ final class PhonePlaylistHeader {
         }
     }
 
+    void release() {
+        mSaver.release();
+    }
+
     private void share(Context context) {
         if (mPlaylist == null || TextUtils.isEmpty(mPlaylist.playlistId)) {
+            return;
+        }
+        if (context instanceof android.app.Activity) {
+            PhoneShareSheet.showPlaylist((android.app.Activity) context, mPlaylist.getTitle(), mPlaylist.playlistId);
             return;
         }
         Intent send = new Intent(Intent.ACTION_SEND)

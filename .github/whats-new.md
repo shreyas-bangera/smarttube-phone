@@ -1,5 +1,11 @@
-- Introducing Save this moment! — Found a hilarious scene or a tip you’ll want later? Tap Save this moment in the player menu. Add a note if you like, then jump back to that exact second from You → Library → Saved moments.
-- Shorts and music are now downloadable! — Save your favorites before a flight or commute and enjoy them offline. In You → Downloads, swipe between Videos, Shorts, and Music to find what you saved.
-- Your favorite players now work offline. — Go fullscreen and double-tap to skip through downloaded videos, swipe straight into the next saved Short, or listen to downloaded music with cover art when available, an Up next queue, and shuffle.
-- Make fullscreen gestures yours. — Turn brightness and volume swipes on or off independently in You → Settings → Customize → Player. Handy if you keep changing either one by accident.
-- Smoother switching out of Shorts. — We fixed the tab transition that could briefly flash your Android home screen when swiping away from Shorts.
+- Mini player inside the app — Swipe a video down or press Back and it keeps playing in a small player while you browse, on every Android version. Tap another video and it plays straight away.
+- Sleep timer — In the player's settings (the gear), pick 10 minutes to 2 hours or the end of the video; the time left shows at the bottom and the video pauses by itself.
+- Playlists like YouTube — A playing playlist or mix shows what's next in a bar at the bottom; tap it for the whole list, with repeat and shuffle. Playlists and mixes in the feeds look like a stack.
+- New share sheet — Share opens your apps, Copy link, and can start the link where you are in the video.
+- Video details like YouTube — The title on one line, then the channel's picture, Subscribe, like and dislike and the other actions as small icons, and a comments card with the top comment.
+- Save playlists — Save a playlist to your library from its page or from the playlist panel in the player; saved playlists show up in You › Playlists.
+- Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install on the TV (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
+- Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
+- Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.
+- Upright videos look right — Long videos filmed upright play in a tall player, and full screen stays upright instead of turning sideways.
+- Live chat like YouTube — Live streams show their chat in a panel under the video, or beside it in full screen, and you can chat when signed in.

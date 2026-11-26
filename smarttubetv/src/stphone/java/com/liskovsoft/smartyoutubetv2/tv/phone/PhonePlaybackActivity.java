@@ -129,13 +129,25 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private final Runnable mTicker = new Runnable() {
         @Override
         public void run() {
+            if (!mResumed && isPip()) {
+                // The floating window: as before, nothing to update while it isn't the screen in front
+                mHandler.postDelayed(this, TICK_MS);
+                return;
+            }
             updateProgress();
             syncPlaybackService();
             ambientTick();
+            castTick();
             logShortTiming();
             syncMusicPlayer();
             peekTick();
             shortsAutoAdvance();
+            portraitTick();
+            if (mPlaylistPanel != null) {
+                mPlaylistPanel.tick();
+            }
+            sleepTick();
+            keepDetailsClearOfBar();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
             boolean waitingForShort = mShortsMode && mPoster != null && mPoster.getVisibility() == View.VISIBLE;
             mHandler.postDelayed(this, waitingForShort ? SHORT_TICK_MS : TICK_MS);
@@ -196,6 +208,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         // The next Short, loaded in a second hidden player (above both pictures, below the Shorts overlay)
         mPeek = new PhoneShortsPeek(this, mVideoBox, 3);
+        mLiveChat = new PhoneLiveChat(this, liveChatHost());
+        View chatButton = findViewById(R.id.phone_ctl_chat);
+        if (chatButton != null) {
+            chatButton.setOnClickListener(v -> clickButton(R.id.action_chat));
+        }
         mMusicPlayer = new PhoneMusicPlayer(this, new PhoneMusicPlayer.Host() {
             @Override
             public com.google.android.exoplayer2.SimpleExoPlayer exo() {
@@ -326,8 +343,16 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mTime.setSingleLine(true);
         mTime.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        // the pill hugs its words, short of the full screen button (a long chapter name ends in "…")
+        mTime.setMaxWidth(Math.max(dp(120), android.content.res.Resources.getSystem().getDisplayMetrics().widthPixels - dp(80)));
         // The chapter's name by the time: tap it for all the chapters
-        mTime.setOnClickListener(v -> openChapters());
+        mTime.setOnClickListener(v -> {
+            if (mLiveBadge) {
+                goLive(); // behind the live point: back to it
+            } else {
+                openChapters();
+            }
+        });
         mTime.setClickable(false);
         mShorts = findViewById(R.id.phone_shorts);
         mShortsPaused = findViewById(R.id.phone_shorts_paused);
@@ -367,6 +392,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         applyPrevNextButtons();
         mHandler.removeCallbacks(mTicker);
         mHandler.post(mTicker);
+        if (mLiveChat != null) {
+            mLiveChat.refreshWriting(); // e.g. back from signing in to chat
+        }
         refreshDetails();
         mPipState = null;
         updatePipParams(); // Android 12+: arms the automatic floating window for the home gesture
@@ -382,7 +410,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             stopHoldSpeed(); // left the app mid hold: its own speed again
         }
         finishPageAnimation();
-        mHandler.removeCallbacks(mTicker);
+        // The ticker keeps going while this screen is still seen behind another (comments, a sheet): it's what lifts
+        // the loading picture once the video plays. It stops in onStop.
         mHandler.removeCallbacks(mAutoHide);
     }
 
@@ -416,6 +445,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean closedPip = mLeftPip && !isChangingConfigurations() && !screenOff;
         super.onStop();
         mStopped = true;
+        mHandler.removeCallbacks(mTicker);
+        stopPeek();
         mLeftPip = false;
         if (closedPip && mPlayer != null) {
             // The floating window left picture in picture and stopped: usually it was closed (the video stops, like
@@ -468,11 +499,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (sInstance != null && sInstance.get() == this) {
             sInstance = null;
         }
+        if (sInstance == null) {
+            // no newer player took the comments over
+            com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(null);
+        }
+        RxHelper_dispose();
         mHandler.removeCallbacks(mBackgroundTicker);
         // The widget keeps the song, paused; its buttons open the app now
         PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
         if (mPeek != null) {
             mPeek.release(exoPlayer());
+        }
+        if (mLiveChat != null) {
+            mLiveChat.release();
         }
         if (mMusicPlayer != null) {
             mMusicPlayer.release();
@@ -524,18 +563,24 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mMusicPlayer != null && mMusicPlayer.onBack()) {
             return; // the full lyrics close first
         }
+        if (mPlaylistPanel != null && mPlaylistPanel.isOpen()) {
+            mPlaylistPanel.close(true); // the playlist panel closes first, as the YouTube app
+            return;
+        }
+        if (mTallFull && mPortrait && !isPip()) {
+            toggleFullscreen(); // leave the upright full screen first
+            return;
+        }
         if (!mPortrait && !isPip()) {
             // Leave full screen first, like the YouTube app
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             return;
         }
+        if (mShortsMode) {
+            stopPeek(); // the Short's sound may still come from the hidden player: it stops with the Shorts
+        }
         if (!isPip() && !mShortsMode && canMinimizeToCard()) {
             minimizeToCard(); // the video goes on in the mini player over the app
-            return;
-        }
-        if (!isPip() && !mShortsMode && mPlayer != null && mPlayer.getPlayWhenReady()) {
-            // Android 10 and older: shrink to the floating window instead of stopping
-            enterMiniPlayer();
             return;
         }
         super.onBackPressed();
@@ -867,8 +912,293 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // endregion
 
     private static boolean isShort(Video video) {
-        return video != null && (video.isShorts || video.belongsToShorts() || PhoneShortsQueue.contains(video));
+        return video != null && (video.isShorts || video.belongsToShorts() || PhoneShortsQueue.contains(video)
+                || PhoneShortsDetect.isPortraitVideo(video.videoId));
     }
+
+    /**
+     * A portrait video plays in the Shorts player whatever its length (like a Short: full screen, upright, swipe to
+     * the next); the regular player would show it as a thin strip, and sideways in full screen. Known once the video
+     * plays (its picture's shape), then remembered, so it opens in the Shorts player straight away next time.
+     */
+    // region Playlist: its bar at the bottom and its panel (PhonePlaylistPanel)
+
+    private PhonePlaylistPanel mPlaylistPanel;
+
+    private int playlistBarRoom() {
+        return mPlaylistPanel != null ? mPlaylistPanel.barRoom() : 0;
+    }
+
+    /** The end of the details list scrolls clear of the playlist bar */
+    private void keepDetailsClearOfBar() {
+        if (mDetails == null) {
+            return;
+        }
+        int bottom = dp(8) + playlistBarRoom();
+        if (mDetails.getPaddingBottom() != bottom) {
+            mDetails.setPadding(mDetails.getPaddingLeft(), mDetails.getPaddingTop(), mDetails.getPaddingRight(), bottom);
+        }
+    }
+
+    private void setPlaybackModeFromPlaylist(int mode) {
+        com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).setPlaybackMode(mode);
+        if (mPlayer != null) {
+            mPlayer.setButtonState(R.id.action_repeat, mode);
+        }
+        refreshPlaybackMode();
+    }
+
+    private int playbackMode() {
+        return com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(this).getPlaybackMode();
+    }
+
+    private PhonePlaylistPanel.Host playlistHost() {
+        return new PhonePlaylistPanel.Host() {
+            @Override
+            public Video current() {
+                return currentVideo();
+            }
+
+            @Override
+            public void play(Video video) {
+                presenter().onSuggestionItemClicked(video);
+            }
+
+            @Override
+            public void loadMore(Video last) {
+                presenter().onScrollEnd(last);
+            }
+
+            @Override
+            public boolean allowed() {
+                return mPortrait && !mShortsMode && !mMusicMode && !isPip() && !mMinimized && !mMinimizing && !mTallFull
+                        && !PhoneCast.isCasting();
+            }
+
+            @Override
+            public View videoBox() {
+                return mVideoBox;
+            }
+
+            @Override
+            public int navInset() {
+                return mNavInset;
+            }
+
+            @Override
+            public boolean isRepeat() {
+                return playbackMode() == PlayerConstants.PLAYBACK_MODE_LIST;
+            }
+
+            @Override
+            public boolean isShuffle() {
+                return playbackMode() == PlayerConstants.PLAYBACK_MODE_SHUFFLE;
+            }
+
+            @Override
+            public void setRepeat(boolean on) {
+                setPlaybackModeFromPlaylist(on ? PlayerConstants.PLAYBACK_MODE_LIST : PlayerConstants.PLAYBACK_MODE_ALL);
+            }
+
+            @Override
+            public void setShuffle(boolean on) {
+                setPlaybackModeFromPlaylist(on ? PlayerConstants.PLAYBACK_MODE_SHUFFLE : PlayerConstants.PLAYBACK_MODE_ALL);
+            }
+        };
+    }
+
+    // endregion
+
+    // region Sleep timer: "10 min left" under everything, as the YouTube app
+
+    private TextView mSleepBadge;
+
+    private void sleepTick() {
+        boolean show = PhoneSleepTimer.isOn() && mPortrait && !mShortsMode && !isPip() && !mMinimized && !mMinimizing
+                && !mTallFull;
+        if (!show) {
+            if (mSleepBadge != null && mSleepBadge.getVisibility() != View.GONE) {
+                mSleepBadge.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (mSleepBadge == null) {
+            ViewGroup content = findViewById(android.R.id.content);
+            if (content == null) {
+                return;
+            }
+            mSleepBadge = new TextView(this);
+            mSleepBadge.setTextColor(Color.WHITE);
+            mSleepBadge.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
+            mSleepBadge.setGravity(Gravity.CENTER);
+            mSleepBadge.setSingleLine(true);
+            int size = PhoneSheetLayout.dp(16);
+            android.graphics.drawable.Drawable moon = getResources().getDrawable(R.drawable.ic_phone_sleep).mutate();
+            moon.setTint(Color.WHITE);
+            moon.setBounds(0, 0, size, size);
+            mSleepBadge.setCompoundDrawablesRelative(moon, null, null, null);
+            mSleepBadge.setCompoundDrawablePadding(PhoneSheetLayout.dp(6));
+            mSleepBadge.setPadding(PhoneSheetLayout.dp(12), PhoneSheetLayout.dp(5), PhoneSheetLayout.dp(14), PhoneSheetLayout.dp(5));
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(0xCC1F1F1F);
+            bg.setCornerRadius(PhoneSheetLayout.dp(14));
+            mSleepBadge.setBackground(bg);
+            mSleepBadge.setOnClickListener(v -> {
+                Video video = currentVideo();
+                PhonePlayerSheet.showSleepTimer(this, video != null ? video.videoId : null);
+            });
+            content.addView(mSleepBadge, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        }
+        android.widget.FrameLayout.LayoutParams params = (android.widget.FrameLayout.LayoutParams) mSleepBadge.getLayoutParams();
+        int bottom = mNavInset + PhoneSheetLayout.dp(10) + playlistBarRoom();
+        if (params.bottomMargin != bottom) {
+            params.bottomMargin = bottom;
+            mSleepBadge.setLayoutParams(params);
+        }
+        mSleepBadge.setText(PhoneSleepTimer.label(this));
+        mSleepBadge.setVisibility(View.VISIBLE);
+        mSleepBadge.bringToFront();
+    }
+
+    // endregion
+
+    private void portraitTick() {
+        if (mShortsMode || mTallVideo || mMusicMode || mAwaitingNewVideo || isPip() || mMinimized || mMinimizing || mStopped
+                || PhoneCast.isCasting()) {
+            return;
+        }
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        Video video = currentVideo();
+        if (exo == null || video == null || video.videoId == null
+                || exo.getPlaybackState() != com.google.android.exoplayer2.Player.STATE_READY) {
+            return;
+        }
+        com.google.android.exoplayer2.Format format = exo.getVideoFormat();
+        if (format == null || format.width <= 0 || format.height <= 0) {
+            return;
+        }
+        boolean turned = format.rotationDegrees == 90 || format.rotationDegrees == 270;
+        int width = turned ? format.height : format.width;
+        int height = turned ? format.width : format.height;
+        if (height <= width * 1.15f) {
+            return;
+        }
+        long duration = exo.getDuration();
+        if (video.isLive || duration > 3 * 60_000L + 1_000 || duration <= 0) {
+            // (an upright live stream: filling the screen, its chat over the video, see showTall)
+            // A long portrait video: the regular player, tall (as in the YouTube app), full screen stays upright
+            android.util.Log.d("PhoneShorts", "long portrait video " + video.videoId + " (" + width + "x" + height + "): tall player");
+            PhoneShortsDetect.rememberTall(video.videoId, (float) height / width);
+            showTall((float) height / width);
+            return;
+        }
+        android.util.Log.d("PhoneShorts", "portrait video " + video.videoId + " (" + width + "x" + height + "): Shorts player");
+        PhoneShortsDetect.rememberPortrait(video.videoId);
+        if (!mPortrait) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); // upright, like any Short
+        }
+        if (mShortsHistory.isEmpty() || !Helpers_equals(mShortsHistory.get(mShortsHistory.size() - 1).videoId, video.videoId)) {
+            mShortsHistory.add(video);
+        }
+        mShortsMode = true;
+        applyLayoutMode();
+        applySystemBars();
+        refreshShorts(video);
+        syncMusicPlayer();
+        preloadNextShorts();
+    }
+
+    // region Tall videos: long videos filmed upright, shown like the YouTube app does
+
+    /** The video playing is a long portrait one: the player is tall, its full screen upright */
+    private boolean mTallVideo;
+    /** Upright full screen for a tall video (instead of turning the phone sideways) */
+    private boolean mTallFull;
+    private float mTallRatio;
+
+    private void showTall(float heightToWidth) {
+        mTallVideo = true;
+        mTallRatio = heightToWidth;
+        Video video = currentVideo();
+        if (video != null && video.isLive && mPortrait) {
+            mTallFull = true; // an upright stream fills the screen, its chat over the bottom (as in the YouTube app)
+        }
+        if (!mPortrait) {
+            // Was turned sideways for full screen: upright full screen instead
+            mTallFull = true;
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+        applyLayoutMode();
+        applySystemBars();
+    }
+
+    /** Another video: back to the usual layout, unless it's a long portrait video seen before */
+    private void checkTall(Video video) {
+        float ratio = video != null && !isShort(video) ? PhoneShortsDetect.tallRatio(video.videoId) : 0f;
+        boolean tall = ratio > 0f && !mMusicMode;
+        if (tall == mTallVideo && (!tall || ratio == mTallRatio)) {
+            return;
+        }
+        mTallVideo = tall;
+        mTallRatio = ratio;
+        if (!tall) {
+            mTallFull = false;
+        } else if (video.isLive && mPortrait) {
+            mTallFull = true;
+        }
+        applyLayoutMode();
+        applySystemBars();
+    }
+
+    /** The tall player's height: the video's own shape, up to most of the screen (the details stay in view below) */
+    private float tallHeightToWidth() {
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        float max = metrics.heightPixels * 0.66f / Math.max(1, metrics.widthPixels);
+        return Math.max(9f / 16f, Math.min(mTallRatio, max));
+    }
+
+    private boolean mTallExitSwipe;
+
+    /** Upright full screen: swipe down on the video to leave it */
+    private boolean handleTallExitSwipe(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mTallExitSwipe = false;
+            mDragStartY = event.getRawY();
+            mDragStartX = event.getRawX();
+            return false;
+        }
+        float down = event.getRawY() - mDragStartY;
+        float dx = Math.abs(event.getRawX() - mDragStartX);
+        if (action == MotionEvent.ACTION_MOVE) {
+            if (!mTallExitSwipe) {
+                int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop() * 2;
+                if (down <= slop || down <= dx * 1.5f) {
+                    return false;
+                }
+                mTallExitSwipe = true;
+                cancelRoutedTouch(event);
+                showPhoneControls(false);
+            }
+            float pull = Math.max(0f, Math.min(1f, down / dp(160)));
+            mVideoBox.setScaleX(1f - 0.06f * pull);
+            mVideoBox.setScaleY(1f - 0.06f * pull);
+            return true;
+        }
+        if (!mTallExitSwipe) {
+            return false;
+        }
+        mTallExitSwipe = false;
+        mRouteTouchToPlayer = null;
+        mVideoBox.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+        if (action == MotionEvent.ACTION_UP && down > dp(56)) {
+            toggleFullscreen();
+        }
+        return true;
+    }
+
+    // endregion
 
     // region Layout modes
 
@@ -879,8 +1209,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         boolean pip = isPip();
         boolean shorts = mShortsMode && !pip;
-        boolean withDetails = mPortrait && !shorts && !pip;
+        boolean tallFull = mTallVideo && mTallFull && mPortrait && !shorts && !pip;
+        boolean withDetails = mPortrait && !shorts && !pip && !tallFull;
 
+        mVideoBox.setHeightToWidth(mTallVideo && !shorts ? tallHeightToWidth() : 9f / 16f);
         mVideoBox.setRatioEnabled(withDetails);
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) mVideoBox.getLayoutParams();
         params.height = withDetails ? ViewGroup.LayoutParams.WRAP_CONTENT : 0;
@@ -889,8 +1221,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         mDetails.setVisibility(withDetails ? View.VISIBLE : View.GONE);
         // Shorts have their own progress line (with a red dot) above their tabs
-        mMiniProgress.setVisibility(mPortrait && !pip && !shorts ? View.VISIBLE : View.GONE);
-        mRoot.setPadding(0, withDetails ? mStatusInset : 0, 0, 0);
+        mMiniProgress.setVisibility(mPortrait && !pip && !shorts && !tallFull ? View.VISIBLE : View.GONE);
+        mRoot.setPadding(0, withDetails || tallFull ? mStatusInset : 0, 0, 0);
 
         mShorts.setVisibility(shorts ? View.VISIBLE : View.GONE);
         if (shorts) {
@@ -905,7 +1237,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         View bottom = findViewById(R.id.phone_ctl_bottom);
         int side = mPortrait ? 0 : dp(28);
         bottom.setPadding(side, 0, side, mPortrait ? 0 : dp(48));
-        mFullscreenButton.setImageResource(mPortrait ? R.drawable.ic_phone_fullscreen : R.drawable.ic_phone_fullscreen_exit);
+        mFullscreenButton.setImageResource(mPortrait && !tallFull ? R.drawable.ic_phone_fullscreen : R.drawable.ic_phone_fullscreen_exit);
 
         if (shorts || pip) {
             showPhoneControls(false);
@@ -913,6 +1245,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         if (mPlayer != null && !pip) {
             mPlayer.hideTvOverlay();
+        }
+        if (mLiveChat != null) {
+            mLiveChat.layout(); // under the video, beside it in full screen, or hidden
         }
     }
 
@@ -963,6 +1298,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     private void toggleFullscreen() {
         showPhoneControls(false);
+        if (mTallVideo && mPortrait) {
+            // A tall video's full screen stays upright (as in the YouTube app): the video fills the screen
+            mTallFull = !mTallFull;
+            applyLayoutMode();
+            applySystemBars();
+            return;
+        }
         setRequestedOrientation(mPortrait
                 ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -976,6 +1318,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * The TV player listens to every touch on the screen. Only touches on the bare video reach it (tap shows the
      * controls, double tap seeks); the details list, the phone controls and the Shorts overlay handle their own.
      */
+    /**
+     * Typing (the live chat box): keys go straight to the text box. The TV player's key translation would turn
+     * the keyboard's backspace into 0 (a TV remote's "back to the start" key), and digits into seeks.
+     */
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (getCurrentFocus() instanceof android.widget.EditText && event.getKeyCode() != android.view.KeyEvent.KEYCODE_BACK) {
+            return getWindow().superDispatchKeyEvent(event); // (not the player's key handling either)
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         if (mMinimizing) {
@@ -985,6 +1339,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return super.dispatchTouchEvent(event); // the music player handles its own touches
         }
         if (mVideoBox == null || isPip()) {
+            return super.dispatchTouchEvent(event);
+        }
+
+        // A touch that starts on the live chat (or the channel bar over an upright stream) is the chat's, all the
+        // way: scrolling the messages, writing; not the player's volume, brightness, seek or swipe gestures
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            mTouchOnChat = mLiveChat != null && mLiveChat.contains(event.getRawX(), event.getRawY());
+        }
+        if (mTouchOnChat) {
+            if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                mTouchOnChat = false;
+                return super.dispatchTouchEvent(event);
+            }
             return super.dispatchTouchEvent(event);
         }
 
@@ -1353,8 +1720,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean shrink = action == MotionEvent.ACTION_UP && (dy > dp(160) || (dy > dp(60) && dy / dt > 0.6f));
         if (shrink && canMinimizeToCard()) {
             minimizeToCard();
-        } else if (shrink) {
-            growThenEnterMiniPlayer();
         } else {
             animateShrink(0);
         }
@@ -1362,49 +1727,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private float mShrinkOffset;
-
-    /**
-     * Android animates the floating window out of the video (source rect hint) only when that rectangle is larger
-     * than the floating window; a smaller one (a video shrunk by the drag) gets a plain black box that fades to the
-     * video once it redraws. So the video first grows back to full width where the drag left it (quickly), then the
-     * floating window takes it from there.
-     */
-    private void growThenEnterMiniPlayer() {
-        if (mShrinkAnimator != null) {
-            mShrinkAnimator.cancel();
-        }
-        View root = getWindow().getDecorView();
-        float startScale = mVideoBox.getScaleX();
-        float startY = mVideoBox.getTranslationY();
-        // Full size, as low as the drag left it but still entirely on screen
-        float endY = Math.min(startY, Math.max(0, root.getHeight() - mVideoBox.getTop() - mVideoBox.getHeight()));
-        mShrinkAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        mShrinkAnimator.setDuration(120);
-        mShrinkAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
-        mShrinkAnimator.addUpdateListener(a -> {
-            float f = (float) a.getAnimatedValue();
-            float scale = startScale + (1f - startScale) * f;
-            mVideoBox.setScaleX(scale);
-            mVideoBox.setScaleY(scale);
-            mVideoBox.setTranslationY(startY + (endY - startY) * f);
-        });
-        mShrinkAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
-            private boolean mCancelled;
-
-            @Override
-            public void onAnimationCancel(android.animation.Animator animation) {
-                mCancelled = true;
-            }
-
-            @Override
-            public void onAnimationEnd(android.animation.Animator animation) {
-                if (!mCancelled && !isFinishing()) {
-                    enterMiniPlayer();
-                }
-            }
-        });
-        mShrinkAnimator.start();
-    }
 
     private void setShrinkProgress(float offset) {
         mShrinkOffset = offset;
@@ -1536,13 +1858,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return true;
         }
 
+        // Upright full screen (tall videos): swipe down to leave it
+        if (mTallFull && mTouchStartedOnVideo && mPortrait && !mShortsMode) {
+            if (handleTallExitSwipe(event)) {
+                return true;
+            }
+        } else
         // Swipe the video up: full screen
         if (mTouchStartedOnVideo && mPortrait && !mShortsMode && handleFullscreenSwipe(event)) {
             return true;
         }
 
         // Swipe the video down to shrink the player (portrait, regular videos): the video follows the finger
-        if (mTouchStartedOnVideo && mPortrait && !mShortsMode && handleShrinkDrag(event)) {
+        if (mTouchStartedOnVideo && mPortrait && !mShortsMode && !mTallFull && handleShrinkDrag(event)) {
             return true;
         }
 
@@ -1675,6 +2003,20 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
     }
 
+    /** The video playing now (sleep timer), or null */
+    static Video currentVideoOrNull() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        return activity != null && !activity.isDestroyed() ? activity.currentVideo() : null;
+    }
+
+    /** The sleep timer paused the video: the play button shows it */
+    static void onSleepTimerFired() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        if (activity != null && !activity.isDestroyed()) {
+            activity.updatePlayButton();
+        }
+    }
+
     static com.google.android.exoplayer2.SimpleExoPlayer currentExoPlayer() {
         PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
         return activity != null && !activity.isDestroyed() ? activity.exoPlayer() : null;
@@ -1690,9 +2032,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         closePlayer();
     }
 
-    /** Android 11+ (a see-through player window); videos, not Shorts, in the portrait player */
+    /** Videos, not Shorts, in the portrait player (every Android version: the app's own mini player, never the floating window) */
     private boolean canMinimizeToCard() {
-        return Build.VERSION.SDK_INT >= 30 && !mShortsMode && mPortrait && !isPip() && !mMinimizing
+        return !mShortsMode && mPortrait && !isPip() && !mMinimizing
                 && mVideoBox != null && mVideoBox.getWidth() > 0 && exoPlayer() != null && currentVideo() != null;
     }
 
@@ -1727,6 +2069,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         float endX = to.left - baseLeft;
         float endY = to.top - baseTop;
         float detailsAlpha = mDetails != null ? mDetails.getAlpha() : 0f;
+        if (Build.VERSION.SDK_INT < 30) {
+            // Android 10 and older can't make the player see-through: the screen underneath would only show at the
+            // end, so the card takes over at once (it opens at its spot with this frame)
+            copyFrame(still -> handOffToCard(still, aspect));
+            return;
+        }
 
         mVideoBox.setPivotX(0);
         mVideoBox.setPivotY(0);
@@ -1925,15 +2273,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // region Picture-in-picture
 
     /**
-     * Drag the player down: keep watching in a floating window and go back to the app.
-     */
-    private void enterMiniPlayer() {
-        if (!enterFloatingWindow()) {
-            finish();
-        }
-    }
-
-    /**
      * Android's floating window, the way the earlier builds entered it (the one that worked without glitches): straight
      * from the video as it is on screen, the layout tidied up only once the window has its small size (see
      * onPictureInPictureModeChanged). Plus a play/pause button in the window.
@@ -1970,6 +2309,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
             syncWidget();
             long next = 1_000;
+            if (mStopped && mShortsMode && !isPip() && !isChangingConfigurations()) {
+                // Off screen in the Shorts: never any sound (a Short that finished loading after going back would
+                // otherwise start playing)
+                stopPeek();
+                if (mPlayer != null && mPlayer.getPlayWhenReady()) {
+                    android.util.Log.d("PhoneShorts", "a Short played off screen: paused");
+                    mPlayer.setPlayWhenReady(false);
+                }
+            }
             if (mPlayer != null) {
                 PhoneMusicPlayer.Lyric lyric = mMusicMode && mMusicPlayer != null && PhoneTweaks.lockScreenLyrics(PhonePlaybackActivity.this)
                         ? mMusicPlayer.lyricNow() : null;
@@ -1981,6 +2329,174 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             mHandler.postDelayed(this, next);
         }
     };
+
+    // region Cast
+
+    /** Over the video while casting: the TV's name, Play/Pause and Stop casting */
+    private View mCastPanel;
+    private ImageView mCastPlay;
+    private TextView mCastTitle;
+
+    /** The cast button: pick a TV (or, while casting, stop) */
+    private void openCast() {
+        mHandler.removeCallbacks(mAutoHide);
+        PhoneCastSheet.show(this, castListener());
+    }
+
+    private PhoneCastSheet.Listener castListener() {
+        return new PhoneCastSheet.Listener() {
+            @Override
+            public void onTvPicked(PhoneCast.Tv tv) {
+                startCast(tv);
+            }
+
+            @Override
+            public void onStopCasting() {
+                stopCast();
+            }
+        };
+    }
+
+    private void startCast(PhoneCast.Tv tv) {
+        Video video = currentVideo();
+        if (video == null || video.videoId == null || mPlayer == null) {
+            return;
+        }
+        long position = mPlayer.getPositionMs();
+        android.widget.Toast.makeText(this, getString(R.string.phone_cast_connecting, tv.name), android.widget.Toast.LENGTH_SHORT).show();
+        PhoneCast.start(this, tv, video.videoId, position, (ok, error) -> {
+            if (isDestroyed()) {
+                return;
+            }
+            if (!ok) {
+                // Why, and the way that always works with SmartTube on the TV: its Remote control code
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.phone_cast_failed_title)
+                        .setMessage(getString(R.string.phone_cast_failed, tv.name, error != null ? error : "?"))
+                        .setPositiveButton(R.string.phone_cast_link, (d, w) -> PhoneCastSheet.askCode(this, castListener()))
+                        .setNegativeButton(android.R.string.ok, null)
+                        .show();
+                return;
+            }
+            if (mPlayer != null) {
+                mPlayer.setPlayWhenReady(false); // the TV plays it now
+            }
+            showCastPanel(true);
+            showPhoneControls(false);
+        });
+    }
+
+    /** Stops casting: the TV pauses, and the phone carries on from where the TV got to */
+    private void stopCast() {
+        String videoId = PhoneCast.videoId();
+        long position = PhoneCast.positionMs();
+        PhoneCast.stop();
+        showCastPanel(false);
+        Video video = currentVideo();
+        if (mPlayer != null && video != null && video.videoId != null && video.videoId.equals(videoId)) {
+            mPlayer.setPositionMs(position);
+            mPlayer.setPlayWhenReady(true);
+        }
+    }
+
+    /** Each tick: the cast button shows casting, the phone's player stays quiet, the panel follows the TV */
+    private void castTick() {
+        if (mLiveChat != null && mLiveChat.hasChat()) {
+            mLiveChat.layout(); // (hidden while casting, the mini player, ...: changes only when something did)
+        }
+        liveChatButtons();
+        ImageView button = findViewById(R.id.phone_ctl_cast);
+        boolean casting = PhoneCast.isCasting();
+        if (button != null) {
+            button.setImageResource(casting ? R.drawable.ic_phone_cast_on : R.drawable.ic_phone_cast);
+            button.setImageTintList(android.content.res.ColorStateList.valueOf(casting
+                    ? getResources().getColor(R.color.phone_accent) : 0xFFFFFFFF));
+        }
+        if (!casting) {
+            if (mCastPanel != null && mCastPanel.getVisibility() == View.VISIBLE) {
+                showCastPanel(false);
+            }
+            return;
+        }
+        if (mPlayer != null && mPlayer.getPlayWhenReady() && !mShortsMode) {
+            mPlayer.setPlayWhenReady(false); // a new video loaded while casting: the TV plays it, not the phone
+        }
+        if (mCastPanel == null || mCastPanel.getVisibility() != View.VISIBLE) {
+            showCastPanel(true);
+        }
+        mCastPlay.setImageResource(PhoneCast.isPlaying() ? R.drawable.ic_phone_pause : R.drawable.ic_phone_play);
+    }
+
+    private void showCastPanel(boolean show) {
+        if (!show) {
+            if (mCastPanel != null) {
+                mCastPanel.setVisibility(View.GONE);
+            }
+            return;
+        }
+        if (mCastPanel == null) {
+            float d = getResources().getDisplayMetrics().density;
+            android.widget.FrameLayout panel = new android.widget.FrameLayout(this);
+            panel.setBackgroundColor(0xF20B0B0D);
+            panel.setClickable(true); // the video under it isn't touched
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            column.setGravity(android.view.Gravity.CENTER);
+            ImageView icon = new ImageView(this);
+            icon.setImageResource(R.drawable.ic_phone_cast_on);
+            icon.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.phone_accent)));
+            column.addView(icon, new LinearLayout.LayoutParams(Math.round(36 * d), Math.round(36 * d)));
+            mCastTitle = new TextView(this);
+            mCastTitle.setTextColor(0xFFFFFFFF);
+            mCastTitle.setTextSize(15);
+            mCastTitle.setTypeface(PhoneUi.medium(this));
+            mCastTitle.setGravity(android.view.Gravity.CENTER);
+            mCastTitle.setPadding(Math.round(16 * d), Math.round(10 * d), Math.round(16 * d), Math.round(12 * d));
+            column.addView(mCastTitle);
+            LinearLayout buttons = new LinearLayout(this);
+            buttons.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            mCastPlay = new ImageView(this);
+            android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+            circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circle.setColor(0xFFFFFFFF);
+            mCastPlay.setBackground(circle);
+            mCastPlay.setImageTintList(android.content.res.ColorStateList.valueOf(0xFF000000));
+            int pad = Math.round(11 * d);
+            mCastPlay.setPadding(pad, pad, pad, pad);
+            mCastPlay.setContentDescription(getString(R.string.phone_widget_play_pause));
+            mCastPlay.setOnClickListener(v -> {
+                PhoneCast.togglePlay();
+                castTick();
+            });
+            buttons.addView(mCastPlay, new LinearLayout.LayoutParams(Math.round(46 * d), Math.round(46 * d)));
+            TextView stop = new TextView(this);
+            stop.setText(R.string.phone_cast_stop);
+            stop.setTextColor(0xFFFFFFFF);
+            stop.setTextSize(14);
+            stop.setTypeface(PhoneUi.medium(this));
+            stop.setGravity(android.view.Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setCornerRadius(23 * d);
+            pill.setColor(0x33FFFFFF);
+            stop.setBackground(pill);
+            stop.setPadding(Math.round(18 * d), 0, Math.round(18 * d), 0);
+            stop.setOnClickListener(v -> stopCast());
+            LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Math.round(46 * d));
+            stopParams.setMarginStart(Math.round(14 * d));
+            buttons.addView(stop, stopParams);
+            column.addView(buttons);
+            panel.addView(column, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT, android.view.Gravity.CENTER));
+            mVideoBox.addView(panel, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            mCastPanel = panel;
+        }
+        mCastTitle.setText(getString(R.string.phone_cast_playing_on, PhoneCast.tvName()));
+        mCastPanel.setVisibility(View.VISIBLE);
+        mCastPanel.bringToFront();
+    }
+
+    // endregion
 
     /** Ambient mode: the video's colours glowing around it (portrait, dark appearance) */
     private PhoneAmbient mAmbient;
@@ -2289,13 +2805,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         });
         mFullscreenButton.setOnClickListener(v -> toggleFullscreen());
         findViewById(R.id.phone_ctl_collapse).setOnClickListener(v -> onBackPressed());
+        // The top bar keeps cast, captions and the gear (as YouTube's); autoplay, playback mode and speed are in the
+        // gear's sheet
         ImageView playerMenu = findViewById(R.id.phone_ctl_settings);
-        playerMenu.setImageResource(R.drawable.ic_phone_more);
+        playerMenu.setImageResource(R.drawable.ic_phone_settings);
         playerMenu.setContentDescription(getString(R.string.phone_player_menu));
+        findViewById(R.id.phone_ctl_autoplay).setVisibility(View.GONE);
+        findViewById(R.id.phone_ctl_mode).setVisibility(View.GONE);
+        findViewById(R.id.phone_ctl_speed).setVisibility(View.GONE);
         playerMenu.setOnClickListener(v -> openPlayerSheet());
         findViewById(R.id.phone_ctl_cc).setOnClickListener(v -> clickButton(R.id.lb_control_closed_captioning));
         findViewById(R.id.phone_ctl_speed).setOnClickListener(v -> openSpeedMenu());
         findViewById(R.id.phone_ctl_autoplay).setOnClickListener(v -> toggleAutoplay());
+        findViewById(R.id.phone_ctl_cast).setOnClickListener(v -> openCast());
         // Same list as SmartTube's playback mode button: play next, pause, repeat, shuffle, play the list, close
         findViewById(R.id.phone_ctl_mode).setOnClickListener(v ->
                 presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat)));
@@ -2346,6 +2868,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         boolean visible = show && !mShortsMode && !isPip();
         mControls.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (mMiniProgress != null) {
+            // One progress line at a time: the controls' seek bar replaces the thin line under the video
+            mMiniProgress.setAlpha(visible ? 0f : 1f);
+        }
         if (visible) {
             updatePlayButton();
             updateProgress();
@@ -2441,12 +2967,76 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
     }
 
+    /** The time line shows YouTube's Live badge instead (a live stream) */
+    private boolean mLiveBadge;
+
     private void updateTimeText(long position, long duration) {
+        Video video = currentVideo();
+        if (video != null && video.isLive) {
+            showLiveBadge(position, duration);
+            return;
+        }
+        if (mLiveBadge) {
+            mLiveBadge = false;
+            // back to the time's own see-through pill (it hugs its words too)
+            mTime.setBackgroundResource(R.drawable.phone_time_pill);
+            mTime.setPadding(dp(10), dp(5), dp(10), dp(5));
+        }
         String time = duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position);
         String chapter = mChapters.titleAt(position);
         boolean named = chapter != null && !chapter.isEmpty();
         mTime.setText(named ? time + "  \u2022  " + chapter + "  \u203A" : time);
         mTime.setClickable(named);
+    }
+
+    /**
+     * ● Live, as in the YouTube app: a dark pill with a red dot at the live point (grey when behind it; a tap goes
+     * back to live)
+     */
+    private void showLiveBadge(long position, long duration) {
+        boolean atLive = duration <= 0 || duration - position < 20_000;
+        String label = "\u25CF  " + getString(R.string.phone_live_badge);
+        android.text.SpannableString text = new android.text.SpannableString(label);
+        text.setSpan(new android.text.style.ForegroundColorSpan(atLive ? 0xFFFF0033 : 0xFFAAAAAA), 0, 1,
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        mTime.setText(text);
+        mTime.setClickable(!atLive);
+        if (!mLiveBadge) {
+            mLiveBadge = true;
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setColor(0x80000000);
+            pill.setCornerRadius(dp(14));
+            mTime.setBackground(pill);
+            mTime.setPadding(dp(12), dp(5), dp(14), dp(5));
+            ViewGroup.LayoutParams params = mTime.getLayoutParams();
+            if (params instanceof LinearLayout.LayoutParams) {
+                // the pill hugs its words (the time line otherwise takes the row)
+                LinearLayout.LayoutParams row = (LinearLayout.LayoutParams) params;
+                row.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                row.weight = 0;
+                mTime.setLayoutParams(row);
+            }
+            setSpaceWeight(1f);
+        }
+    }
+
+    private void setSpaceWeight(float weight) {
+        View space = findViewById(R.id.phone_ctl_time_space);
+        if (space != null && space.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) space.getLayoutParams();
+            params.weight = weight;
+            space.setLayoutParams(params);
+        }
+    }
+
+    /** Back to the live point of a live stream */
+    private void goLive() {
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        if (exo != null) {
+            exo.seekToDefaultPosition();
+            exo.setPlayWhenReady(true);
+            updateProgress();
+        }
     }
 
     /** All the video's chapters, from the chapter's name: tap one to go there */
@@ -2640,10 +3230,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     private boolean handleShortsTouch(MotionEvent event) {
         if (mPageAnimating) {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                android.util.Log.d("PhoneShorts", "touch ignored: page still animating");
+            if (event.getActionMasked() != MotionEvent.ACTION_DOWN || mPageAnimator == null) {
+                return true;
             }
-            return true;
+            // A new swipe while the page still slides (swiping fast, as in Reels): the page lands now and the
+            // finger takes the next one, instead of the touch being lost
+            mPageAnimator.end();
+            if (mPageAnimating) {
+                return true;
+            }
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
@@ -2667,6 +3262,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                             + (playing != null ? playing.videoId : null) + " to " + (mIncoming != null ? mIncoming.videoId : null)
                             + ", queue " + PhoneShortsQueue.videos().size());
                     preparePage(mIncoming);
+                    pageLayers(true);
                 }
                 if (mPaging) {
                     if (mIncoming == null && mPageDirection > 0) {
@@ -2814,6 +3410,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
    private boolean mShortReadyLogged;
     private PhoneShortsPeek mPeek;
     private String mPeekShortId;
+
+    /**
+     * Leaving the Shorts: the hidden player stops at once. Right after a swipe it's the one playing the Short (with its
+     * sound) until the main player takes over, and its own check only runs while the screen is on (the ticker stops
+     * in onPause), so its sound could go on after going back.
+     */
+    private void stopPeek() {
+        if (mPeek != null && !isChangingConfigurations()) {
+            mPeek.end(exoPlayer(), "left the Shorts");
+            mPeek.pause();
+        }
+    }
 
     /**
      * The hidden player: hands over to the main player once that has the Short; otherwise, while a Short plays, loads
@@ -3171,7 +3779,44 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mShorts.setTranslationY(offset);
         mPoster.setTranslationY(offset); // the current Short's picture moves with it
-        mIncomingPoster.setTranslationY((mPageDirection > 0 ? height : -height) + offset);
+        float incomingY = (mPageDirection > 0 ? height : -height) + offset;
+        mIncomingPoster.setTranslationY(incomingY);
+        if (mPeek != null) {
+            View peek = mPeek.view();
+            if (mPeek.isActive()) {
+                // The hidden player is still the one playing this Short (just swiped to): it moves with the page,
+                // or the frame would slide away and leave the video standing
+                peek.setTranslationY(offset);
+            } else if (offset != 0 && mIncoming != null && mPeek.hasFrameOf(mIncoming.videoId)) {
+                // The next Short is loaded: its real first frame comes in under the finger (as in Reels)
+                mPeek.showWaiting(true);
+                peek.setTranslationY(incomingY);
+            } else {
+                mPeek.showWaiting(false);
+                peek.setTranslationY(0);
+            }
+        }
+    }
+
+    /** The hidden player back in place (and hidden, unless it plays the Short on screen) */
+    private void resetPeekOffset() {
+        if (mPeek != null) {
+            mPeek.view().setTranslationY(0);
+            mPeek.showWaiting(false);
+        }
+    }
+
+    /** Smooth paging: the moving layers are drawn once and only moved, not redrawn every frame */
+    private void pageLayers(boolean on) {
+        int type = on ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_NONE;
+        if (mShorts.getLayerType() != type) {
+            mShorts.setLayerType(type, null);
+        }
+        for (View view : new View[] {mPoster, mIncomingPoster}) {
+            if (view.getLayerType() != type) {
+                view.setLayerType(type, null);
+            }
+        }
     }
 
     /** @param velocity finger speed at release, pixels per second: a quick flick turns the page quicker */
@@ -3193,6 +3838,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             mIncomingPoster.setVisibility(View.GONE);
             mIncomingPoster.setTranslationY(0);
             mPoster.setTranslationY(0);
+            resetPeekOffset();
+            pageLayers(false);
             mPoster.setAlpha(1f);
             mPoster.setVisibility(View.VISIBLE);
             mPosterSince = android.os.SystemClock.uptimeMillis();
@@ -3228,7 +3875,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private void settlePage() {
-        animatePage(0, 200, () -> {
+        animatePage(0, 220, () -> {
             View video = playerView();
             if (video != null) {
                 video.setTranslationY(0);
@@ -3237,6 +3884,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             mPoster.setTranslationY(0);
             mIncomingPoster.setVisibility(View.GONE);
             mIncomingPoster.setTranslationY(0);
+            resetPeekOffset();
+            pageLayers(false);
         });
     }
 
@@ -3254,7 +3903,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPageAnimating = true;
         android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(mShorts.getTranslationY(), target);
         animator.setDuration(duration);
-        animator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.8f));
+        // Starts at the finger's speed and eases into place (the fast-out curve the YouTube and Instagram pages use)
+        animator.setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0.6f, 0.25f, 1f));
         animator.addUpdateListener(a -> setPageOffset((float) a.getAnimatedValue()));
         animator.addListener(new android.animation.AnimatorListenerAdapter() {
             private boolean mDone;
@@ -3296,6 +3946,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPoster.setTranslationY(0);
         mIncomingPoster.setVisibility(View.GONE);
         mIncomingPoster.setTranslationY(0);
+        resetPeekOffset();
+        pageLayers(false);
         mPageAnimating = false;
     }
 
@@ -3318,7 +3970,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         } else if (PhoneShortsQueue.isNearEnd(video)) {
             // Load more Shorts into the same list
             Video last = PhoneShortsQueue.last();
-            if (last != null) {
+            if (last != null && PhoneShortsQueue.isFromSearch()) {
+                // Shorts from search: the search loads its next page (its new Shorts join the queue there)
+                com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter.instance(this).onScrollEnd(last);
+            } else if (last != null) {
                 com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter.instance(this).onScrollEnd(last);
             }
         }
@@ -3643,8 +4298,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         boolean subscribed = getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
         TextView subscribe = findViewById(R.id.phone_shorts_subscribe);
+        subscribe.setVisibility(View.GONE); // no Subscribe on Shorts (the channel's picture opens the channel)
         subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
+        if (subscribed) {
+            subscribe.setBackground(glass(dp(16)));
+        } else {
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+        }
         subscribe.setTextColor(subscribed ? Color.WHITE : getResources().getColor(R.color.phone_bg));
 
         LinearLayout actions = findViewById(R.id.phone_shorts_actions);
@@ -3796,6 +4456,41 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public String autoplayLabel() {
+                int mode = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(PhonePlaybackActivity.this).getPlaybackMode();
+                return getString(isAutoplay(mode) ? R.string.phone_on : R.string.phone_off);
+            }
+
+            @Override
+            public void toggleAutoplay() {
+                PhonePlaybackActivity.this.toggleAutoplay();
+            }
+
+            @Override
+            public String modeLabel() {
+                int mode = com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData.instance(PhonePlaybackActivity.this).getPlaybackMode();
+                switch (mode) {
+                    case PlayerConstants.PLAYBACK_MODE_SHUFFLE:
+                        return getString(R.string.phone_mode_shuffle);
+                    case PlayerConstants.PLAYBACK_MODE_ONE:
+                        return getString(R.string.phone_mode_repeat_one);
+                    case PlayerConstants.PLAYBACK_MODE_LIST:
+                    case PlayerConstants.PLAYBACK_MODE_REVERSE_LIST:
+                        return getString(R.string.phone_mode_repeat_list);
+                    case PlayerConstants.PLAYBACK_MODE_PAUSE:
+                    case PlayerConstants.PLAYBACK_MODE_CLOSE:
+                        return getString(R.string.phone_mode_stop);
+                    default:
+                        return getString(R.string.phone_mode_next);
+                }
+            }
+
+            @Override
+            public void openMode() {
+                presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat));
+            }
+
+            @Override
             public void openCaptions() {
                 clickButton(R.id.lb_control_closed_captioning);
             }
@@ -3816,10 +4511,29 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             public void floatVideo() {
                 enterPipFromMenu();
             }
+
+            @Override
+            public String sleepLabel() {
+                return PhoneSleepTimer.label(PhonePlaybackActivity.this);
+            }
+
+            @Override
+            public String videoId() {
+                Video video = currentVideo();
+                return video != null ? video.videoId : null;
+            }
         });
     }
 
     private void clickButton(int buttonId) {
+        if (buttonId == R.id.action_share) {
+            shareCurrent(); // the YouTube app's share sheet (a Short's too)
+            return;
+        }
+        if (buttonId == R.id.action_chat && mLiveChat != null && mLiveChat.hasChat() && !mLiveChat.isShowing()) {
+            mLiveChat.reopen(); // closed with its X: back (the chat kept coming in)
+            return;
+        }
         if (buttonId == R.id.action_thumbs_up || buttonId == R.id.action_thumbs_down || buttonId == R.id.action_subscribe) {
             mRoot.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK); // a tick under the finger
         }
@@ -3838,24 +4552,32 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         // The layout manager must exist before anything is inflated against the RecyclerView
         mDetails.setLayoutManager(new LinearLayoutManager(this));
         mHeader = LayoutInflater.from(this).inflate(R.layout.phone_player_header, mDetails, false);
-        mHeader.findViewById(R.id.phone_player_title).setOnClickListener(v -> {
+        View.OnClickListener expand = v -> {
             mDescriptionExpanded = !mDescriptionExpanded;
             refreshDetails();
-        });
-        mHeader.findViewById(R.id.phone_player_channel).setOnClickListener(v -> clickButton(R.id.action_channel));
+        };
+        mHeader.findViewById(R.id.phone_player_title).setOnClickListener(expand);
+        mHeader.findViewById(R.id.phone_player_meta_row).setOnClickListener(expand);
         mHeader.findViewById(R.id.phone_player_subscribe).setOnClickListener(v -> clickButton(R.id.action_subscribe));
 
+        // As the YouTube app: the channel's picture, Subscribe, like | dislike, then the actions as icons, the most
+        // used first. Speed and quality are in the player's gear.
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
-        // Listen: this video (and the next ones) in the music player
-        addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
-        addAction(actions, R.id.action_thumbs_up, R.drawable.ic_phone_like, getString(R.string.phone_like));
-        addAction(actions, R.id.action_thumbs_down, R.drawable.ic_phone_dislike, ""); // Return YouTube Dislike count
-        addAction(actions, R.id.action_chat, R.drawable.ic_phone_comments, getString(R.string.phone_comments));
-        addAction(actions, R.id.action_share, R.drawable.ic_phone_share, getString(R.string.phone_share));
+        addRating(actions);
+        addAction(actions, R.id.action_share, R.drawable.ic_phone_share_arrow, getString(R.string.phone_share));
         addAction(actions, R.id.action_playlist_add, R.drawable.ic_phone_save, getString(R.string.phone_save));
         addAction(actions, R.id.phone_action_download, R.drawable.ic_phone_download, getString(R.string.phone_download));
-        addAction(actions, R.id.lb_control_high_quality, R.drawable.ic_phone_settings, getString(R.string.phone_quality));
-        addAction(actions, R.id.action_video_speed, R.drawable.ic_phone_speed, getString(R.string.phone_speed));
+        // Listen: this video (and the next ones) in the music player
+        addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
+
+        mPlaylistPanel = new PhonePlaylistPanel(this, playlistHost());
+
+        // The comments card under the buttons opens the comments (the live chat for a live stream)
+        View comments = mHeader.findViewById(R.id.phone_player_comments);
+        comments.setBackground(glass(dp(12)));
+        comments.setOnClickListener(v -> clickButton(R.id.action_chat));
+        com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(
+                (key, count, live) -> runOnUiThread(() -> showCommentsCard(key, count, live)));
 
         // Details on top, recommended videos below (TV overlay rows stay hidden)
         mAdapter = new FeedAdapter(this);
@@ -3877,37 +4599,94 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         });
     }
 
-    private void addAction(LinearLayout container, int buttonId, int icon, String label) {
+    /** Like | dislike in one pill (counts beside the thumbs), as in the YouTube app */
+    private void addRating(LinearLayout container) {
         LinearLayout pill = new LinearLayout(this);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER_VERTICAL);
-        pill.setBackgroundResource(R.drawable.phone_pill_bg);
-        pill.setPadding(dp(14), 0, label != null ? dp(16) : dp(14), 0);
+        pill.setBackground(glass(dp(16)));
+        pill.setClipToOutline(true);
+        pill.addView(ratingHalf(R.id.action_thumbs_up, R.drawable.ic_phone_like_o, getString(R.string.phone_like)),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        View divider = new View(this);
+        divider.setBackgroundColor((getResources().getColor(R.color.phone_text) & 0x00FFFFFF) | 0x40000000);
+        pill.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(14)));
+        pill.addView(ratingHalf(R.id.action_thumbs_down, R.drawable.ic_phone_dislike_o, getString(R.string.phone_dislike)),
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
+        params.setMarginEnd(dp(8));
+        container.addView(pill, params);
+    }
+
+    /** The YouTube app's pills: see-through over the colours behind the details */
+    private android.graphics.drawable.GradientDrawable glass(int radius) {
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setColor((getResources().getColor(R.color.phone_text) & 0x00FFFFFF) | 0x1F000000);
+        shape.setCornerRadius(radius);
+        return shape;
+    }
+
+    /** "61.6K" → "61k", "1.8K" → "1.8k", as the YouTube app writes counts */
+    static String shortCount(String count) {
+        if (TextUtils.isEmpty(count)) {
+            return count;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^\\s*(\\d+)(?:[.,](\\d+))?\\s*([KkMmBb])\\s*$").matcher(count);
+        if (!m.matches()) {
+            return count.trim();
+        }
+        String whole = m.group(1);
+        String suffix = m.group(3).toLowerCase(java.util.Locale.ROOT);
+        boolean decimal = m.group(2) != null && whole.length() < 2 && !m.group(2).startsWith("0");
+        return whole + (decimal ? "." + m.group(2).charAt(0) : "") + suffix;
+    }
+
+    private View ratingHalf(int buttonId, int icon, String description) {
+        LinearLayout half = new LinearLayout(this);
+        half.setOrientation(LinearLayout.HORIZONTAL);
+        half.setGravity(Gravity.CENTER_VERTICAL);
+        half.setBackgroundResource(R.drawable.phone_ripple);
+        boolean like = buttonId == R.id.action_thumbs_up;
+        half.setPadding(like ? dp(14) : dp(10), 0, like ? dp(10) : dp(14), 0);
+        half.setTag(buttonId);
+        half.setContentDescription(description);
+        ImageView image = new ImageView(this);
+        image.setImageResource(icon);
+        image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
+        half.addView(image, new LinearLayout.LayoutParams(dp(18), dp(18)));
+        TextView count = new TextView(this);
+        count.setTextColor(getResources().getColor(R.color.phone_text));
+        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        count.setVisibility(View.GONE); // the count, when there is one
+        LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        countParams.setMarginStart(dp(8));
+        half.addView(count, countParams);
+        half.setOnClickListener(v -> clickButton(buttonId));
+        return half;
+    }
+
+    /** An action as an icon in a pill (its name read out by TalkBack, and shown on a long press) */
+    private void addAction(LinearLayout container, int buttonId, int icon, String label) {
+        LinearLayout pill = new LinearLayout(this);
+        pill.setOrientation(LinearLayout.HORIZONTAL);
+        pill.setGravity(Gravity.CENTER);
+        pill.setBackground(glass(dp(16)));
+        pill.setPadding(dp(13), 0, dp(13), 0);
         pill.setTag(buttonId);
+        pill.setContentDescription(label);
+        if (Build.VERSION.SDK_INT >= 26) {
+            pill.setTooltipText(label);
+        }
 
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
         image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
-        pill.addView(image, new LinearLayout.LayoutParams(dp(20), dp(20)));
-
-        if (label != null) {
-            TextView text = new TextView(this);
-            text.setText(label);
-            if (label.isEmpty()) {
-                text.setVisibility(View.GONE); // filled in later (dislike count)
-            }
-            text.setTextColor(getResources().getColor(R.color.phone_text));
-            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-            text.setTypeface(PhoneUi.medium(text.getContext()));
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            textParams.setMarginStart(dp(8));
-            pill.addView(text, textParams);
-        }
+        pill.addView(image, new LinearLayout.LayoutParams(dp(18), dp(18)));
 
         pill.setOnClickListener(v -> {
-            if (buttonId == R.id.action_video_speed) {
-                openSpeedMenu();
+            if (buttonId == R.id.action_share) {
+                shareCurrent();
             } else if (buttonId == R.id.phone_action_download) {
                 PhoneDownloads.showOptions(this, currentVideo());
             } else if (buttonId == R.id.phone_action_listen) {
@@ -3933,10 +4712,96 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
         });
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
-        params.setMarginStart(dp(4));
-        params.setMarginEnd(dp(4));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(32));
+        params.setMarginEnd(dp(8));
         container.addView(pill, params);
+    }
+
+    // region The comments card
+
+    private String mCommentsCardKey;
+    private io.reactivex.disposables.Disposable mCommentsPreview;
+
+    /** The playing video's comments came: the card shows their number, then the top comment once it's loaded */
+    private void showCommentsCard(String key, String count, boolean live) {
+        if (mHeader == null || isDestroyed()) {
+            return;
+        }
+        View card = mHeader.findViewById(R.id.phone_player_comments);
+        TextView title = mHeader.findViewById(R.id.phone_player_comments_title);
+        TextView number = mHeader.findViewById(R.id.phone_player_comments_count);
+        View preview = mHeader.findViewById(R.id.phone_player_comments_preview);
+        card.setVisibility(key != null || live ? View.VISIBLE : View.GONE);
+        title.setText(live ? R.string.phone_live_chat : R.string.phone_comments);
+        String shown = live ? null : commentsNumber(count);
+        number.setText(shown);
+        number.setVisibility(TextUtils.isEmpty(shown) ? View.GONE : View.VISIBLE);
+        if (live || key == null) {
+            preview.setVisibility(View.GONE);
+            mCommentsCardKey = null;
+            RxHelper_dispose();
+            return;
+        }
+        if (key.equals(mCommentsCardKey)) {
+            return;
+        }
+        mCommentsCardKey = key;
+        preview.setVisibility(View.GONE);
+        RxHelper_dispose();
+        mCommentsPreview = com.liskovsoft.sharedutils.rx.RxHelper.execute(
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getCommentsService().getCommentsObserve(key),
+                group -> {
+                    if (!key.equals(mCommentsCardKey) || group == null || group.getComments() == null) {
+                        return;
+                    }
+                    for (com.liskovsoft.mediaserviceinterfaces.data.CommentItem item : group.getComments()) {
+                        if (item != null && !item.isEmpty() && !TextUtils.isEmpty(item.getMessage())) {
+                            bindTopComment(item);
+                            break;
+                        }
+                    }
+                }, error -> { });
+    }
+
+    private void bindTopComment(com.liskovsoft.mediaserviceinterfaces.data.CommentItem item) {
+        View preview = mHeader.findViewById(R.id.phone_player_comments_preview);
+        ImageView avatar = mHeader.findViewById(R.id.phone_player_comments_avatar);
+        TextView text = mHeader.findViewById(R.id.phone_player_comments_text);
+        text.setText(item.getMessage().replace('\n', ' '));
+        String photo = item.getAuthorPhoto();
+        if (photo != null && photo.startsWith("//")) {
+            photo = "https:" + photo;
+        }
+        if (PhoneUi.isAlive(this)) {
+            com.bumptech.glide.Glide.with(this).load(photo).circleCrop().into(avatar);
+        }
+        preview.setVisibility(View.VISIBLE);
+    }
+
+    /** "1.2K comments" or "432": just the number, written the YouTube way */
+    private static String commentsNumber(String count) {
+        if (TextUtils.isEmpty(count)) {
+            return null;
+        }
+        String number = count.replaceAll("[^0-9.,KkMmBb]", "").trim();
+        return number.isEmpty() ? null : shortCount(number);
+    }
+
+    private void RxHelper_dispose() {
+        com.liskovsoft.sharedutils.rx.RxHelper.disposeActions(mCommentsPreview);
+        mCommentsPreview = null;
+    }
+
+    // endregion
+
+    /** The YouTube app's share sheet: apps, Copy link, and the link can start where the video is now */
+    private void shareCurrent() {
+        Video video = currentVideo();
+        if (video == null || video.videoId == null) {
+            return;
+        }
+        long position = mPlayer != null ? mPlayer.getPositionMs() : 0;
+        PhoneShareSheet.showVideo(this, video.getTitle(), video.videoId, video.isLive ? -1 : position);
     }
 
     private Video currentVideo() {
@@ -3972,26 +4837,39 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         TextView title = mHeader.findViewById(R.id.phone_player_title);
         TextView meta = mHeader.findViewById(R.id.phone_player_meta);
+        TextView more = mHeader.findViewById(R.id.phone_player_more);
         TextView description = mHeader.findViewById(R.id.phone_player_description);
-        TextView author = mHeader.findViewById(R.id.phone_player_author);
-        TextView subs = mHeader.findViewById(R.id.phone_player_subs);
         TextView subscribe = mHeader.findViewById(R.id.phone_player_subscribe);
         ImageView avatar = mHeader.findViewById(R.id.phone_avatar);
 
         title.setText(video.getTitle());
-        title.setMaxLines(mDescriptionExpanded ? 10 : 2);
+        // One line fading out at the end, as in the YouTube app; the whole title once opened
+        if (mDescriptionExpanded) {
+            title.setSingleLine(false);
+            title.setMaxLines(10);
+        } else {
+            title.setSingleLine(true);
+        }
 
-        CharSequence metaText = PhoneUi.meta(video);
-        meta.setText(metaText);
-        meta.setVisibility(TextUtils.isEmpty(metaText) ? View.GONE : View.VISIBLE);
+        meta.setText(detailsMeta(video));
+        more.setText(mDescriptionExpanded ? R.string.phone_less : R.string.phone_more);
 
-        boolean showDescription = mDescriptionExpanded && !TextUtils.isEmpty(video.description);
-        description.setText(showDescription ? video.description : null);
-        description.setVisibility(showDescription ? View.VISIBLE : View.GONE);
+        // Opened: the channel (and its subscribers), then the description
+        StringBuilder full = new StringBuilder();
+        if (mDescriptionExpanded) {
+            if (!TextUtils.isEmpty(video.getAuthor())) {
+                full.append(video.getAuthor());
+                if (!TextUtils.isEmpty(video.subscriberCount)) {
+                    full.append(" · ").append(video.subscriberCount);
+                }
+            }
+            if (!TextUtils.isEmpty(video.description)) {
+                full.append(full.length() > 0 ? "\n\n" : "").append(video.description);
+            }
+        }
+        description.setText(full.length() > 0 ? full : null);
+        description.setVisibility(full.length() > 0 ? View.VISIBLE : View.GONE);
 
-        author.setText(video.getAuthor());
-        subs.setText(video.subscriberCount);
-        subs.setVisibility(TextUtils.isEmpty(video.subscriberCount) ? View.GONE : View.VISIBLE);
         PhoneUi.bindAuthorAvatar(avatar, video);
         avatar.setOnClickListener(v -> clickButton(R.id.action_channel));
 
@@ -4001,25 +4879,42 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
-        for (int i = 0; i < actions.getChildCount(); i++) {
-            LinearLayout pill = (LinearLayout) actions.getChildAt(i);
-            int buttonId = (Integer) pill.getTag();
-            boolean on = getButtonState(buttonId) == PlayerUI.BUTTON_ON;
-            boolean isRating = buttonId == R.id.action_thumbs_up || buttonId == R.id.action_thumbs_down;
-            ((ImageView) pill.getChildAt(0)).setImageTintList(ColorStateList.valueOf(
-                    getResources().getColor(isRating && on ? R.color.phone_accent : R.color.phone_text)));
-            if (buttonId == R.id.action_thumbs_up && pill.getChildCount() > 1) {
-                ((TextView) pill.getChildAt(1)).setText(
-                        !TextUtils.isEmpty(video.likeCount) ? video.likeCount : getString(R.string.phone_like));
-            } else if (buttonId == R.id.action_thumbs_down && pill.getChildCount() > 1) {
-                // Dislikes from Return YouTube Dislike (SmartTube's likes counter setting, on by default)
-                boolean count = !TextUtils.isEmpty(video.dislikeCount);
-                TextView text = (TextView) pill.getChildAt(1);
-                text.setText(video.dislikeCount);
-                text.setVisibility(count ? View.VISIBLE : View.GONE);
-                pill.setPadding(dp(14), 0, count ? dp(16) : dp(14), 0);
+        // Liked / disliked: the filled thumb (as the YouTube app). Dislikes come from Return YouTube Dislike.
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_up), R.drawable.ic_phone_like_on, R.drawable.ic_phone_like_o, shortCount(video.likeCount));
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_down), R.drawable.ic_phone_dislike_on, R.drawable.ic_phone_dislike_o, shortCount(video.dislikeCount));
+    }
+
+    private void bindRating(View half, int onIcon, int offIcon, String count) {
+        if (!(half instanceof LinearLayout) || ((LinearLayout) half).getChildCount() < 2) {
+            return;
+        }
+        boolean on = getButtonState((Integer) half.getTag()) == PlayerUI.BUTTON_ON;
+        ((ImageView) ((LinearLayout) half).getChildAt(0)).setImageResource(on ? onIcon : offIcon);
+        TextView text = (TextView) ((LinearLayout) half).getChildAt(1);
+        text.setText(count);
+        text.setVisibility(TextUtils.isEmpty(count) ? View.GONE : View.VISIBLE);
+    }
+
+    private static final java.util.regex.Pattern HASHTAG = java.util.regex.Pattern.compile("(?<![\\w#])#[\\p{L}\\p{N}_]{2,}");
+
+    /** "Channel  4.3m views  9 mo ago  #tag", the YouTube app's line under the title (spaced, no dots) */
+    private CharSequence detailsMeta(Video video) {
+        CharSequence base = PhoneUi.meta(video);
+        StringBuilder line = new StringBuilder(base != null ? base.toString().replace(" · ", "  ") : "");
+        if (line.length() == 0 && !TextUtils.isEmpty(video.getAuthor())) {
+            line.append(video.getAuthor());
+        }
+        if (!TextUtils.isEmpty(video.description)) {
+            java.util.regex.Matcher tags = HASHTAG.matcher(video.description);
+            int added = 0;
+            while (added < 2 && tags.find()) {
+                if (line.indexOf(tags.group()) < 0) {
+                    line.append("  ").append(tags.group());
+                    added++;
+                }
             }
         }
+        return line;
     }
 
     private int dp(float value) {
@@ -4075,6 +4970,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             applyLayoutMode();
             applySystemBars();
         }
+        checkTall(video);
         mDescriptionExpanded = false;
         if (mAdapter != null && video != null) {
             mAdapter.setExcludedVideoId(video.videoId);
@@ -4082,6 +4978,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         Boolean music = PhoneMusic.consumeChoice(); // opened from the Music page: the music player
         if (music != null) {
             mMusicMode = music;
+        }
+        if (PhoneCast.isCasting() && video != null && video.videoId != null && !mShortsMode
+                && !video.videoId.equals(PhoneCast.videoId())) {
+            PhoneCast.cast(video.videoId, Math.max(0, video.pendingPosMs)); // another video while casting: the TV plays it
         }
         if (video != null && video.videoId != null && !video.videoId.equals(mQueueFor)) {
             mQueueFor = video.videoId;
@@ -4097,6 +4997,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         watchSongEnd();
         syncMusicPlayer();
+        if (mPlaylistPanel != null) {
+            mPlaylistPanel.onVideo(video);
+        }
         refreshDetails();
         if (mShortsMode) {
             preloadNextShorts();
@@ -4120,6 +5023,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         Video playing = currentVideo();
+        if (mPlaylistPanel != null && !mShortsMode && PhonePlaylistPanel.isPlaylistOf(group, playing)) {
+            // The playlist playing: in its bar and panel (as the YouTube app), not among the suggestions
+            mPlaylistPanel.setGroup(group, playing);
+            if (mMusicQueue == null) {
+                mMusicQueue = group;
+                applyShuffle(false);
+            }
+            return;
+        }
         mAdapter.setExcludedVideoId(playing != null ? playing.videoId : null);
         mAdapter.update(group);
         if (mMusicQueue == null) {
@@ -4147,6 +5059,116 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public void onPlayerButtonState(int buttonId, int buttonState) {
         refreshDetails();
     }
+
+    @Override
+    public void onPlayerLiveChat(com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiver chatReceiver) {
+        if (mLiveChat != null) {
+            mLiveChat.setReceiver(chatReceiver);
+        }
+    }
+
+    // region Live chat
+
+    private PhoneLiveChat mLiveChat;
+    private boolean mTouchOnChat;
+    private Boolean mChatLabelLive;
+
+    /**
+     * Live streams: a chat button in the player's top bar while the chat isn't showing (to bring it back), and the
+     * details' Comments button says Live chat
+     */
+    private void liveChatButtons() {
+        Video video = currentVideo();
+        boolean live = video != null && video.isLive && !mShortsMode;
+        View chat = findViewById(R.id.phone_ctl_chat);
+        if (chat != null) {
+            boolean show = live && mLiveChat != null && !mLiveChat.isShowing();
+            if ((chat.getVisibility() == View.VISIBLE) != show) {
+                chat.setVisibility(show ? View.VISIBLE : View.GONE);
+            }
+        }
+        if (mHeader != null && (mChatLabelLive == null || mChatLabelLive != live)) {
+            LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
+            View pill = actions != null ? actions.findViewWithTag(R.id.action_chat) : null;
+            if (pill != null) {
+                CharSequence label = getString(live ? R.string.phone_live_chat : R.string.phone_comments);
+                pill.setContentDescription(label);
+                if (Build.VERSION.SDK_INT >= 26) {
+                    pill.setTooltipText(label);
+                }
+                mChatLabelLive = live;
+            }
+        }
+    }
+
+    private PhoneLiveChat.Host liveChatHost() {
+        return new PhoneLiveChat.Host() {
+            @Override
+            public View videoBox() {
+                return mVideoBox;
+            }
+
+            @Override
+            public boolean chatAllowed() {
+                return !mShortsMode && !isPip() && !mMinimized && !mMinimizing && !PhoneCast.isCasting();
+            }
+
+            @Override
+            public boolean overlay() {
+                return mTallVideo && mTallFull && mPortrait;
+            }
+
+            @Override
+            public boolean landscape() {
+                return !mPortrait;
+            }
+
+            @Override
+            public Video video() {
+                return currentVideo();
+            }
+
+            @Override
+            public void onBack() {
+                mTallFull = false; // the back arrow leaves the player, not just the upright full screen
+                onBackPressed();
+            }
+
+            @Override
+            public void onChannel() {
+                clickButton(R.id.action_channel);
+            }
+
+            @Override
+            public void onSubscribe() {
+                clickButton(R.id.action_subscribe);
+            }
+
+            @Override
+            public boolean isSubscribed() {
+                return getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
+            }
+
+            @Override
+            public void onChatClosed() {
+                // The chat keeps coming in: the chat button shows it again
+            }
+
+            @Override
+            public void setVideoRightMargin(int px) {
+                if (mVideoBox == null || !(mVideoBox.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+                    return;
+                }
+                ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) mVideoBox.getLayoutParams();
+                if (params.rightMargin != px) {
+                    params.rightMargin = px;
+                    mVideoBox.setLayoutParams(params);
+                }
+            }
+        };
+    }
+
+    // endregion
 
     @Override
     public void onPlayerChannelIcon(String iconUrl) {

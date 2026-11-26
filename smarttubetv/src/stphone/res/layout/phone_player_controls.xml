@@ -30,7 +30,7 @@
         android:layout_marginTop="14dp"
         android:layout_marginEnd="264dp"
         android:ellipsize="end"
-        android:fontFamily="@font/roboto_medium"
+        android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:shadowColor="#99000000"
         android:shadowRadius="4"
@@ -44,6 +44,29 @@
         android:layout_gravity="top|end"
         android:layout_margin="4dp"
         android:orientation="horizontal">
+
+        <!-- Live chat: shows the stream's chat again after it was closed (only for live streams) -->
+        <ImageView
+            android:id="@+id/phone_ctl_chat"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_live_chat"
+            android:src="@drawable/ic_phone_comments"
+            android:tint="#FFFFFF"
+            android:visibility="gone" />
+
+        <!-- Cast: play on a TV (PhoneCast) -->
+        <ImageView
+            android:id="@+id/phone_ctl_cast"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_cast"
+            android:src="@drawable/ic_phone_cast"
+            android:tint="#FFFFFF" />
 
         <!-- Autoplay the next video: on/off switch (YouTube style) -->
         <ImageView
@@ -119,21 +142,21 @@
 
         <ImageView
             android:id="@+id/phone_ctl_prev"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:padding="12dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="9dp"
+            android:background="@drawable/phone_ctl_circle"
             android:contentDescription="@string/phone_previous"
             android:src="@drawable/ic_phone_prev"
             android:tint="#FFFFFF" />
 
         <ImageView
             android:id="@+id/phone_ctl_play"
-            android:layout_width="68dp"
-            android:layout_height="68dp"
-            android:layout_marginStart="28dp"
-            android:layout_marginEnd="28dp"
-            android:padding="14dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="40dp"
+            android:layout_marginEnd="40dp"
+            android:padding="12dp"
             android:background="@drawable/phone_play_bg"
             android:contentDescription="@string/phone_play_pause"
             android:src="@drawable/ic_phone_pause"
@@ -141,10 +164,10 @@
 
         <ImageView
             android:id="@+id/phone_ctl_next"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:padding="12dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="9dp"
+            android:background="@drawable/phone_ctl_circle"
             android:contentDescription="@string/phone_next"
             android:src="@drawable/ic_phone_next"
             android:tint="#FFFFFF" />
@@ -162,24 +185,36 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="14dp"
-            android:paddingEnd="4dp">
+            android:paddingStart="10dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp">
 
+            <!-- "0:42 / 4:10" on a see-through pill, as the YouTube app -->
             <TextView
                 android:id="@+id/phone_ctl_time"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/roboto_medium"
+                android:background="@drawable/phone_time_pill"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
                 android:textColor="#FFFFFF"
                 android:textSize="13sp" />
 
+            <!-- Takes the row's room while the time line is the Live badge (sized to its words) -->
+            <View
+                android:id="@+id/phone_ctl_time_space"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
             <ImageView
                 android:id="@+id/phone_ctl_fullscreen"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="10dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="9dp"
+                android:background="@drawable/phone_ctl_circle"
                 android:contentDescription="@string/phone_fullscreen"
                 android:src="@drawable/ic_phone_fullscreen"
                 android:tint="#FFFFFF" />

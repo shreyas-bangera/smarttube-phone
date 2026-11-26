@@ -151,8 +151,22 @@ public class Utils {
         displayShareVideoDialog(context, videoId, 0);
     }
 
+    /** Phone UI: its own share sheet instead of Android's chooser (true: it took it) */
+    public interface ShareHandler {
+        boolean share(Context context, String videoId, int posSec, String playlistId, Uri url);
+    }
+
+    private static ShareHandler sShareHandler;
+
+    public static void setShareHandler(ShareHandler shareHandler) {
+        sShareHandler = shareHandler;
+    }
+
     public static void displayShareVideoDialog(Context context, String videoId, int posSec) {
         Uri videoUrl = convertToFullVideoUrl(videoId, posSec);
+        if (sShareHandler != null && sShareHandler.share(context, videoId, posSec, null, videoUrl)) {
+            return;
+        }
         showMultiChooser(context, videoUrl);
     }
 
@@ -167,11 +181,17 @@ public class Utils {
 
     public static void displayShareChannelDialog(Context context, String channelId) {
         Uri channelUrl = convertToFullChannelUrl(channelId);
+        if (sShareHandler != null && sShareHandler.share(context, null, 0, null, channelUrl)) {
+            return;
+        }
         showMultiChooser(context, channelUrl);
     }
 
     public static void displaySharePlaylistDialog(Context context, String playlistId) {
         Uri playlistUrl = convertToPlaylistUrl(playlistId);
+        if (sShareHandler != null && sShareHandler.share(context, null, 0, playlistId, playlistUrl)) {
+            return;
+        }
         showMultiChooser(context, playlistUrl);
     }
 

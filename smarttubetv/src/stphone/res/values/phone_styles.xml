@@ -44,8 +44,8 @@
         <item name="android:windowAnimationStyle">@style/PhonePlayerAnimation</item>
         <item name="android:windowBackground">@color/phone_bg</item>
     </style>
-    <!-- Applied to every screen: Roboto, like the YouTube app (not the phone's own system font) -->
+    <!-- Applied to every screen: the phone's own system font, as the YouTube app uses it -->
     <style name="PhoneFont">
-        <item name="android:fontFamily">@font/roboto</item>
+        <item name="android:fontFamily">sans-serif</item>
     </style>
 </resources>

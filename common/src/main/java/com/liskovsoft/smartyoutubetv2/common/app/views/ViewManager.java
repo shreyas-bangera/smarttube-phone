@@ -252,6 +252,10 @@ public class ViewManager {
     }
 
     private Activity getCallerActivity(Class<?> activityClass) {
+        Activity override = mCallerOverride != null ? mCallerOverride.callerFor(activityClass) : null;
+        if (override != null && !override.isFinishing()) {
+            return override;
+        }
         Activity caller = mCallerActivity != null ? mCallerActivity.get() : null;
         if (caller == null || caller.isFinishing() || !mCallerTaskActivities.contains(activityClass)) {
             return null;
@@ -260,6 +264,17 @@ public class ViewManager {
             return null;
         }
         return caller;
+    }
+
+    /** Phone UI: the screen to launch from instead (e.g. the player in a floating window launches its own next video) */
+    public interface CallerOverride {
+        Activity callerFor(Class<?> activityClass);
+    }
+
+    private CallerOverride mCallerOverride;
+
+    public void setCallerOverride(CallerOverride callerOverride) {
+        mCallerOverride = callerOverride;
     }
 
     /** Phone UI: extra intent flags for a screen (e.g. bring an existing one to the front instead of a new one) */
