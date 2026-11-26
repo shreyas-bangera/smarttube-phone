@@ -2796,10 +2796,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     private boolean handleShortsTouch(MotionEvent event) {
         if (mPageAnimating) {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                android.util.Log.d("PhoneShorts", "touch ignored: page still animating");
+            if (event.getActionMasked() != MotionEvent.ACTION_DOWN || mPageAnimator == null) {
+                return true;
             }
-            return true;
+            // A new swipe while the page still slides (swiping fast, as in Reels): the page lands now and the
+            // finger takes the next one, instead of the touch being lost
+            mPageAnimator.end();
+            if (mPageAnimating) {
+                return true;
+            }
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
@@ -2823,6 +2828,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                             + (playing != null ? playing.videoId : null) + " to " + (mIncoming != null ? mIncoming.videoId : null)
                             + ", queue " + PhoneShortsQueue.videos().size());
                     preparePage(mIncoming);
+                    pageLayers(true);
                 }
                 if (mPaging) {
                     if (mIncoming == null && mPageDirection > 0) {
@@ -3327,7 +3333,44 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mShorts.setTranslationY(offset);
         mPoster.setTranslationY(offset); // the current Short's picture moves with it
-        mIncomingPoster.setTranslationY((mPageDirection > 0 ? height : -height) + offset);
+        float incomingY = (mPageDirection > 0 ? height : -height) + offset;
+        mIncomingPoster.setTranslationY(incomingY);
+        if (mPeek != null) {
+            View peek = mPeek.view();
+            if (mPeek.isActive()) {
+                // The hidden player is still the one playing this Short (just swiped to): it moves with the page,
+                // or the frame would slide away and leave the video standing
+                peek.setTranslationY(offset);
+            } else if (offset != 0 && mIncoming != null && mPeek.hasFrameOf(mIncoming.videoId)) {
+                // The next Short is loaded: its real first frame comes in under the finger (as in Reels)
+                mPeek.showWaiting(true);
+                peek.setTranslationY(incomingY);
+            } else {
+                mPeek.showWaiting(false);
+                peek.setTranslationY(0);
+            }
+        }
+    }
+
+    /** The hidden player back in place (and hidden, unless it plays the Short on screen) */
+    private void resetPeekOffset() {
+        if (mPeek != null) {
+            mPeek.view().setTranslationY(0);
+            mPeek.showWaiting(false);
+        }
+    }
+
+    /** Smooth paging: the moving layers are drawn once and only moved, not redrawn every frame */
+    private void pageLayers(boolean on) {
+        int type = on ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_NONE;
+        if (mShorts.getLayerType() != type) {
+            mShorts.setLayerType(type, null);
+        }
+        for (View view : new View[] {mPoster, mIncomingPoster}) {
+            if (view.getLayerType() != type) {
+                view.setLayerType(type, null);
+            }
+        }
     }
 
     /** @param velocity finger speed at release, pixels per second: a quick flick turns the page quicker */
@@ -3349,6 +3392,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             mIncomingPoster.setVisibility(View.GONE);
             mIncomingPoster.setTranslationY(0);
             mPoster.setTranslationY(0);
+            resetPeekOffset();
+            pageLayers(false);
             mPoster.setAlpha(1f);
             mPoster.setVisibility(View.VISIBLE);
             mPosterSince = android.os.SystemClock.uptimeMillis();
@@ -3384,7 +3429,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private void settlePage() {
-        animatePage(0, 200, () -> {
+        animatePage(0, 220, () -> {
             View video = playerView();
             if (video != null) {
                 video.setTranslationY(0);
@@ -3393,6 +3438,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             mPoster.setTranslationY(0);
             mIncomingPoster.setVisibility(View.GONE);
             mIncomingPoster.setTranslationY(0);
+            resetPeekOffset();
+            pageLayers(false);
         });
     }
 
@@ -3410,7 +3457,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPageAnimating = true;
         android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(mShorts.getTranslationY(), target);
         animator.setDuration(duration);
-        animator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.8f));
+        // Starts at the finger's speed and eases into place (the fast-out curve the YouTube and Instagram pages use)
+        animator.setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0.6f, 0.25f, 1f));
         animator.addUpdateListener(a -> setPageOffset((float) a.getAnimatedValue()));
         animator.addListener(new android.animation.AnimatorListenerAdapter() {
             private boolean mDone;
@@ -3452,6 +3500,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mPoster.setTranslationY(0);
         mIncomingPoster.setVisibility(View.GONE);
         mIncomingPoster.setTranslationY(0);
+        resetPeekOffset();
+        pageLayers(false);
         mPageAnimating = false;
     }
 
