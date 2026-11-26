@@ -129,6 +129,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private final Runnable mTicker = new Runnable() {
         @Override
         public void run() {
+            if (!mResumed && isPip()) {
+                // The floating window: as before, nothing to update while it isn't the screen in front
+                mHandler.postDelayed(this, TICK_MS);
+                return;
+            }
             updateProgress();
             syncPlaybackService();
             ambientTick();
@@ -384,7 +389,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             stopHoldSpeed(); // left the app mid hold: its own speed again
         }
         finishPageAnimation();
-        mHandler.removeCallbacks(mTicker);
+        // The ticker keeps going while this screen is still seen behind another (comments, a sheet): it's what lifts
+        // the loading picture once the video plays. It stops in onStop.
         mHandler.removeCallbacks(mAutoHide);
     }
 
@@ -418,6 +424,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean closedPip = mLeftPip && !isChangingConfigurations() && !screenOff;
         super.onStop();
         mStopped = true;
+        mHandler.removeCallbacks(mTicker);
         stopPeek();
         mLeftPip = false;
         if (closedPip && mPlayer != null) {
