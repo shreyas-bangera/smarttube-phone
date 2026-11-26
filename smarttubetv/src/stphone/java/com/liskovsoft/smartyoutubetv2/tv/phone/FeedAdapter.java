@@ -448,7 +448,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private boolean isShortsBlock(Group group) {
-        return mMode != MODE_SHORTS && mMode != MODE_SHELVES && mMode != MODE_ROWS && group.ref.isShorts();
+        // (search: every Short shows, in pairs among the videos, never cut to a block of four)
+        return mMode != MODE_SHORTS && mMode != MODE_SHELVES && mMode != MODE_ROWS && !mShortsInPairs && group.ref.isShorts();
     }
 
     public boolean isShortTile(int position) {

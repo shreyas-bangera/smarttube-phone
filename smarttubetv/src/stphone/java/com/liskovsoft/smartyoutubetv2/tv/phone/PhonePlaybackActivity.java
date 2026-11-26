@@ -3549,7 +3549,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         } else if (PhoneShortsQueue.isNearEnd(video)) {
             // Load more Shorts into the same list
             Video last = PhoneShortsQueue.last();
-            if (last != null) {
+            if (last != null && PhoneShortsQueue.isFromSearch()) {
+                // Shorts from search: the search loads its next page (its new Shorts join the queue there)
+                com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter.instance(this).onScrollEnd(last);
+            } else if (last != null) {
                 com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter.instance(this).onScrollEnd(last);
             }
         }

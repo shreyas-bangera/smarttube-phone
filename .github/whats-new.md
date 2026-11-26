@@ -2,3 +2,4 @@
 - Shorts in search — Search results now show Shorts as tall tiles side by side, like the YouTube app, and they open in the Shorts player instead of the regular one, so a portrait video no longer turns sideways in full screen. Swipe up to go through the other Shorts from your search.
 - Smoother Shorts — Swiping through Shorts now slides the whole video with your finger, even when you swipe quickly one after another, and the next Short comes in as real video, like Reels. A new swipe while the last one is still sliding now works instead of being ignored.
 - Fixed: going back from a Short could leave its sound playing.
+- Fixed: coming back from Shorts to your search could search again and show a different, shorter page; your results now stay as they were, scrolled where you left them. Swiping through Shorts from a search also keeps going into the next results.

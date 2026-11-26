@@ -255,20 +255,96 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
     @Override
     public void updateSearch(VideoGroup group) {
         hideMessage();
+        if (group != null) {
+            synchronized (sResults) {
+                sResults.add(group);
+            }
+            sResultsQuery = getSearchText();
+            sResultsAt = System.currentTimeMillis();
+        }
+        showResults(group);
+        checkScrollEndLater();
+    }
+
+    private void showResults(VideoGroup group) {
         // The Shorts among the results (some known now, the others once their pictures are checked)
         if (group != null && group.getAction() != VideoGroup.ACTION_REMOVE && group.getAction() != VideoGroup.ACTION_REMOVE_AUTHOR) {
             PhoneShortsDetect.mark(this, group.getVideos(), () -> {
                 if (!isFinishing() && !isDestroyed()) {
                     mAdapter.refresh();
+                    shortsToQueue();
                 }
             });
         }
         mAdapter.update(group);
-        checkScrollEndLater();
+        shortsToQueue();
+    }
+
+    /** The Shorts player playing this search's Shorts: the ones found since then join its list */
+    private void shortsToQueue() {
+        if (!PhoneShortsQueue.isFromSearch()) {
+            return;
+        }
+        List<Video> shorts = new ArrayList<>();
+        for (Video item : mAdapter.allVideos()) {
+            if (item != null && item.isShorts) {
+                shorts.add(item);
+            }
+        }
+        PhoneShortsQueue.addFromSearch(shorts);
+    }
+
+    // region The last results, kept for when this screen is closed in the background (low memory, e.g. while
+    // swiping Shorts): coming back shows them again, scrolled where they were, instead of searching again
+
+    private static final List<VideoGroup> sResults = new ArrayList<>();
+    private static String sResultsQuery;
+    private static long sResultsAt;
+    private static android.os.Parcelable sResultsScroll;
+    private static final long RESULTS_KEPT_MS = 30 * 60 * 1000L;
+
+    private boolean restoreResults(String searchText) {
+        List<VideoGroup> groups;
+        synchronized (sResults) {
+            if (!mAdapter.isEmpty() || sResults.isEmpty() || searchText == null || !searchText.equals(sResultsQuery)
+                    || System.currentTimeMillis() - sResultsAt > RESULTS_KEPT_MS) {
+                return false;
+            }
+            groups = new ArrayList<>(sResults);
+        }
+        mLastSearch = searchText;
+        mQuery.setText(searchText);
+        mQuery.setSelection(searchText.length());
+        mQuery.clearFocus();
+        showSuggestions(false);
+        hideMessage();
+        for (VideoGroup group : groups) {
+            showResults(group);
+        }
+        android.os.Parcelable scroll = sResultsScroll;
+        if (scroll != null && mList.getLayoutManager() != null) {
+            mList.getLayoutManager().onRestoreInstanceState(scroll);
+        }
+        android.util.Log.d("PhoneSearch", "results for '" + searchText + "' shown again (" + groups.size() + " parts)");
+        return true;
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        if (mList != null && mList.getLayoutManager() != null && !mAdapter.isEmpty()) {
+            sResultsScroll = mList.getLayoutManager().onSaveInstanceState();
+        }
+    }
+
+    // endregion
+
+    @Override
     public void clearSearch() {
+        synchronized (sResults) {
+            sResults.clear();
+        }
+        sResultsScroll = null;
         mAdapter.clear();
     }
 
@@ -294,6 +370,9 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
 
     @Override
     public void startSearch(String searchText) {
+        if (!TextUtils.isEmpty(searchText) && restoreResults(searchText.trim())) {
+            return; // this screen was closed in the background: the same results again, no new search
+        }
         if (!TextUtils.isEmpty(searchText)) {
             submit(searchText);
         } else if (mAdapter.isEmpty()) {
@@ -342,7 +421,7 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
                     shorts.add(item);
                 }
             }
-            PhoneShortsQueue.setOnly(shorts);
+            PhoneShortsQueue.setFromSearch(shorts);
         }
         mPresenter.onVideoItemSelected(video);
         mPresenter.onVideoItemClicked(video);

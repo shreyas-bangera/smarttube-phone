@@ -28,17 +28,44 @@ final class PhoneShortsQueue {
     }
 
     static synchronized void set(VideoGroup group) {
+        sFromSearch = false;
         sVideos.clear();
         sFeed = null;
         sResumeIndex = 0;
         append(group);
     }
 
-    /** Exactly these Shorts (e.g. the Shorts among search results) */
+    /** The queue is the Shorts of the search results (more come from the search's next pages) */
+    private static boolean sFromSearch;
+
+    static synchronized boolean isFromSearch() {
+        return sFromSearch && !sVideos.isEmpty();
+    }
+
+    /** The Shorts among search results: these, and later ones as the search loads more (see addFromSearch) */
+    static synchronized void setFromSearch(List<Video> videos) {
+        setOnly(videos);
+        sFromSearch = true;
+    }
+
+    /** More Shorts found in the search results: added to the end (when the queue is the search's) */
+    static synchronized void addFromSearch(List<Video> videos) {
+        if (!sFromSearch) {
+            return;
+        }
+        for (Video video : videos) {
+            if (video != null && video.videoId != null && indexOf(sVideos, video) < 0) {
+                sVideos.add(video);
+            }
+        }
+    }
+
+    /** Exactly these Shorts */
     static synchronized void setOnly(List<Video> videos) {
         sVideos.clear();
         sFeed = null;
         sResumeIndex = 0;
+        sFromSearch = false;
         for (Video video : videos) {
             if (video != null && video.videoId != null && indexOf(sVideos, video) < 0) {
                 sVideos.add(video);
@@ -92,6 +119,7 @@ final class PhoneShortsQueue {
                 feed -> {
                     synchronized (PhoneShortsQueue.class) {
                         if (feed != null && feed.getMediaItems() != null && !feed.getMediaItems().isEmpty()) {
+                            sFromSearch = false;
                             sVideos.clear();
                             sFeed = feed;
                             sLoadedAt = System.currentTimeMillis();
