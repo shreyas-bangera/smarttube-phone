@@ -2,8 +2,8 @@
 - Sleep timer — In the player's settings (the gear), pick 10 minutes to 2 hours or the end of the video; the time left shows at the bottom and the video pauses by itself.
 - Playlists like YouTube — A playing playlist or mix shows what's next in a bar at the bottom; tap it for the whole list, with repeat and shuffle. Playlists and mixes in the feeds look like a stack.
 - New share sheet — Share opens your apps, Copy link, and can start the link where you are in the video.
-- Cleaner video details — The title on one line, then the channel's picture, Subscribe, like and dislike, and the other actions as icons.
-- Save playlists — Playlist pages have a Save to library button; saved playlists show up in You › Playlists.
+- Video details like YouTube — The title on one line, then the channel's picture, Subscribe, like and dislike and the other actions as small icons, and a comments card with the top comment.
+- Save playlists — Save a playlist to your library from its page or from the playlist panel in the player; saved playlists show up in You › Playlists.
 - Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install on the TV (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
 - Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
 - Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.

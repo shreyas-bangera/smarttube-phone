@@ -73,6 +73,7 @@ final class PhonePlaylistPanel {
     private TextView mPanelSubtitle;
     private ImageView mRepeat;
     private ImageView mShuffle;
+    private PhonePlaylistSaver mSaver;
     private RecyclerView mList;
     private final Adapter mAdapter = new Adapter();
     private boolean mOpen;
@@ -378,6 +379,12 @@ final class PhonePlaylistPanel {
             bindControls();
         });
         controls.addView(mShuffle, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        controls.addView(new View(mActivity), new LinearLayout.LayoutParams(0, 1, 1f));
+        // Save to library (the page of a playlist also unsaves; here the owner isn't known, so it only saves)
+        ImageView save = icon(R.drawable.ic_phone_library_add, mActivity.getString(R.string.phone_playlist_save));
+        save.setVisibility(View.GONE);
+        mSaver = new PhonePlaylistSaver(save, false);
+        controls.addView(save, new LinearLayout.LayoutParams(dp(48), dp(48)));
         mPanel.addView(controls);
 
         mList = new RecyclerView(mActivity);
@@ -413,6 +420,7 @@ final class PhonePlaylistPanel {
         }
         mPanelTitle.setText(title());
         mPanelSubtitle.setText(isMix() ? mActivity.getString(R.string.phone_playlist_mix_about) : position(currentIndex()));
+        mSaver.bind(mActivity, mPlaylistId, title(), null, null);
         bindControls();
         mAdapter.notifyDataSetChanged();
     }

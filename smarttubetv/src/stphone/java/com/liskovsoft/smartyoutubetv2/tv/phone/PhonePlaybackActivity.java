@@ -497,6 +497,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (sInstance != null && sInstance.get() == this) {
             sInstance = null;
         }
+        if (sInstance == null) {
+            // no newer player took the comments over
+            com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(null);
+        }
+        RxHelper_dispose();
         mHandler.removeCallbacks(mBackgroundTicker);
         // The widget keeps the song, paused; its buttons open the app now
         PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
@@ -4300,7 +4305,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         TextView subscribe = findViewById(R.id.phone_shorts_subscribe);
         subscribe.setVisibility(View.GONE); // no Subscribe on Shorts (the channel's picture opens the channel)
         subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
+        if (subscribed) {
+            subscribe.setBackground(glass(dp(16)));
+        } else {
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+        }
         subscribe.setTextColor(subscribed ? Color.WHITE : getResources().getColor(R.color.phone_bg));
 
         LinearLayout actions = findViewById(R.id.phone_shorts_actions);
@@ -4561,13 +4570,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
         addRating(actions);
         addAction(actions, R.id.action_share, R.drawable.ic_phone_share_arrow, getString(R.string.phone_share));
-        addAction(actions, R.id.action_chat, R.drawable.ic_phone_comments, getString(R.string.phone_comments));
         addAction(actions, R.id.action_playlist_add, R.drawable.ic_phone_save, getString(R.string.phone_save));
         addAction(actions, R.id.phone_action_download, R.drawable.ic_phone_download, getString(R.string.phone_download));
         // Listen: this video (and the next ones) in the music player
         addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
 
         mPlaylistPanel = new PhonePlaylistPanel(this, playlistHost());
+
+        // The comments card under the buttons opens the comments (the live chat for a live stream)
+        View comments = mHeader.findViewById(R.id.phone_player_comments);
+        comments.setBackground(glass(dp(12)));
+        comments.setOnClickListener(v -> clickButton(R.id.action_chat));
+        com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(
+                (key, count, live) -> runOnUiThread(() -> showCommentsCard(key, count, live)));
 
         // Details on top, recommended videos below (TV overlay rows stay hidden)
         mAdapter = new FeedAdapter(this);
@@ -4594,18 +4609,41 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         LinearLayout pill = new LinearLayout(this);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER_VERTICAL);
-        pill.setBackgroundResource(R.drawable.phone_pill_bg);
+        pill.setBackground(glass(dp(16)));
         pill.setClipToOutline(true);
         pill.addView(ratingHalf(R.id.action_thumbs_up, R.drawable.ic_phone_like_o, getString(R.string.phone_like)),
                 new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         View divider = new View(this);
         divider.setBackgroundColor((getResources().getColor(R.color.phone_text) & 0x00FFFFFF) | 0x40000000);
-        pill.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(20)));
+        pill.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(14)));
         pill.addView(ratingHalf(R.id.action_thumbs_down, R.drawable.ic_phone_dislike_o, getString(R.string.phone_dislike)),
                 new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
         params.setMarginEnd(dp(8));
         container.addView(pill, params);
+    }
+
+    /** The YouTube app's pills: see-through over the colours behind the details */
+    private android.graphics.drawable.GradientDrawable glass(int radius) {
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setColor((getResources().getColor(R.color.phone_text) & 0x00FFFFFF) | 0x1F000000);
+        shape.setCornerRadius(radius);
+        return shape;
+    }
+
+    /** "61.6K" → "61k", "1.8K" → "1.8k", as the YouTube app writes counts */
+    static String shortCount(String count) {
+        if (TextUtils.isEmpty(count)) {
+            return count;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^\\s*(\\d+)(?:[.,](\\d+))?\\s*([KkMmBb])\\s*$").matcher(count);
+        if (!m.matches()) {
+            return count.trim();
+        }
+        String whole = m.group(1);
+        String suffix = m.group(3).toLowerCase(java.util.Locale.ROOT);
+        boolean decimal = m.group(2) != null && whole.length() < 2 && !m.group(2).startsWith("0");
+        return whole + (decimal ? "." + m.group(2).charAt(0) : "") + suffix;
     }
 
     private View ratingHalf(int buttonId, int icon, String description) {
@@ -4613,17 +4651,17 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         half.setOrientation(LinearLayout.HORIZONTAL);
         half.setGravity(Gravity.CENTER_VERTICAL);
         half.setBackgroundResource(R.drawable.phone_ripple);
-        half.setPadding(dp(14), 0, dp(14), 0);
+        boolean like = buttonId == R.id.action_thumbs_up;
+        half.setPadding(like ? dp(14) : dp(10), 0, like ? dp(10) : dp(14), 0);
         half.setTag(buttonId);
         half.setContentDescription(description);
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
         image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
-        half.addView(image, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        half.addView(image, new LinearLayout.LayoutParams(dp(18), dp(18)));
         TextView count = new TextView(this);
         count.setTextColor(getResources().getColor(R.color.phone_text));
-        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        count.setTypeface(PhoneUi.medium(this));
+        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         count.setVisibility(View.GONE); // the count, when there is one
         LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -4638,8 +4676,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         LinearLayout pill = new LinearLayout(this);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER);
-        pill.setBackgroundResource(R.drawable.phone_pill_bg);
-        pill.setPadding(dp(18), 0, dp(18), 0);
+        pill.setBackground(glass(dp(16)));
+        pill.setPadding(dp(13), 0, dp(13), 0);
         pill.setTag(buttonId);
         pill.setContentDescription(label);
         if (Build.VERSION.SDK_INT >= 26) {
@@ -4649,7 +4687,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         ImageView image = new ImageView(this);
         image.setImageResource(icon);
         image.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.phone_text)));
-        pill.addView(image, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        pill.addView(image, new LinearLayout.LayoutParams(dp(18), dp(18)));
 
         pill.setOnClickListener(v -> {
             if (buttonId == R.id.action_share) {
@@ -4679,10 +4717,87 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
         });
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(44), dp(32));
         params.setMarginEnd(dp(8));
         container.addView(pill, params);
     }
+
+    // region The comments card
+
+    private String mCommentsCardKey;
+    private io.reactivex.disposables.Disposable mCommentsPreview;
+
+    /** The playing video's comments came: the card shows their number, then the top comment once it's loaded */
+    private void showCommentsCard(String key, String count, boolean live) {
+        if (mHeader == null || isDestroyed()) {
+            return;
+        }
+        View card = mHeader.findViewById(R.id.phone_player_comments);
+        TextView title = mHeader.findViewById(R.id.phone_player_comments_title);
+        TextView number = mHeader.findViewById(R.id.phone_player_comments_count);
+        View preview = mHeader.findViewById(R.id.phone_player_comments_preview);
+        card.setVisibility(key != null || live ? View.VISIBLE : View.GONE);
+        title.setText(live ? R.string.phone_live_chat : R.string.phone_comments);
+        String shown = live ? null : commentsNumber(count);
+        number.setText(shown);
+        number.setVisibility(TextUtils.isEmpty(shown) ? View.GONE : View.VISIBLE);
+        if (live || key == null) {
+            preview.setVisibility(View.GONE);
+            mCommentsCardKey = null;
+            RxHelper_dispose();
+            return;
+        }
+        if (key.equals(mCommentsCardKey)) {
+            return;
+        }
+        mCommentsCardKey = key;
+        preview.setVisibility(View.GONE);
+        RxHelper_dispose();
+        mCommentsPreview = com.liskovsoft.sharedutils.rx.RxHelper.execute(
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getCommentsService().getCommentsObserve(key),
+                group -> {
+                    if (!key.equals(mCommentsCardKey) || group == null || group.getComments() == null) {
+                        return;
+                    }
+                    for (com.liskovsoft.mediaserviceinterfaces.data.CommentItem item : group.getComments()) {
+                        if (item != null && !item.isEmpty() && !TextUtils.isEmpty(item.getMessage())) {
+                            bindTopComment(item);
+                            break;
+                        }
+                    }
+                }, error -> { });
+    }
+
+    private void bindTopComment(com.liskovsoft.mediaserviceinterfaces.data.CommentItem item) {
+        View preview = mHeader.findViewById(R.id.phone_player_comments_preview);
+        ImageView avatar = mHeader.findViewById(R.id.phone_player_comments_avatar);
+        TextView text = mHeader.findViewById(R.id.phone_player_comments_text);
+        text.setText(item.getMessage().replace('\n', ' '));
+        String photo = item.getAuthorPhoto();
+        if (photo != null && photo.startsWith("//")) {
+            photo = "https:" + photo;
+        }
+        if (PhoneUi.isAlive(this)) {
+            com.bumptech.glide.Glide.with(this).load(photo).circleCrop().into(avatar);
+        }
+        preview.setVisibility(View.VISIBLE);
+    }
+
+    /** "1.2K comments" or "432": just the number, written the YouTube way */
+    private static String commentsNumber(String count) {
+        if (TextUtils.isEmpty(count)) {
+            return null;
+        }
+        String number = count.replaceAll("[^0-9.,KkMmBb]", "").trim();
+        return number.isEmpty() ? null : shortCount(number);
+    }
+
+    private void RxHelper_dispose() {
+        com.liskovsoft.sharedutils.rx.RxHelper.disposeActions(mCommentsPreview);
+        mCommentsPreview = null;
+    }
+
+    // endregion
 
     /** The YouTube app's share sheet: apps, Copy link, and the link can start where the video is now */
     private void shareCurrent() {
@@ -4770,8 +4885,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
         // Liked / disliked: the filled thumb (as the YouTube app). Dislikes come from Return YouTube Dislike.
-        bindRating(actions.findViewWithTag(R.id.action_thumbs_up), R.drawable.ic_phone_like, R.drawable.ic_phone_like_o, video.likeCount);
-        bindRating(actions.findViewWithTag(R.id.action_thumbs_down), R.drawable.ic_phone_dislike, R.drawable.ic_phone_dislike_o, video.dislikeCount);
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_up), R.drawable.ic_phone_like_on, R.drawable.ic_phone_like_o, shortCount(video.likeCount));
+        bindRating(actions.findViewWithTag(R.id.action_thumbs_down), R.drawable.ic_phone_dislike_on, R.drawable.ic_phone_dislike_o, shortCount(video.dislikeCount));
     }
 
     private void bindRating(View half, int onIcon, int offIcon, String count) {
@@ -4790,7 +4905,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     /** "Channel  4.3m views  9 mo ago  #tag", the YouTube app's line under the title (spaced, no dots) */
     private CharSequence detailsMeta(Video video) {
         CharSequence base = PhoneUi.meta(video);
-        StringBuilder line = new StringBuilder(base != null ? base.toString().replace(" · ", "   ") : "");
+        StringBuilder line = new StringBuilder(base != null ? base.toString().replace(" · ", "  ") : "");
         if (line.length() == 0 && !TextUtils.isEmpty(video.getAuthor())) {
             line.append(video.getAuthor());
         }
@@ -4799,7 +4914,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             int added = 0;
             while (added < 2 && tags.find()) {
                 if (line.indexOf(tags.group()) < 0) {
-                    line.append("   ").append(tags.group());
+                    line.append("  ").append(tags.group());
                     added++;
                 }
             }

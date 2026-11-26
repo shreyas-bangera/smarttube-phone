@@ -19,11 +19,7 @@ import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
-import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
-import com.liskovsoft.mediaserviceinterfaces.data.MediaItem;
-import com.liskovsoft.sharedutils.rx.RxHelper;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
-import com.liskovsoft.youtubeapi.service.YouTubeServiceManager;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
 /**
@@ -45,11 +41,7 @@ final class PhonePlaylistHeader {
     private final TextView mMeta;
     private final TextView mDescription;
     private Video mPlaylist;
-    private final ImageView mSave;
-    /** Saved in the account's library (the You tab's Playlists) */
-    private boolean mSaved;
-    private boolean mSaveBusy;
-    private io.reactivex.disposables.Disposable mSavedCheck;
+    private final PhonePlaylistSaver mSaver;
 
     PhonePlaylistHeader(Context context, Actions actions) {
         mRoot = new FrameLayout(context);
@@ -133,10 +125,10 @@ final class PhonePlaylistHeader {
         play.setPadding(dp(context, 20), 0, dp(context, 24), 0);
         play.setOnClickListener(v -> actions.playAll());
         buttons.addView(play, new LinearLayout.LayoutParams(0, dp(context, 48), 1f));
-        mSave = (ImageView) circle(context, R.drawable.ic_phone_library_add, v -> toggleSave(context));
-        mSave.setContentDescription(context.getString(R.string.phone_playlist_save));
-        mSave.setVisibility(View.GONE); // until it's known the playlist can be saved
-        buttons.addView(mSave);
+        ImageView save = (ImageView) circle(context, R.drawable.ic_phone_library_add, null);
+        save.setVisibility(View.GONE); // until it's known the playlist can be saved
+        mSaver = new PhonePlaylistSaver(save, true); // its page knows the owner: unsaving is safe here
+        buttons.addView(save);
         buttons.addView(circle(context, R.drawable.ic_phone_mode_shuffle, v -> actions.shuffle()));
         buttons.addView(circle(context, R.drawable.ic_phone_share_arrow, v -> share(context)));
         column.addView(buttons);
@@ -163,7 +155,7 @@ final class PhonePlaylistHeader {
         mDescription.setText(description);
         mDescription.setVisibility(TextUtils.isEmpty(description) ? View.GONE : View.VISIBLE);
         if (changed) {
-            checkSaved(context);
+            mSaver.bind(context, playlist.playlistId, playlist.getTitle(), playlist.getAuthor(), playlist.mediaItem);
         }
         if (changed && PhoneUi.isAlive(context)) {
             String url = playlist.getCardImageUrl();
@@ -173,105 +165,9 @@ final class PhonePlaylistHeader {
         }
     }
 
-    // region Save to library
-
-    /**
-     * Only a playlist someone else made can be saved (the user's own are in the library already; a mix can't be),
-     * and only with an account: saved playlists are the account's (the You tab's Playlists, as in the YouTube app).
-     */
-    private boolean canSave() {
-        String id = mPlaylist != null ? mPlaylist.playlistId : null;
-        if (TextUtils.isEmpty(id) || id.length() < 5 || id.startsWith("RD")
-                || "WL".equals(id) || "LL".equals(id)) {
-            return false;
-        }
-        String author = mPlaylist.getAuthor();
-        com.liskovsoft.mediaserviceinterfaces.oauth.Account account = YouTubeServiceManager.instance().getSignInService().getSelectedAccount();
-        return account == null || author == null || !author.equals(account.getName());
-    }
-
-    /** Shown at once (signed out it asks to sign in); saved or not comes from the account's playlists */
-    private void checkSaved(Context context) {
-        RxHelper.disposeActions(mSavedCheck);
-        mSaved = false;
-        boolean can = canSave();
-        mSave.setVisibility(can ? View.VISIBLE : View.GONE);
-        showSaved(context);
-        if (!can || !YouTubeServiceManager.instance().getSignInService().isSigned()) {
-            return;
-        }
-        String id = mPlaylist.playlistId;
-        mSavedCheck = RxHelper.execute(YouTubeServiceManager.instance().getContentService().getPlaylistsObserve(), group -> {
-            if (mPlaylist == null || !id.equals(mPlaylist.playlistId)) {
-                return;
-            }
-            if (isIn(group, id)) {
-                mSaved = true;
-                showSaved(context);
-            }
-        }, error -> { });
-    }
-
-    private static boolean isIn(MediaGroup group, String playlistId) {
-        if (group == null || group.getMediaItems() == null) {
-            return false;
-        }
-        for (MediaItem item : group.getMediaItems()) {
-            if (playlistId.equals(item.getPlaylistId())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void showSaved(Context context) {
-        mSave.setImageResource(mSaved ? R.drawable.ic_phone_library_added : R.drawable.ic_phone_library_add);
-        mSave.setContentDescription(context.getString(mSaved ? R.string.phone_playlist_saved : R.string.phone_playlist_save));
-    }
-
-    private void toggleSave(Context context) {
-        if (mPlaylist == null || mSaveBusy) {
-            return;
-        }
-        if (!YouTubeServiceManager.instance().getSignInService().isSigned()) {
-            android.widget.Toast.makeText(context, R.string.phone_playlist_sign_in, android.widget.Toast.LENGTH_LONG).show();
-            return;
-        }
-        String id = mPlaylist.playlistId;
-        com.liskovsoft.mediaserviceinterfaces.MediaItemService service = YouTubeServiceManager.instance().getMediaItemService();
-        if (mSaved) {
-            new android.app.AlertDialog.Builder(context)
-                    .setMessage(context.getString(R.string.phone_playlist_remove_ask, mPlaylist.getTitle()))
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.phone_playlist_remove, (d, w) -> run(context, service.removePlaylistObserve(id), false))
-                    .show();
-            return;
-        }
-        run(context, mPlaylist.mediaItem != null && id.equals(mPlaylist.mediaItem.getPlaylistId())
-                ? service.savePlaylistObserve(mPlaylist.mediaItem) : service.savePlaylistObserve(id), true);
-    }
-
-    private void run(Context context, io.reactivex.Observable<Void> action, boolean save) {
-        mSaveBusy = true;
-        mSaved = save; // right away, as in the YouTube app; put back if it fails
-        showSaved(context);
-        RxHelper.execute(action, error -> {
-            mSaveBusy = false;
-            mSaved = !save;
-            showSaved(context);
-            android.widget.Toast.makeText(context, R.string.phone_playlist_save_failed, android.widget.Toast.LENGTH_SHORT).show();
-        }, () -> {
-            mSaveBusy = false;
-            android.widget.Toast.makeText(context, save ? R.string.phone_playlist_saved_toast : R.string.phone_playlist_removed,
-                    android.widget.Toast.LENGTH_SHORT).show();
-        });
-    }
-
     void release() {
-        RxHelper.disposeActions(mSavedCheck);
+        mSaver.release();
     }
-
-    // endregion
 
     private void share(Context context) {
         if (mPlaylist == null || TextUtils.isEmpty(mPlaylist.playlistId)) {
