@@ -169,6 +169,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); // inflates the phone fragment_playback layout (TV player keeps TV density)
         sInstance = new java.lang.ref.WeakReference<>(this);
+        if (savedInstanceState != null && presenter().getVideo() == null) {
+            // Android brought the player back by itself (after an app update, or after it closed the app in the
+            // background) without its video: Home instead of an empty player
+            mHandler.post(this::closeEmptyPlayer);
+        }
         registerPipReceiver();
         PhoneTheme.apply(this); // details panel follows the Appearance setting
         PhoneUi.applyPhoneDensity(this); // phone views use the phone's real density
@@ -375,9 +380,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         applyLayoutMode();
     }
 
+    /** The player with nothing to play: closed, Home shows (opened if the player was all that was left) */
+    private void closeEmptyPlayer() {
+        if (isFinishing() || isDestroyed() || currentVideo() != null) {
+            return;
+        }
+        android.util.Log.d("PhonePip", "player without a video: closed");
+        if (isTaskRoot()) {
+            startActivity(new android.content.Intent(this, PhoneBrowseActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION));
+        }
+        finish();
+        overridePendingTransition(0, 0);
+    }
+
+    /** Still nothing to play a while after the player came to the front (it was restored, not opened): closed */
+    private final Runnable mEmptyCheck = this::closeEmptyPlayer;
+
     @Override
     protected void onResume() {
         super.onResume();
+        mHandler.removeCallbacks(mEmptyCheck);
+        if (currentVideo() == null) {
+            mHandler.postDelayed(mEmptyCheck, 3000);
+        }
         mResumed = true;
         mPipEnterPending = false;
         mAppLeaving = false;
