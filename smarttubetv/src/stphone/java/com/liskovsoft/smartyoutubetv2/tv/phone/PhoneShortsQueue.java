@@ -34,6 +34,18 @@ final class PhoneShortsQueue {
         append(group);
     }
 
+    /** Exactly these Shorts (e.g. the Shorts among search results) */
+    static synchronized void setOnly(List<Video> videos) {
+        sVideos.clear();
+        sFeed = null;
+        sResumeIndex = 0;
+        for (Video video : videos) {
+            if (video != null && video.videoId != null && indexOf(sVideos, video) < 0) {
+                sVideos.add(video);
+            }
+        }
+    }
+
     // region The Shorts tab: a feed loaded ahead of time, so a tap starts a Short straight away (as in Flow)
 
     /** A loaded feed with a Short left to play */

@@ -89,7 +89,10 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         ShortTile tile(int index) {
-            Video video = videos.get(index);
+            return tile(videos.get(index));
+        }
+
+        ShortTile tile(Video video) {
             for (ShortTile tile : tiles) {
                 if (tile.video == video) {
                     return tile;
@@ -216,6 +219,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private VideoFilter mFilter;
+    /** Search: the Shorts among the videos show as two column tiles, in pairs, as in the YouTube app */
+    private boolean mShortsInPairs;
 
     /** What the feed holds now, to put back later with {@link #restoreContent} (Subscriptions: one channel shown) */
     public Object saveContent() {
@@ -502,6 +507,43 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
+    /** Search results: Shorts as tiles (see addWithShortsInPairs) */
+    public void setShortsInPairs(boolean inPairs) {
+        mShortsInPairs = inPairs;
+    }
+
+    /** The Shorts were found (video.isShorts set): they move into tiles */
+    public void refresh() {
+        rebuild();
+    }
+
+    /**
+     * The group's videos, the Shorts among them as two column tiles: each pair where its first Short was (a Short
+     * left over at the end waits for the next one, or stands alone once there's no more).
+     */
+    private void addWithShortsInPairs(List<Object> items, Group group) {
+        int pairAt = -1;
+        Video waiting = null;
+        for (Video video : group.videos) {
+            if (video == null) {
+                continue;
+            }
+            if (!video.isShorts || isChannelItem(video)) {
+                items.add(video);
+            } else if (waiting == null) {
+                waiting = video;
+                pairAt = items.size();
+            } else {
+                items.add(pairAt, group.tile(waiting));
+                items.add(pairAt + 1, group.tile(video));
+                waiting = null;
+            }
+        }
+        if (waiting != null) {
+            items.add(pairAt, group.tile(waiting));
+        }
+    }
+
     private void rebuild() {
         List<Object> items = new ArrayList<>();
 
@@ -538,6 +580,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                             items.add(video);
                         }
                     }
+                } else if (mShortsInPairs && mMode == MODE_FLAT) {
+                    addWithShortsInPairs(items, group);
                 } else {
                     items.addAll(group.videos);
                 }

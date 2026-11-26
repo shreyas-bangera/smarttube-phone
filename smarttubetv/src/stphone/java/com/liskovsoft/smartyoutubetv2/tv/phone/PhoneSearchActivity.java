@@ -56,6 +56,7 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
 
         applyInsets(findViewById(R.id.phone_root), findViewById(R.id.phone_top_bar), findViewById(R.id.phone_content));
         setupList(this);
+        mAdapter.setShortsInPairs(true); // Shorts as tiles, as in the YouTube app
 
         mQuery = findViewById(R.id.phone_query);
         mClear = findViewById(R.id.phone_clear);
@@ -254,6 +255,14 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
     @Override
     public void updateSearch(VideoGroup group) {
         hideMessage();
+        // The Shorts among the results (some known now, the others once their pictures are checked)
+        if (group != null && group.getAction() != VideoGroup.ACTION_REMOVE && group.getAction() != VideoGroup.ACTION_REMOVE_AUTHOR) {
+            PhoneShortsDetect.mark(this, group.getVideos(), () -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    mAdapter.refresh();
+                }
+            });
+        }
         mAdapter.update(group);
         checkScrollEndLater();
     }
@@ -325,6 +334,16 @@ public class PhoneSearchActivity extends PhoneActivity implements SearchView, Fe
             PhoneMusic.markMusic(PhoneMusicFeed.isPlaylist(video) ? video.getTitle() : getString(R.string.phone_music_search));
         }
         PhoneUi.prepareExpandLaunch(video);
+        if (video.isShorts) {
+            // A Short plays in the Shorts player; swiping goes through the other Shorts of these results
+            List<Video> shorts = new ArrayList<>();
+            for (Video item : mAdapter.allVideos()) {
+                if (item != null && item.isShorts) {
+                    shorts.add(item);
+                }
+            }
+            PhoneShortsQueue.setOnly(shorts);
+        }
         mPresenter.onVideoItemSelected(video);
         mPresenter.onVideoItemClicked(video);
     }
