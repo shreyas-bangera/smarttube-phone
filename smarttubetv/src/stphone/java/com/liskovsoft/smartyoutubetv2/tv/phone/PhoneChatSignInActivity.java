@@ -48,6 +48,38 @@ public class PhoneChatSignInActivity extends Activity {
     /** At app start (and after signing in): the chat uses the kept login, if there is one */
     static void apply(Context context) {
         com.liskovsoft.youtubeapi.chat.LiveChatWriter.setWebCookie(read(context));
+        String[] page = readPage(context);
+        com.liskovsoft.youtubeapi.chat.LiveChatWriter.setWebPageId(page != null && !page[0].isEmpty() ? page[0] : null);
+    }
+
+    // The channel that writes (a Google account can have several): its page id ("" its main channel), and picture
+
+    private static final String PAGE_FILE = "chat_web_page";
+
+    /** {pageId, photo}, or null when no channel was chosen yet */
+    static String[] readPage(Context context) {
+        File file = new File(context.getNoBackupFilesDir(), PAGE_FILE);
+        if (!file.exists()) {
+            return null;
+        }
+        try (FileInputStream in = new FileInputStream(file)) {
+            byte[] bytes = new byte[(int) file.length()];
+            int read = in.read(bytes);
+            String text = read > 0 ? new String(bytes, 0, read, StandardCharsets.UTF_8) : "";
+            String[] parts = text.split("\n", -1);
+            return new String[] {parts[0], parts.length > 1 ? parts[1] : ""};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    static void choosePage(Context context, String pageId, String photo) {
+        try (FileOutputStream out = new FileOutputStream(new File(context.getNoBackupFilesDir(), PAGE_FILE))) {
+            out.write(((pageId != null ? pageId : "") + "\n" + (photo != null ? photo : "")).getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            android.util.Log.d("PhoneLiveChat", "chat channel not kept: " + e);
+        }
+        com.liskovsoft.youtubeapi.chat.LiveChatWriter.setWebPageId(pageId);
     }
 
     static void signOut(Context context) {
@@ -56,6 +88,12 @@ public class PhoneChatSignInActivity extends Activity {
             //noinspection ResultOfMethodCallIgnored
             file.delete();
         }
+        File page = new File(context.getNoBackupFilesDir(), PAGE_FILE);
+        if (page.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            page.delete();
+        }
+        com.liskovsoft.youtubeapi.chat.LiveChatWriter.setWebPageId(null);
         com.liskovsoft.youtubeapi.chat.LiveChatWriter.setWebCookie(null);
     }
 

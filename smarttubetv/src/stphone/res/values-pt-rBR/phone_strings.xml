@@ -262,6 +262,10 @@
     <string name="phone_chat_sign_in">Entrar para conversar</string>
     <string name="phone_chat_sign_in_why">O YouTube só aceita mensagens de chat de um login do site do YouTube. Ele fica neste celular, só para o chat.</string>
     <string name="phone_chat_signed_in">Conectado: você já pode conversar</string>
+    <string name="phone_live_chat_as">Conversar como</string>
+    <string name="phone_live_chat_delete">Excluir</string>
+    <string name="phone_live_chat_delete_failed">Não foi possível excluir: %1$s</string>
+    <string name="phone_live_badge">Ao vivo</string>
     <string name="phone_cast_failed">Não foi possível transmitir para %1$s (%2$s).\n\nVerifique se a TV está ligada e no mesmo Wi-Fi do celular.</string>
     <string name="phone_tweak_ambient">Modo ambiente</string>
     <string name="phone_tweak_ambient_summary">Um brilho suave das cores do vídeo ao redor do player, na aparência escura</string>

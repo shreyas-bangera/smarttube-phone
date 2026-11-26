@@ -197,6 +197,13 @@
                 android:textColor="#FFFFFF"
                 android:textSize="13sp" />
 
+            <!-- Takes the row's room while the time line is the Live badge (sized to its words) -->
+            <View
+                android:id="@+id/phone_ctl_time_space"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="0" />
+
             <ImageView
                 android:id="@+id/phone_ctl_fullscreen"
                 android:layout_width="44dp"

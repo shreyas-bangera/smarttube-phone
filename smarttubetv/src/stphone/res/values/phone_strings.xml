@@ -286,6 +286,10 @@
     <string name="phone_chat_sign_in">Sign in to chat</string>
     <string name="phone_chat_sign_in_why">YouTube takes chat messages only from a YouTube website sign-in. It stays on this phone, for chat only.</string>
     <string name="phone_chat_signed_in">Signed in: you can chat now</string>
+    <string name="phone_live_chat_as">Chat as</string>
+    <string name="phone_live_chat_delete">Delete</string>
+    <string name="phone_live_chat_delete_failed">Couldn\'t delete: %1$s</string>
+    <string name="phone_live_badge">Live</string>
     <string name="phone_cast_failed">Couldn\'t cast to %1$s (%2$s).\n\nCheck the TV is on and on the same Wi-Fi as your phone.</string>
     <string name="phone_tweak_ambient">Ambient mode</string>
     <string name="phone_tweak_ambient_summary">A soft glow of the video\'s colours around the player, in the dark appearance</string>

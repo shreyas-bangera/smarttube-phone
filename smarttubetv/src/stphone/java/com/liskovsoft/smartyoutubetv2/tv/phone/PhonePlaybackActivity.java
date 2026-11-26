@@ -339,7 +339,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mTime.setSingleLine(true);
         mTime.setEllipsize(android.text.TextUtils.TruncateAt.END);
         // The chapter's name by the time: tap it for all the chapters
-        mTime.setOnClickListener(v -> openChapters());
+        mTime.setOnClickListener(v -> {
+            if (mLiveBadge) {
+                goLive(); // behind the live point: back to it
+            } else {
+                openChapters();
+            }
+        });
         mTime.setClickable(false);
         mShorts = findViewById(R.id.phone_shorts);
         mShortsPaused = findViewById(R.id.phone_shorts_paused);
@@ -2837,12 +2843,83 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
     }
 
+    /** The time line shows YouTube's Live badge instead (a live stream) */
+    private boolean mLiveBadge;
+
     private void updateTimeText(long position, long duration) {
+        Video video = currentVideo();
+        if (video != null && video.isLive) {
+            showLiveBadge(position, duration);
+            return;
+        }
+        if (mLiveBadge) {
+            mLiveBadge = false;
+            mTime.setBackground(null);
+            mTime.setPadding(0, 0, 0, 0);
+            ViewGroup.LayoutParams params = mTime.getLayoutParams();
+            if (params instanceof LinearLayout.LayoutParams) {
+                LinearLayout.LayoutParams row = (LinearLayout.LayoutParams) params;
+                row.width = 0;
+                row.weight = 1;
+                mTime.setLayoutParams(row);
+            }
+            setSpaceWeight(0f);
+        }
         String time = duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position);
         String chapter = mChapters.titleAt(position);
         boolean named = chapter != null && !chapter.isEmpty();
         mTime.setText(named ? time + "  \u2022  " + chapter + "  \u203A" : time);
         mTime.setClickable(named);
+    }
+
+    /**
+     * ● Live, as in the YouTube app: a dark pill with a red dot at the live point (grey when behind it; a tap goes
+     * back to live)
+     */
+    private void showLiveBadge(long position, long duration) {
+        boolean atLive = duration <= 0 || duration - position < 20_000;
+        String label = "\u25CF  " + getString(R.string.phone_live_badge);
+        android.text.SpannableString text = new android.text.SpannableString(label);
+        text.setSpan(new android.text.style.ForegroundColorSpan(atLive ? 0xFFFF0033 : 0xFFAAAAAA), 0, 1,
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        mTime.setText(text);
+        mTime.setClickable(!atLive);
+        if (!mLiveBadge) {
+            mLiveBadge = true;
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setColor(0x80000000);
+            pill.setCornerRadius(dp(14));
+            mTime.setBackground(pill);
+            mTime.setPadding(dp(12), dp(5), dp(14), dp(5));
+            ViewGroup.LayoutParams params = mTime.getLayoutParams();
+            if (params instanceof LinearLayout.LayoutParams) {
+                // the pill hugs its words (the time line otherwise takes the row)
+                LinearLayout.LayoutParams row = (LinearLayout.LayoutParams) params;
+                row.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                row.weight = 0;
+                mTime.setLayoutParams(row);
+            }
+            setSpaceWeight(1f);
+        }
+    }
+
+    private void setSpaceWeight(float weight) {
+        View space = findViewById(R.id.phone_ctl_time_space);
+        if (space != null && space.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+            LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) space.getLayoutParams();
+            params.weight = weight;
+            space.setLayoutParams(params);
+        }
+    }
+
+    /** Back to the live point of a live stream */
+    private void goLive() {
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        if (exo != null) {
+            exo.seekToDefaultPosition();
+            exo.setPlayWhenReady(true);
+            updateProgress();
+        }
     }
 
     /** All the video's chapters, from the chapter's name: tap one to go there */

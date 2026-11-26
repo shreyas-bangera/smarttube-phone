@@ -197,6 +197,12 @@ final class PhoneLiveChat {
         mInputRow.setGravity(Gravity.CENTER_VERTICAL);
         mInputRow.setPadding(dp(16), dp(10), dp(16), dp(10));
         mMe = new ImageView(activity);
+        mMe.setContentDescription(activity.getString(R.string.phone_live_chat_as));
+        mMe.setOnClickListener(v -> {
+            if (com.liskovsoft.youtubeapi.chat.LiveChatWriter.hasWebLogin()) {
+                loadChannels(this::pickChannel); // chat as another of the account's channels
+            }
+        });
         LinearLayout.LayoutParams meParams = new LinearLayout.LayoutParams(dp(32), dp(32));
         meParams.setMarginEnd(dp(12));
         mInputRow.addView(mMe, meParams);
@@ -559,15 +565,7 @@ final class PhoneLiveChat {
             showNotice(null);
             return;
         }
-        try {
-            com.liskovsoft.mediaserviceinterfaces.oauth.Account account =
-                    com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager.instance().getSelectedAccount();
-            if (account != null && account.getAvatarImageUrl() != null) {
-                PhoneUi.loadAvatar(mMe, account.getAvatarImageUrl());
-            }
-        } catch (Throwable e) {
-            // no picture
-        }
+        ensureChannel(); // (and its picture by the box)
         showNotice(null);
         String key = mChatKey;
         if (key == null) {
@@ -588,6 +586,109 @@ final class PhoneLiveChat {
             });
         });
     }
+
+    // region Which channel writes
+
+    /**
+     * A Google account can have several channels: the chat writes as the one chosen. The first time it's the one
+     * this app is signed in with (same name), or the only one; otherwise the user picks. Tapping one's own picture
+     * by the box picks again.
+     */
+    private void ensureChannel() {
+        String[] page = PhoneChatSignInActivity.readPage(mActivity);
+        if (page != null) {
+            showMe(page[1]);
+            return;
+        }
+        String appName = null;
+        try {
+            com.liskovsoft.mediaserviceinterfaces.oauth.Account account =
+                    com.liskovsoft.smartyoutubetv2.common.misc.MediaServiceManager.instance().getSelectedAccount();
+            appName = account != null ? account.getName() : null;
+        } catch (Throwable e) {
+            // no name to match
+        }
+        String match = appName;
+        loadChannels(channels -> {
+            if (channels.isEmpty()) {
+                return;
+            }
+            for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
+                if (match != null && match.trim().equalsIgnoreCase(channel.name.trim())) {
+                    chooseChannel(channel);
+                    return;
+                }
+            }
+            if (channels.size() == 1) {
+                chooseChannel(channels.get(0));
+            } else {
+                pickChannel(channels);
+            }
+        });
+    }
+
+    private interface Channels {
+        void onChannels(List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels);
+    }
+
+    private void loadChannels(Channels onChannels) {
+        WORKER.execute(() -> {
+            List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels;
+            try {
+                channels = com.liskovsoft.youtubeapi.chat.LiveChatWriter.channels();
+            } catch (Throwable e) {
+                android.util.Log.d("PhoneLiveChat", "channels: " + e);
+                channels = new ArrayList<>();
+            }
+            List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> result = channels;
+            mMain.post(() -> {
+                if (!mActivity.isFinishing() && !mActivity.isDestroyed()) {
+                    onChannels.onChannels(result);
+                }
+            });
+        });
+    }
+
+    /** Chat as: the login's channels, the current one ticked */
+    private void pickChannel(List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels) {
+        String[] names = new String[channels.size()];
+        String[] page = PhoneChatSignInActivity.readPage(mActivity);
+        int checked = -1;
+        for (int i = 0; i < channels.size(); i++) {
+            com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel = channels.get(i);
+            names[i] = channel.handle != null && !channel.handle.isEmpty() ? channel.name + "  " + channel.handle : channel.name;
+            String id = channel.pageId != null ? channel.pageId : "";
+            if (page != null ? page[0].equals(id) : channel.selected) {
+                checked = i;
+            }
+        }
+        new android.app.AlertDialog.Builder(mActivity)
+                .setTitle(R.string.phone_live_chat_as)
+                .setSingleChoiceItems(names, checked, (dialog, which) -> {
+                    chooseChannel(channels.get(which));
+                    dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void chooseChannel(com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel) {
+        PhoneChatSignInActivity.choosePage(mActivity, channel.pageId, channel.photo);
+        showMe(channel.photo);
+        android.util.Log.d("PhoneLiveChat", "chatting as " + channel.name);
+        String key = mChatKey;
+        if (key != null) {
+            checkWriting(); // (what this channel may do here)
+        }
+    }
+
+    private void showMe(String photo) {
+        if (photo != null && !photo.isEmpty()) {
+            PhoneUi.loadAvatar(mMe, photo);
+        }
+    }
+
+    // endregion
 
     /** Not signed in to chat: the box reads Sign in to chat, and a tap opens the sign-in */
     private void setSignInBox(boolean signIn) {
@@ -668,6 +769,31 @@ final class PhoneLiveChat {
 
     // region The messages
 
+    private void confirmDelete(ChatItem item) {
+        new android.app.AlertDialog.Builder(mActivity)
+                .setMessage(item.getMessage())
+                .setPositiveButton(R.string.phone_live_chat_delete, (dialog, which) -> WORKER.execute(() -> {
+                    String error = null;
+                    try {
+                        com.liskovsoft.youtubeapi.chat.LiveChatWriter.delete(item.getId());
+                    } catch (Throwable e) {
+                        error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                        android.util.Log.d("PhoneLiveChat", "delete: " + e);
+                    }
+                    String failed = error;
+                    mMain.post(() -> {
+                        if (failed == null) {
+                            mAdapter.remove(item.getId());
+                        } else {
+                            android.widget.Toast.makeText(mActivity, mActivity.getString(R.string.phone_live_chat_delete_failed, failed),
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private final class Adapter extends RecyclerView.Adapter<Holder> {
         private final List<ChatItem> mItems = new ArrayList<>();
 
@@ -724,6 +850,23 @@ final class PhoneLiveChat {
             holder.text.setTextColor(onVideo ? 0xFFFFFFFF : color(R.color.phone_text));
             holder.text.setShadowLayer(onVideo ? dp(3) : 0, 0, onVideo ? dp(1) : 0, 0xB3000000);
             PhoneUi.loadAvatar(holder.avatar, item.getAuthorPhoto());
+            // One's own message (sent from here): hold it to delete it
+            holder.itemView.setOnLongClickListener(com.liskovsoft.youtubeapi.chat.LiveChatWriter.canDelete(item.getId())
+                    ? v -> {
+                        confirmDelete(item);
+                        return true;
+                    } : null);
+            holder.itemView.setLongClickable(com.liskovsoft.youtubeapi.chat.LiveChatWriter.canDelete(item.getId()));
+        }
+
+        void remove(String id) {
+            for (int i = 0; i < mItems.size(); i++) {
+                if (id.equals(mItems.get(i).getId())) {
+                    mItems.remove(i);
+                    notifyItemRemoved(i);
+                    return;
+                }
+            }
         }
 
         @Override
