@@ -245,7 +245,11 @@ final class PhoneLiveChat {
     void layout() {
         boolean show = mReceiver != null && !mClosed && mHost.chatAllowed();
         boolean landscape = mHost.landscape();
-        int sideWidth = show && landscape ? Math.round(mActivity.getResources().getDisplayMetrics().widthPixels * 0.36f) : 0;
+        // Beside the video: a third of the screen, as in the YouTube app (measured on the screen itself: the player
+        // screen's own metrics are scaled for the TV)
+        View content0 = (View) mPanel.getParent();
+        int screenWidth = content0 != null && content0.getWidth() > 0 ? content0.getWidth() : PhoneSheetLayout.screen().widthPixels;
+        int sideWidth = show && landscape ? Math.max(dp(300), Math.min(dp(420), Math.round(screenWidth * 0.36f))) : 0;
         mHost.setVideoRightMargin(sideWidth);
         if (!show) {
             if (mPanel.getVisibility() != View.GONE) {
@@ -417,8 +421,11 @@ final class PhoneLiveChat {
                     mInput.setText("");
                     hideKeyboard();
                 } else {
-                    android.widget.Toast.makeText(mActivity, mActivity.getString(R.string.phone_live_chat_failed, failed),
-                            android.widget.Toast.LENGTH_LONG).show();
+                    // In full (each way tried and YouTube's answer), so it can be read and reported
+                    new android.app.AlertDialog.Builder(mActivity)
+                            .setMessage(mActivity.getString(R.string.phone_live_chat_failed, failed))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show();
                 }
             });
         });

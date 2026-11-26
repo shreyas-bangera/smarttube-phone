@@ -908,7 +908,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
         Video video = currentVideo();
-        if (exo == null || video == null || video.videoId == null || video.isLive
+        if (exo == null || video == null || video.videoId == null
                 || exo.getPlaybackState() != com.google.android.exoplayer2.Player.STATE_READY) {
             return;
         }
@@ -923,7 +923,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return;
         }
         long duration = exo.getDuration();
-        if (duration > 3 * 60_000L + 1_000 || duration <= 0) {
+        if (video.isLive || duration > 3 * 60_000L + 1_000 || duration <= 0) {
+            // (an upright live stream: filling the screen, its chat over the video, see showTall)
             // A long portrait video: the regular player, tall (as in the YouTube app), full screen stays upright
             android.util.Log.d("PhoneShorts", "long portrait video " + video.videoId + " (" + width + "x" + height + "): tall player");
             PhoneShortsDetect.rememberTall(video.videoId, (float) height / width);

@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..8d40d20
+index 0000000..9f972cb
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,171 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -189,7 +189,9 @@ index 0000000..8d40d20
 +import com.liskovsoft.youtubeapi.common.helpers.PostDataHelper
 +import okio.Buffer
 +import retrofit2.Call
++import com.liskovsoft.youtubeapi.common.helpers.AppClient
 +import retrofit2.http.Body
++import retrofit2.http.Header
 +import retrofit2.http.Headers
 +import retrofit2.http.POST
 +import java.net.URLEncoder
@@ -199,11 +201,11 @@ index 0000000..8d40d20
 +internal interface LiveChatWriteApi {
 +    @Headers("Content-Type: application/json")
 +    @POST("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat")
-+    fun getLiveChatJson(@Body chatQuery: String): Call<JsonObject?>
++    fun getLiveChatJson(@Body chatQuery: String, @Header("User-Agent") userAgent: String): Call<JsonObject?>
 +
 +    @Headers("Content-Type: application/json")
 +    @POST("https://www.youtube.com/youtubei/v1/live_chat/send_message")
-+    fun sendMessage(@Body sendQuery: String): Call<JsonObject?>
++    fun sendMessage(@Body sendQuery: String, @Header("User-Agent") userAgent: String): Call<JsonObject?>
 +}
 +
 +/**
@@ -225,8 +227,8 @@ index 0000000..8d40d20
 +    @JvmStatic
 +    fun whyNot(chatKey: String): String? {
 +        var reason: String? = null
-+        for (web in listOf(false, true)) {
-+            val chat = try { fetch(chatKey, web) } catch (e: Exception) { null } ?: continue
++        for (client in CLIENTS) {
++            val chat = try { fetch(chatKey, client) } catch (e: Exception) { null } ?: continue
 +            find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
 +                synchronized(mParams) { mParams[chatKey] = it }
 +                return null
@@ -246,39 +248,46 @@ index 0000000..8d40d20
 +        if (synchronized(mParams) { mParams[chatKey] } == null) {
 +            whyNot(chatKey)?.let { throw CantChatException(it) }
 +        }
-+        val candidates = ArrayList<String>()
++        val candidates = LinkedHashSet<String>()
 +        synchronized(mParams) { mParams[chatKey] }?.let { candidates.add(it) }
 +        if (channelId != null) {
-+            candidates.add(buildParams(channelId, videoId, true))
-+            candidates.add(buildParams(channelId, videoId, false))
++            candidates.add(buildParams(channelId, videoId)) // as YouTube's web client (and YouTube.js) encode them
 +        }
 +        if (candidates.isEmpty()) {
-+            throw CantChatException("Chat isn't open")
++            throw CantChatException("Chat isn't open (no channel)")
 +        }
-+        var last: Exception? = null
++        // Sent as YouTube's Android app (signed in with a token like this app's), the website, then the TV app,
++        // each with its own User-Agent: the first YouTube takes. All the refusals are kept for the message.
++        val errors = LinkedHashMap<String, String>()
 +        for (params in candidates) {
-+            for (web in listOf(false, true)) {
++            for (client in CLIENTS) {
 +                val body = "\"params\":\"$params\",\"richMessage\":{\"textSegments\":[{\"text\":${Gson().toJson(text)}}]}," +
 +                        "\"clientMessageId\":\"${UUID.randomUUID()}\""
 +                try {
-+                    val answer = RetrofitHelper.getWithErrors(mApi.sendMessage(query(body, web)))
++                    val answer = RetrofitHelper.getWithErrors(mApi.sendMessage(query(body, client), client.userAgent))
 +                    if (answer != null) {
 +                        synchronized(mParams) { mParams[chatKey] = params }
 +                        return
 +                    }
++                    errors[client.name] = "no answer"
 +                } catch (e: Exception) {
-+                    last = e
++                    errors[client.name] = e.message ?: e.javaClass.simpleName
 +                }
 +            }
 +        }
-+        throw last ?: CantChatException("Not sent")
++        throw CantChatException(errors.entries.joinToString("\n") { "${it.key}: ${it.value}" })
 +    }
 +
-+    private fun query(body: String, web: Boolean): String =
-+        if (web) PostDataHelper.createQueryWeb(body) else PostDataHelper.createQueryTV(body)
++    private val CLIENTS = listOf(AppClient.ANDROID, AppClient.WEB, AppClient.TV)
 +
-+    private fun fetch(chatKey: String, web: Boolean): JsonObject? =
-+        RetrofitHelper.get(mApi.getLiveChatJson(query("\"continuation\":\"$chatKey\"", web)))
++    private fun query(body: String, client: AppClient): String = when (client) {
++        AppClient.ANDROID -> PostDataHelper.createQueryAndroid(body)
++        AppClient.WEB -> PostDataHelper.createQueryWeb(body)
++        else -> PostDataHelper.createQueryTV(body)
++    }
++
++    private fun fetch(chatKey: String, client: AppClient): JsonObject? =
++        RetrofitHelper.get(mApi.getLiveChatJson(query("\"continuation\":\"$chatKey\"", client), client.userAgent))
 +
 +    private fun restriction(chat: JsonObject): String? {
 +        val restricted = find(chat, "liveChatRestrictedParticipationRenderer")?.asJsonObject ?: return null
@@ -304,13 +313,12 @@ index 0000000..8d40d20
 +        return null
 +    }
 +
-+    private fun buildParams(channelId: String, videoId: String, twice: Boolean): String {
++    private fun buildParams(channelId: String, videoId: String): String {
 +        val ids = Buffer().also { string(it, 1, channelId); string(it, 2, videoId) }
 +        val inner = Buffer().also { message(it, 5, ids) }
 +        val params = Buffer().also { message(it, 1, inner); varint(it, 2, 1); varint(it, 3, 4) }
 +        val once = params.readByteString().base64()
-+        return if (twice) Buffer().writeUtf8(URLEncoder.encode(once, "UTF-8")).readByteString().base64()
-+        else URLEncoder.encode(once, "UTF-8")
++        return Buffer().writeUtf8(URLEncoder.encode(once, "UTF-8")).readByteString().base64()
 +    }
 +
 +    private fun string(out: Buffer, field: Int, value: String) {
