@@ -254,6 +254,11 @@
     <string name="phone_cast_connecting">Conectando a %1$s…</string>
     <string name="phone_cast_failed_title">Não foi possível transmitir</string>
     <string name="phone_cast_video_failed">Este vídeo não pode ser transmitido (%1$s)</string>
+    <string name="phone_live_chat">Chat ao vivo</string>
+    <string name="phone_live_chat_top">Principais mensagens</string>
+    <string name="phone_live_chat_hint">Conversar…</string>
+    <string name="phone_live_chat_sign_in">Faça login para conversar</string>
+    <string name="phone_live_chat_failed">Não foi possível enviar: %1$s</string>
     <string name="phone_cast_failed">Não foi possível transmitir para %1$s (%2$s).\n\nVerifique se a TV está ligada e no mesmo Wi-Fi do celular.</string>
     <string name="phone_tweak_ambient">Modo ambiente</string>
     <string name="phone_tweak_ambient_summary">Um brilho suave das cores do vídeo ao redor do player, na aparência escura</string>

@@ -173,6 +173,144 @@ index ad4bafa..7862a39 100644
          }
      }
  
+diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
+new file mode 100644
+index 0000000..3dc33c8
+--- /dev/null
++++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
+@@ -0,0 +1,132 @@
++package com.liskovsoft.youtubeapi.chat
++
++import com.google.gson.Gson
++import com.google.gson.JsonElement
++import com.google.gson.JsonObject
++import com.liskovsoft.googlecommon.common.converters.gson.WithGson
++import com.liskovsoft.googlecommon.common.helpers.RetrofitHelper
++import com.liskovsoft.youtubeapi.common.helpers.PostDataHelper
++import okio.Buffer
++import retrofit2.Call
++import retrofit2.http.Body
++import retrofit2.http.Headers
++import retrofit2.http.POST
++import java.net.URLEncoder
++import java.util.UUID
++
++@WithGson
++internal interface LiveChatWriteApi {
++    @Headers("Content-Type: application/json")
++    @POST("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat")
++    fun getLiveChatJson(@Body chatQuery: String): Call<JsonObject?>
++
++    @Headers("Content-Type: application/json")
++    @POST("https://www.youtube.com/youtubei/v1/live_chat/send_message")
++    fun sendMessage(@Body sendQuery: String): Call<JsonObject?>
++}
++
++/**
++ * Phone: writing in a stream's live chat, as the signed-in user. YouTube's chat gives the params to send with
++ * (sendLiveChatMessageEndpoint) to those who may chat, or says why they can't (e.g. Subscribers-only mode); when it
++ * gives neither, they're built the way YouTube's web client does ({1: {5: {1: channelId, 2: videoId}}, 2: 1, 3: 4}).
++ */
++object LiveChatWriter {
++    private val mApi = RetrofitHelper.create(LiveChatWriteApi::class.java)
++    private val mParams = HashMap<String, String>()
++
++    class CantChatException(message: String) : Exception(message)
++
++    /** Null if the signed-in user can chat here, else YouTube's reason (blocking: not for the UI thread) */
++    @JvmStatic
++    fun whyNot(chatKey: String): String? {
++        val chat = fetch(chatKey) ?: return null
++        find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
++            synchronized(mParams) { mParams[chatKey] = it }
++            return null
++        }
++        return restriction(chat)
++    }
++
++    /** Sends a message (blocking); throws with YouTube's reason if it can't */
++    @JvmStatic
++    fun send(chatKey: String, videoId: String, channelId: String?, text: String) {
++        var params = synchronized(mParams) { mParams[chatKey] }
++        if (params == null) {
++            val reason = whyNot(chatKey)
++            if (reason != null) {
++                throw CantChatException(reason)
++            }
++            params = synchronized(mParams) { mParams[chatKey] }
++                ?: channelId?.let { buildParams(it, videoId) }
++                ?: throw CantChatException("Chat isn't open")
++        }
++        val query = PostDataHelper.createQueryTV(
++            "\"params\":\"$params\",\"richMessage\":{\"textSegments\":[{\"text\":${Gson().toJson(text)}}]}," +
++                    "\"clientMessageId\":\"${UUID.randomUUID()}\"")
++        RetrofitHelper.getWithErrors(mApi.sendMessage(query)) ?: throw CantChatException("Not sent")
++    }
++
++    private fun fetch(chatKey: String): JsonObject? =
++        RetrofitHelper.get(mApi.getLiveChatJson(PostDataHelper.createQueryTV("\"continuation\":\"$chatKey\"")))
++
++    private fun restriction(chat: JsonObject): String? {
++        val restricted = find(chat, "liveChatRestrictedParticipationRenderer")?.asJsonObject ?: return null
++        val runs = restricted.getAsJsonObject("message")?.getAsJsonArray("runs") ?: return "Chat isn't open"
++        return runs.joinToString("") { it.asJsonObject.get("text")?.asString ?: "" }.ifEmpty { "Chat isn't open" }
++    }
++
++    /** The first value under this key, anywhere in the answer */
++    private fun find(element: JsonElement?, key: String): JsonElement? {
++        when {
++            element == null -> return null
++            element.isJsonObject -> {
++                val obj = element.asJsonObject
++                obj.get(key)?.let { return it }
++                for ((_, value) in obj.entrySet()) {
++                    find(value, key)?.let { return it }
++                }
++            }
++            element.isJsonArray -> for (value in element.asJsonArray) {
++                find(value, key)?.let { return it }
++            }
++        }
++        return null
++    }
++
++    private fun buildParams(channelId: String, videoId: String): String {
++        val ids = Buffer().also { string(it, 1, channelId); string(it, 2, videoId) }
++        val inner = Buffer().also { message(it, 5, ids) }
++        val params = Buffer().also { message(it, 1, inner); varint(it, 2, 1); varint(it, 3, 4) }
++        val once = params.readByteString().base64()
++        return Buffer().writeUtf8(URLEncoder.encode(once, "UTF-8")).readByteString().base64()
++    }
++
++    private fun string(out: Buffer, field: Int, value: String) {
++        val utf8 = value.toByteArray(Charsets.UTF_8)
++        tag(out, field, 2)
++        writeVarint(out, utf8.size.toLong())
++        out.write(utf8)
++    }
++
++    private fun message(out: Buffer, field: Int, value: Buffer) {
++        tag(out, field, 2)
++        writeVarint(out, value.size)
++        out.writeAll(value)
++    }
++
++    private fun varint(out: Buffer, field: Int, value: Int) {
++        tag(out, field, 0)
++        writeVarint(out, value.toLong())
++    }
++
++    private fun tag(out: Buffer, field: Int, wireType: Int) = writeVarint(out, ((field shl 3) or wireType).toLong())
++
++    private fun writeVarint(out: Buffer, value: Long) {
++        var v = value
++        while (v and 0x7F.inv().toLong() != 0L) {
++            out.writeByte(((v and 0x7F) or 0x80).toInt())
++            v = v ushr 7
++        }
++        out.writeByte(v.toInt())
++    }
++}
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/comments/CommentWriteAnswers.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/comments/CommentWriteAnswers.kt
 new file mode 100644
 index 0000000..e3a3c4b

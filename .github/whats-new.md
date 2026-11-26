@@ -2,3 +2,4 @@
 - Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
 - Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.
 - Upright videos look right — Long videos filmed upright play in a tall player, and full screen stays upright instead of turning sideways.
+- Live chat like YouTube — Live streams show their chat in a panel under the video, or beside it in full screen, and you can chat when signed in.

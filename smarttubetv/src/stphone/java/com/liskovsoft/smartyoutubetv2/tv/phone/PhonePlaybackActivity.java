@@ -203,6 +203,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         // The next Short, loaded in a second hidden player (above both pictures, below the Shorts overlay)
         mPeek = new PhoneShortsPeek(this, mVideoBox, 3);
+        mLiveChat = new PhoneLiveChat(this, liveChatHost());
         mMusicPlayer = new PhoneMusicPlayer(this, new PhoneMusicPlayer.Host() {
             @Override
             public com.google.android.exoplayer2.SimpleExoPlayer exo() {
@@ -483,6 +484,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         PhoneWidget.sync(this, currentVideo(), mMusicMode, false, false);
         if (mPeek != null) {
             mPeek.release(exoPlayer());
+        }
+        if (mLiveChat != null) {
+            mLiveChat.release();
         }
         if (mMusicPlayer != null) {
             mMusicPlayer.release();
@@ -1068,6 +1072,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         if (mPlayer != null && !pip) {
             mPlayer.hideTvOverlay();
+        }
+        if (mLiveChat != null) {
+            mLiveChat.layout(); // under the video, beside it in full screen, or hidden
         }
     }
 
@@ -2230,6 +2237,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     /** Each tick: the cast button shows casting, the phone's player stays quiet, the panel follows the TV */
     private void castTick() {
+        if (mLiveChat != null && mLiveChat.hasChat()) {
+            mLiveChat.layout(); // (hidden while casting, the mini player, ...: changes only when something did)
+        }
         ImageView button = findViewById(R.id.phone_ctl_cast);
         boolean casting = PhoneCast.isCasting();
         if (button != null) {
@@ -4232,6 +4242,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private void clickButton(int buttonId) {
+        if (buttonId == R.id.action_chat && mLiveChat != null && mLiveChat.hasChat() && !mLiveChat.isShowing()) {
+            mLiveChat.reopen(); // closed with its X: back (the chat kept coming in)
+            return;
+        }
         if (buttonId == R.id.action_thumbs_up || buttonId == R.id.action_thumbs_down || buttonId == R.id.action_subscribe) {
             mRoot.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK); // a tick under the finger
         }
@@ -4564,6 +4578,67 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public void onPlayerButtonState(int buttonId, int buttonState) {
         refreshDetails();
     }
+
+    @Override
+    public void onPlayerLiveChat(com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.ChatReceiver chatReceiver) {
+        if (mLiveChat != null) {
+            mLiveChat.setReceiver(chatReceiver);
+        }
+    }
+
+    // region Live chat
+
+    private PhoneLiveChat mLiveChat;
+
+    private PhoneLiveChat.Host liveChatHost() {
+        return new PhoneLiveChat.Host() {
+            @Override
+            public View videoBox() {
+                return mVideoBox;
+            }
+
+            @Override
+            public boolean chatAllowed() {
+                return !mShortsMode && !isPip() && !mMinimized && !mMinimizing && !mTallFull && !PhoneCast.isCasting();
+            }
+
+            @Override
+            public boolean landscape() {
+                return !mPortrait;
+            }
+
+            @Override
+            public String videoId() {
+                Video video = currentVideo();
+                return video != null ? video.videoId : null;
+            }
+
+            @Override
+            public String channelId() {
+                Video video = currentVideo();
+                return video != null ? video.channelId : null;
+            }
+
+            @Override
+            public void onChatClosed() {
+                // The chat keeps coming in: the chat button shows it again
+            }
+
+            @Override
+            public void setVideoRightMargin(int px) {
+                if (mVideoBox == null || !(mVideoBox.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+                    return;
+                }
+                ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) mVideoBox.getLayoutParams();
+                if (params.rightMargin != px) {
+                    params.rightMargin = px;
+                    mVideoBox.setLayoutParams(params);
+                }
+            }
+        };
+    }
+
+    // endregion
 
     @Override
     public void onPlayerChannelIcon(String iconUrl) {

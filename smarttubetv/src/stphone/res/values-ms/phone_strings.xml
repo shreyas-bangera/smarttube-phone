@@ -247,6 +247,11 @@
     <string name="phone_cast_connecting">Menyambung ke %1$s…</string>
     <string name="phone_cast_failed_title">Tidak dapat menghantar</string>
     <string name="phone_cast_video_failed">Video ini tidak dapat dihantar (%1$s)</string>
+    <string name="phone_live_chat">Sembang langsung</string>
+    <string name="phone_live_chat_top">Mesej teratas</string>
+    <string name="phone_live_chat_hint">Sembang…</string>
+    <string name="phone_live_chat_sign_in">Log masuk untuk bersembang</string>
+    <string name="phone_live_chat_failed">Tidak dapat dihantar: %1$s</string>
     <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s (%2$s).\n\nPastikan TV dihidupkan dan pada Wi-Fi yang sama dengan telefon anda.</string>
     <string name="phone_tweak_ambient">Mod ambien</string>
     <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>
