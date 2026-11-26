@@ -320,4 +320,19 @@
     <string name="phone_feed_sound_off">Turn the sound off</string>
     <string name="phone_music_flow_hint">Swipe through your songs, tap one to play it</string>
     <string name="phone_music_flow_close">Close Cover Flow</string>
+    <string name="phone_sleep_timer">Sleep timer</string>
+    <string name="phone_sleep_minutes">%d minutes</string>
+    <string name="phone_sleep_end_of_video">End of video</string>
+    <string name="phone_sleep_left">%d min left</string>
+    <string name="phone_sleep_set">Sleep timer: %s</string>
+    <string name="phone_sleep_off">Sleep timer off</string>
+    <string name="phone_sleep_done">Sleep timer: video paused</string>
+    <string name="phone_playlist_save">Save to library</string>
+    <string name="phone_playlist_saved">Saved to library</string>
+    <string name="phone_playlist_saved_toast">Saved to library: find it in You › Playlists</string>
+    <string name="phone_playlist_removed">Removed from library</string>
+    <string name="phone_playlist_remove">Remove</string>
+    <string name="phone_playlist_remove_ask">Remove “%s” from your library?</string>
+    <string name="phone_playlist_sign_in">Sign in to save playlists to your library</string>
+    <string name="phone_playlist_save_failed">Couldn\'t update your library. Try again.</string>
 </resources>

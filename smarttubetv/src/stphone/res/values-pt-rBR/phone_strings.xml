@@ -296,4 +296,19 @@
     <string name="phone_feed_sound_off">Desativar o som</string>
     <string name="phone_music_flow_hint">Deslize pelas suas músicas e toque em uma para tocar</string>
     <string name="phone_music_flow_close">Fechar Cover Flow</string>
+    <string name="phone_sleep_timer">Timer de suspensão</string>
+    <string name="phone_sleep_minutes">%d minutos</string>
+    <string name="phone_sleep_end_of_video">Fim do vídeo</string>
+    <string name="phone_sleep_left">%d min restantes</string>
+    <string name="phone_sleep_set">Timer de suspensão: %s</string>
+    <string name="phone_sleep_off">Timer de suspensão desativado</string>
+    <string name="phone_sleep_done">Timer de suspensão: vídeo pausado</string>
+    <string name="phone_playlist_save">Salvar na biblioteca</string>
+    <string name="phone_playlist_saved">Salva na biblioteca</string>
+    <string name="phone_playlist_saved_toast">Salva na biblioteca: veja em Você › Playlists</string>
+    <string name="phone_playlist_removed">Removida da biblioteca</string>
+    <string name="phone_playlist_remove">Remover</string>
+    <string name="phone_playlist_remove_ask">Remover “%s” da sua biblioteca?</string>
+    <string name="phone_playlist_sign_in">Faça login para salvar playlists na biblioteca</string>
+    <string name="phone_playlist_save_failed">Não foi possível atualizar a biblioteca. Tente de novo.</string>
 </resources>

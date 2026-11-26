@@ -174,6 +174,10 @@ public class PhoneApplication extends MainApplication {
         // Every screen the app opens itself is marked "no user action": Android then doesn't treat it as the user leaving
         // the app, so the player's floating window (Android 12+ automatic entry) never opens on an in-app screen change
         int inApp = android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION;
+        // A video tapped while the player floats in Android's window: the player opens it itself, so its window
+        // expands with the new video (from the app's screen, a second player would open and the tap seemed to do nothing)
+        viewManager.setCallerOverride(activityClass -> activityClass == PhonePlaybackActivity.class
+                ? PhonePlaybackActivity.floatingPlayer() : null);
         viewManager.setLaunchFlags(activityClass -> {
             if (activityClass == PhonePlaybackActivity.class) {
                 return inApp | android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP;

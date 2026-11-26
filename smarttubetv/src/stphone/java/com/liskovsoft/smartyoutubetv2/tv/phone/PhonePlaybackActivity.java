@@ -567,11 +567,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             minimizeToCard(); // the video goes on in the mini player over the app
             return;
         }
-        if (!isPip() && !mShortsMode && mPlayer != null && mPlayer.getPlayWhenReady()) {
-            // Android 10 and older: shrink to the floating window instead of stopping
-            enterMiniPlayer();
-            return;
-        }
         super.onBackPressed();
     }
 
@@ -1567,8 +1562,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean shrink = action == MotionEvent.ACTION_UP && (dy > dp(160) || (dy > dp(60) && dy / dt > 0.6f));
         if (shrink && canMinimizeToCard()) {
             minimizeToCard();
-        } else if (shrink) {
-            growThenEnterMiniPlayer();
         } else {
             animateShrink(0);
         }
@@ -1576,49 +1569,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     }
 
     private float mShrinkOffset;
-
-    /**
-     * Android animates the floating window out of the video (source rect hint) only when that rectangle is larger
-     * than the floating window; a smaller one (a video shrunk by the drag) gets a plain black box that fades to the
-     * video once it redraws. So the video first grows back to full width where the drag left it (quickly), then the
-     * floating window takes it from there.
-     */
-    private void growThenEnterMiniPlayer() {
-        if (mShrinkAnimator != null) {
-            mShrinkAnimator.cancel();
-        }
-        View root = getWindow().getDecorView();
-        float startScale = mVideoBox.getScaleX();
-        float startY = mVideoBox.getTranslationY();
-        // Full size, as low as the drag left it but still entirely on screen
-        float endY = Math.min(startY, Math.max(0, root.getHeight() - mVideoBox.getTop() - mVideoBox.getHeight()));
-        mShrinkAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        mShrinkAnimator.setDuration(120);
-        mShrinkAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
-        mShrinkAnimator.addUpdateListener(a -> {
-            float f = (float) a.getAnimatedValue();
-            float scale = startScale + (1f - startScale) * f;
-            mVideoBox.setScaleX(scale);
-            mVideoBox.setScaleY(scale);
-            mVideoBox.setTranslationY(startY + (endY - startY) * f);
-        });
-        mShrinkAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
-            private boolean mCancelled;
-
-            @Override
-            public void onAnimationCancel(android.animation.Animator animation) {
-                mCancelled = true;
-            }
-
-            @Override
-            public void onAnimationEnd(android.animation.Animator animation) {
-                if (!mCancelled && !isFinishing()) {
-                    enterMiniPlayer();
-                }
-            }
-        });
-        mShrinkAnimator.start();
-    }
 
     private void setShrinkProgress(float offset) {
         mShrinkOffset = offset;
@@ -1895,6 +1845,20 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
     }
 
+    /** The video playing now (sleep timer), or null */
+    static Video currentVideoOrNull() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        return activity != null && !activity.isDestroyed() ? activity.currentVideo() : null;
+    }
+
+    /** The sleep timer paused the video: the play button shows it */
+    static void onSleepTimerFired() {
+        PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
+        if (activity != null && !activity.isDestroyed()) {
+            activity.updatePlayButton();
+        }
+    }
+
     static com.google.android.exoplayer2.SimpleExoPlayer currentExoPlayer() {
         PhonePlaybackActivity activity = sInstance != null ? sInstance.get() : null;
         return activity != null && !activity.isDestroyed() ? activity.exoPlayer() : null;
@@ -1910,9 +1874,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         closePlayer();
     }
 
-    /** Android 11+ (a see-through player window); videos, not Shorts, in the portrait player */
+    /** Videos, not Shorts, in the portrait player (every Android version: the app's own mini player, never the floating window) */
     private boolean canMinimizeToCard() {
-        return Build.VERSION.SDK_INT >= 30 && !mShortsMode && mPortrait && !isPip() && !mMinimizing
+        return !mShortsMode && mPortrait && !isPip() && !mMinimizing
                 && mVideoBox != null && mVideoBox.getWidth() > 0 && exoPlayer() != null && currentVideo() != null;
     }
 
@@ -1947,6 +1911,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         float endX = to.left - baseLeft;
         float endY = to.top - baseTop;
         float detailsAlpha = mDetails != null ? mDetails.getAlpha() : 0f;
+        if (Build.VERSION.SDK_INT < 30) {
+            // Android 10 and older can't make the player see-through: the screen underneath would only show at the
+            // end, so the card takes over at once (it opens at its spot with this frame)
+            copyFrame(still -> handOffToCard(still, aspect));
+            return;
+        }
 
         mVideoBox.setPivotX(0);
         mVideoBox.setPivotY(0);
@@ -2143,15 +2113,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // endregion
 
     // region Picture-in-picture
-
-    /**
-     * Drag the player down: keep watching in a floating window and go back to the app.
-     */
-    private void enterMiniPlayer() {
-        if (!enterFloatingWindow()) {
-            finish();
-        }
-    }
 
     /**
      * Android's floating window, the way the earlier builds entered it (the one that worked without glitches): straight
@@ -4394,6 +4355,17 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             @Override
             public void floatVideo() {
                 enterPipFromMenu();
+            }
+
+            @Override
+            public String sleepLabel() {
+                return PhoneSleepTimer.label(PhonePlaybackActivity.this);
+            }
+
+            @Override
+            public String videoId() {
+                Video video = currentVideo();
+                return video != null ? video.videoId : null;
             }
         });
     }

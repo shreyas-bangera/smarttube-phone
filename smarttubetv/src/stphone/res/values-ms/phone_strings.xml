@@ -289,4 +289,19 @@
     <string name="phone_feed_sound_off">Matikan bunyi</string>
     <string name="phone_music_flow_hint">Leret lagu anda, ketik satu untuk memainkannya</string>
     <string name="phone_music_flow_close">Tutup Cover Flow</string>
+    <string name="phone_sleep_timer">Pemasa tidur</string>
+    <string name="phone_sleep_minutes">%d minit</string>
+    <string name="phone_sleep_end_of_video">Hujung video</string>
+    <string name="phone_sleep_left">%d min lagi</string>
+    <string name="phone_sleep_set">Pemasa tidur: %s</string>
+    <string name="phone_sleep_off">Pemasa tidur dimatikan</string>
+    <string name="phone_sleep_done">Pemasa tidur: video dijeda</string>
+    <string name="phone_playlist_save">Simpan ke pustaka</string>
+    <string name="phone_playlist_saved">Disimpan ke pustaka</string>
+    <string name="phone_playlist_saved_toast">Disimpan ke pustaka: lihat di Anda › Senarai main</string>
+    <string name="phone_playlist_removed">Dialih keluar daripada pustaka</string>
+    <string name="phone_playlist_remove">Alih keluar</string>
+    <string name="phone_playlist_remove_ask">Alih keluar “%s” daripada pustaka anda?</string>
+    <string name="phone_playlist_sign_in">Log masuk untuk menyimpan senarai main ke pustaka</string>
+    <string name="phone_playlist_save_failed">Tidak dapat mengemas kini pustaka. Cuba lagi.</string>
 </resources>

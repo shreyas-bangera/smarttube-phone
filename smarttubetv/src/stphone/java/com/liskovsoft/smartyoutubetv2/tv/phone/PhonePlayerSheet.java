@@ -62,6 +62,12 @@ final class PhonePlayerSheet {
         String modeLabel();
 
         void openMode();
+
+        /** Sleep timer: Off, "23 min left" or "End of video" */
+        String sleepLabel();
+
+        /** The video playing now (for "end of video") */
+        String videoId();
     }
 
     private PhonePlayerSheet() {
@@ -93,6 +99,10 @@ final class PhonePlayerSheet {
             sheet.dismiss();
             host.openMode();
         });
+        sheet.addRow(R.drawable.ic_phone_timer, activity.getString(R.string.phone_sleep_timer), host.sleepLabel(), false, () -> {
+            sheet.dismiss();
+            showSleepTimer(activity, host);
+        });
         if (moment != null) {
             sheet.addRow(R.drawable.ic_phone_bookmark, activity.getString(R.string.phone_moment_save), moment.time(), false, () -> {
                 sheet.dismiss();
@@ -115,6 +125,37 @@ final class PhonePlayerSheet {
             sheet.dismiss();
             host.openMoreSettings();
         });
+        sheet.show();
+    }
+
+    /** Sleep timer choices: off, minutes, or the end of this video (the one chosen has the check) */
+    static void showSleepTimer(Activity activity, Host host) {
+        Sheet sheet = new Sheet(activity, activity.getString(R.string.phone_sleep_timer));
+        boolean on = PhoneSleepTimer.isOn();
+        sheet.addRow(0, activity.getString(R.string.phone_off), null, !on, () -> {
+            sheet.dismiss();
+            if (PhoneSleepTimer.isOn()) {
+                PhoneSleepTimer.stop();
+                android.widget.Toast.makeText(activity, R.string.phone_sleep_off, android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+        for (int minutes : PhoneSleepTimer.MINUTES) {
+            sheet.addRow(0, activity.getString(R.string.phone_sleep_minutes, minutes), null, false, () -> {
+                sheet.dismiss();
+                PhoneSleepTimer.startMinutes(activity, minutes);
+                android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }
+        String videoId = host.videoId();
+        if (videoId != null) {
+            sheet.addRow(0, activity.getString(R.string.phone_sleep_end_of_video), null, false, () -> {
+                sheet.dismiss();
+                PhoneSleepTimer.startEndOfVideo(activity, videoId);
+                android.widget.Toast.makeText(activity, activity.getString(R.string.phone_sleep_set, PhoneSleepTimer.label(activity)),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }
         sheet.show();
     }
 

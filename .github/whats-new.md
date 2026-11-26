@@ -1,3 +1,6 @@
+- Mini player inside the app — Swipe a video down or press Back and it keeps playing in a small player while you browse, on every Android version. Tap another video and it plays straight away.
+- Sleep timer — In the player's settings (the gear), pick 10 to 90 minutes or the end of the video, and the video pauses by itself.
+- Save playlists — Playlist pages have a Save to library button; saved playlists show up in You › Playlists.
 - Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install on the TV (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
 - Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
 - Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.

@@ -33,6 +33,9 @@ public class PhoneChannelUploadsActivity extends PhoneListActivity implements Ch
     protected void onDestroy() {
         super.onDestroy();
         mPresenter.onViewDestroyed();
+        if (mHeader != null) {
+            mHeader.release();
+        }
     }
 
     @Override
