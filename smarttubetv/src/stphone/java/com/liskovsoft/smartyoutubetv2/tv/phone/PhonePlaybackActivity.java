@@ -417,6 +417,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean closedPip = mLeftPip && !isChangingConfigurations() && !screenOff;
         super.onStop();
         mStopped = true;
+        stopPeek();
         mLeftPip = false;
         if (closedPip && mPlayer != null) {
             // The floating window left picture in picture and stopped: usually it was closed (the video stops, like
@@ -529,6 +530,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             // Leave full screen first, like the YouTube app
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             return;
+        }
+        if (mShortsMode) {
+            stopPeek(); // the Short's sound may still come from the hidden player: it stops with the Shorts
         }
         if (!isPip() && !mShortsMode && canMinimizeToCard()) {
             minimizeToCard(); // the video goes on in the mini player over the app
@@ -1971,6 +1975,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
             syncWidget();
             long next = 1_000;
+            if (mStopped && mShortsMode && !isPip() && !isChangingConfigurations()) {
+                // Off screen in the Shorts: never any sound (a Short that finished loading after going back would
+                // otherwise start playing)
+                stopPeek();
+                if (mPlayer != null && mPlayer.getPlayWhenReady()) {
+                    android.util.Log.d("PhoneShorts", "a Short played off screen: paused");
+                    mPlayer.setPlayWhenReady(false);
+                }
+            }
             if (mPlayer != null) {
                 PhoneMusicPlayer.Lyric lyric = mMusicMode && mMusicPlayer != null && PhoneTweaks.lockScreenLyrics(PhonePlaybackActivity.this)
                         ? mMusicPlayer.lyricNow() : null;
@@ -2976,6 +2989,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
    private boolean mShortReadyLogged;
     private PhoneShortsPeek mPeek;
     private String mPeekShortId;
+
+    /**
+     * Leaving the Shorts: the hidden player stops at once. Right after a swipe it's the one playing the Short (with its
+     * sound) until the main player takes over, and its own check only runs while the screen is on (the ticker stops
+     * in onPause), so its sound could go on after going back.
+     */
+    private void stopPeek() {
+        if (mPeek != null && !isChangingConfigurations()) {
+            mPeek.end(exoPlayer(), "left the Shorts");
+            mPeek.pause();
+        }
+    }
 
     /**
      * The hidden player: hands over to the main player once that has the Short; otherwise, while a Short plays, loads

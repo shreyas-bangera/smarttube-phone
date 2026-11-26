@@ -316,6 +316,15 @@ final class PhoneShortsPeek {
         }
     }
 
+    /** Silent and still, whatever it was doing (it keeps what it loaded) */
+    void pause() {
+        if (mPlayer != null) {
+            mPlayer.setPlayWhenReady(false);
+            mPlayer.setVolume(0f);
+        }
+        mTexture.setAlpha(0f);
+    }
+
     void release(SimpleExoPlayer main) {
         end(main, "released");
         mGeneration++;
