@@ -45,6 +45,18 @@
         android:layout_margin="4dp"
         android:orientation="horizontal">
 
+        <!-- Live chat: shows the stream's chat again after it was closed (only for live streams) -->
+        <ImageView
+            android:id="@+id/phone_ctl_chat"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_live_chat"
+            android:src="@drawable/ic_phone_comments"
+            android:tint="#FFFFFF"
+            android:visibility="gone" />
+
         <!-- Cast: play on a TV (PhoneCast) -->
         <ImageView
             android:id="@+id/phone_ctl_cast"

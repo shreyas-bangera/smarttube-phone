@@ -204,6 +204,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         // The next Short, loaded in a second hidden player (above both pictures, below the Shorts overlay)
         mPeek = new PhoneShortsPeek(this, mVideoBox, 3);
         mLiveChat = new PhoneLiveChat(this, liveChatHost());
+        View chatButton = findViewById(R.id.phone_ctl_chat);
+        if (chatButton != null) {
+            chatButton.setOnClickListener(v -> clickButton(R.id.action_chat));
+        }
         mMusicPlayer = new PhoneMusicPlayer(this, new PhoneMusicPlayer.Host() {
             @Override
             public com.google.android.exoplayer2.SimpleExoPlayer exo() {
@@ -953,6 +957,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     private void showTall(float heightToWidth) {
         mTallVideo = true;
         mTallRatio = heightToWidth;
+        Video video = currentVideo();
+        if (video != null && video.isLive && mPortrait) {
+            mTallFull = true; // an upright stream fills the screen, its chat over the bottom (as in the YouTube app)
+        }
         if (!mPortrait) {
             // Was turned sideways for full screen: upright full screen instead
             mTallFull = true;
@@ -973,6 +981,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         mTallRatio = ratio;
         if (!tall) {
             mTallFull = false;
+        } else if (video.isLive && mPortrait) {
+            mTallFull = true;
         }
         applyLayoutMode();
         applySystemBars();
@@ -2240,6 +2250,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mLiveChat != null && mLiveChat.hasChat()) {
             mLiveChat.layout(); // (hidden while casting, the mini player, ...: changes only when something did)
         }
+        liveChatButtons();
         ImageView button = findViewById(R.id.phone_ctl_cast);
         boolean casting = PhoneCast.isCasting();
         if (button != null) {
@@ -4589,6 +4600,32 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // region Live chat
 
     private PhoneLiveChat mLiveChat;
+    private Boolean mChatLabelLive;
+
+    /**
+     * Live streams: a chat button in the player's top bar while the chat isn't showing (to bring it back), and the
+     * details' Comments button says Live chat
+     */
+    private void liveChatButtons() {
+        Video video = currentVideo();
+        boolean live = video != null && video.isLive && !mShortsMode;
+        View chat = findViewById(R.id.phone_ctl_chat);
+        if (chat != null) {
+            boolean show = live && mLiveChat != null && !mLiveChat.isShowing();
+            if ((chat.getVisibility() == View.VISIBLE) != show) {
+                chat.setVisibility(show ? View.VISIBLE : View.GONE);
+            }
+        }
+        if (mHeader != null && (mChatLabelLive == null || mChatLabelLive != live)) {
+            LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
+            View pill = actions != null ? actions.findViewWithTag(R.id.action_chat) : null;
+            if (pill instanceof LinearLayout && ((LinearLayout) pill).getChildCount() > 1
+                    && ((LinearLayout) pill).getChildAt(1) instanceof TextView) {
+                ((TextView) ((LinearLayout) pill).getChildAt(1)).setText(live ? R.string.phone_live_chat : R.string.phone_comments);
+                mChatLabelLive = live;
+            }
+        }
+    }
 
     private PhoneLiveChat.Host liveChatHost() {
         return new PhoneLiveChat.Host() {
@@ -4599,7 +4636,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
             @Override
             public boolean chatAllowed() {
-                return !mShortsMode && !isPip() && !mMinimized && !mMinimizing && !mTallFull && !PhoneCast.isCasting();
+                return !mShortsMode && !isPip() && !mMinimized && !mMinimizing && !PhoneCast.isCasting();
+            }
+
+            @Override
+            public boolean overlay() {
+                return mTallVideo && mTallFull && mPortrait;
             }
 
             @Override

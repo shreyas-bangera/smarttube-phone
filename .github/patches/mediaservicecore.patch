@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..3dc33c8
+index 0000000..8d40d20
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,163 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -217,38 +217,68 @@ index 0000000..3dc33c8
 +
 +    class CantChatException(message: String) : Exception(message)
 +
-+    /** Null if the signed-in user can chat here, else YouTube's reason (blocking: not for the UI thread) */
++    /**
++     * Null if the signed-in user can chat here, else YouTube's reason (blocking: not for the UI thread). The chat is
++     * asked for as the TV app and as the website: the TV's answer often carries neither the send params nor the
++     * reason one can't (e.g. Subscribers-only mode); the website's does.
++     */
 +    @JvmStatic
 +    fun whyNot(chatKey: String): String? {
-+        val chat = fetch(chatKey) ?: return null
-+        find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
-+            synchronized(mParams) { mParams[chatKey] = it }
-+            return null
++        var reason: String? = null
++        for (web in listOf(false, true)) {
++            val chat = try { fetch(chatKey, web) } catch (e: Exception) { null } ?: continue
++            find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
++                synchronized(mParams) { mParams[chatKey] = it }
++                return null
++            }
++            reason = reason ?: restriction(chat)
 +        }
-+        return restriction(chat)
++        return reason
 +    }
 +
-+    /** Sends a message (blocking); throws with YouTube's reason if it can't */
++    /**
++     * Sends a message (blocking); throws with YouTube's reason if it can't. The params the chat gave, else built ones
++     * (as the website encodes them, then once encoded), each sent as the TV app, then as the website: the first that
++     * YouTube takes.
++     */
 +    @JvmStatic
 +    fun send(chatKey: String, videoId: String, channelId: String?, text: String) {
-+        var params = synchronized(mParams) { mParams[chatKey] }
-+        if (params == null) {
-+            val reason = whyNot(chatKey)
-+            if (reason != null) {
-+                throw CantChatException(reason)
-+            }
-+            params = synchronized(mParams) { mParams[chatKey] }
-+                ?: channelId?.let { buildParams(it, videoId) }
-+                ?: throw CantChatException("Chat isn't open")
++        if (synchronized(mParams) { mParams[chatKey] } == null) {
++            whyNot(chatKey)?.let { throw CantChatException(it) }
 +        }
-+        val query = PostDataHelper.createQueryTV(
-+            "\"params\":\"$params\",\"richMessage\":{\"textSegments\":[{\"text\":${Gson().toJson(text)}}]}," +
-+                    "\"clientMessageId\":\"${UUID.randomUUID()}\"")
-+        RetrofitHelper.getWithErrors(mApi.sendMessage(query)) ?: throw CantChatException("Not sent")
++        val candidates = ArrayList<String>()
++        synchronized(mParams) { mParams[chatKey] }?.let { candidates.add(it) }
++        if (channelId != null) {
++            candidates.add(buildParams(channelId, videoId, true))
++            candidates.add(buildParams(channelId, videoId, false))
++        }
++        if (candidates.isEmpty()) {
++            throw CantChatException("Chat isn't open")
++        }
++        var last: Exception? = null
++        for (params in candidates) {
++            for (web in listOf(false, true)) {
++                val body = "\"params\":\"$params\",\"richMessage\":{\"textSegments\":[{\"text\":${Gson().toJson(text)}}]}," +
++                        "\"clientMessageId\":\"${UUID.randomUUID()}\""
++                try {
++                    val answer = RetrofitHelper.getWithErrors(mApi.sendMessage(query(body, web)))
++                    if (answer != null) {
++                        synchronized(mParams) { mParams[chatKey] = params }
++                        return
++                    }
++                } catch (e: Exception) {
++                    last = e
++                }
++            }
++        }
++        throw last ?: CantChatException("Not sent")
 +    }
 +
-+    private fun fetch(chatKey: String): JsonObject? =
-+        RetrofitHelper.get(mApi.getLiveChatJson(PostDataHelper.createQueryTV("\"continuation\":\"$chatKey\"")))
++    private fun query(body: String, web: Boolean): String =
++        if (web) PostDataHelper.createQueryWeb(body) else PostDataHelper.createQueryTV(body)
++
++    private fun fetch(chatKey: String, web: Boolean): JsonObject? =
++        RetrofitHelper.get(mApi.getLiveChatJson(query("\"continuation\":\"$chatKey\"", web)))
 +
 +    private fun restriction(chat: JsonObject): String? {
 +        val restricted = find(chat, "liveChatRestrictedParticipationRenderer")?.asJsonObject ?: return null
@@ -274,12 +304,13 @@ index 0000000..3dc33c8
 +        return null
 +    }
 +
-+    private fun buildParams(channelId: String, videoId: String): String {
++    private fun buildParams(channelId: String, videoId: String, twice: Boolean): String {
 +        val ids = Buffer().also { string(it, 1, channelId); string(it, 2, videoId) }
 +        val inner = Buffer().also { message(it, 5, ids) }
 +        val params = Buffer().also { message(it, 1, inner); varint(it, 2, 1); varint(it, 3, 4) }
 +        val once = params.readByteString().base64()
-+        return Buffer().writeUtf8(URLEncoder.encode(once, "UTF-8")).readByteString().base64()
++        return if (twice) Buffer().writeUtf8(URLEncoder.encode(once, "UTF-8")).readByteString().base64()
++        else URLEncoder.encode(once, "UTF-8")
 +    }
 +
 +    private fun string(out: Buffer, field: Int, value: String) {
