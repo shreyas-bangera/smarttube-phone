@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..9f972cb
+index 0000000..f22f35b
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,225 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -259,6 +259,13 @@ index 0000000..9f972cb
 +        // Sent as YouTube's Android app (signed in with a token like this app's), the website, then the TV app,
 +        // each with its own User-Agent: the first YouTube takes. All the refusals are kept for the message.
 +        val errors = LinkedHashMap<String, String>()
++        // First YouTube's public API for live chat (liveChatMessages.insert), with the same sign-in
++        try {
++            sendWithDataApi(videoId, text)
++            return
++        } catch (e: Exception) {
++            errors["API"] = e.message ?: e.javaClass.simpleName
++        }
 +        for (params in candidates) {
 +            for (client in CLIENTS) {
 +                val body = "\"params\":\"$params\",\"richMessage\":{\"textSegments\":[{\"text\":${Gson().toJson(text)}}]}," +
@@ -279,6 +286,53 @@ index 0000000..9f972cb
 +    }
 +
 +    private val CLIENTS = listOf(AppClient.ANDROID, AppClient.WEB, AppClient.TV)
++
++    /** YouTube Data API v3: the stream's chat id (videos.list), then the message (liveChatMessages.insert) */
++    private fun sendWithDataApi(videoId: String, text: String) {
++        val auth = com.liskovsoft.googlecommon.common.helpers.RetrofitOkHttpHelper.authHeaders["Authorization"]
++            ?: throw CantChatException("not signed in")
++        val http = com.liskovsoft.sharedutils.okhttp.OkHttpManager.instance().client
++        val video = okhttp3.Request.Builder()
++            .url("https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=$videoId")
++            .header("Authorization", auth)
++            .build()
++        val chatId = http.newCall(video).execute().use { response ->
++            val body = response.body()?.string() ?: ""
++            val json = com.google.gson.JsonParser().parse(body).asJsonObject
++            if (!response.isSuccessful) {
++                throw CantChatException(apiError(json, response.code()))
++            }
++            json.getAsJsonArray("items")?.firstOrNull()?.asJsonObject
++                ?.getAsJsonObject("liveStreamingDetails")?.get("activeLiveChatId")?.asString
++                ?: throw CantChatException("no live chat id")
++        }
++        val message = JsonObject().apply {
++            add("snippet", JsonObject().apply {
++                addProperty("liveChatId", chatId)
++                addProperty("type", "textMessageEvent")
++                add("textMessageDetails", JsonObject().apply { addProperty("messageText", text) })
++            })
++        }
++        val insert = okhttp3.Request.Builder()
++            .url("https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet")
++            .header("Authorization", auth)
++            .post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json; charset=utf-8"), message.toString()))
++            .build()
++        http.newCall(insert).execute().use { response ->
++            if (!response.isSuccessful) {
++                val body = response.body()?.string() ?: ""
++                val json = try { com.google.gson.JsonParser().parse(body).asJsonObject } catch (e: Exception) { JsonObject() }
++                throw CantChatException(apiError(json, response.code()))
++            }
++        }
++    }
++
++    private fun apiError(json: JsonObject, code: Int): String {
++        val error = json.getAsJsonObject("error")
++        val reason = error?.getAsJsonArray("errors")?.firstOrNull()?.asJsonObject?.get("reason")?.asString
++        val message = error?.get("message")?.asString
++        return "$code ${reason ?: ""} ${message ?: ""}".trim()
++    }
 +
 +    private fun query(body: String, client: AppClient): String = when (client) {
 +        AppClient.ANDROID -> PostDataHelper.createQueryAndroid(body)

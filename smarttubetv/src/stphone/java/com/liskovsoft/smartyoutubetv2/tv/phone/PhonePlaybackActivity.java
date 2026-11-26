@@ -1168,6 +1168,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return super.dispatchTouchEvent(event);
         }
 
+        // A touch that starts on the live chat (or the channel bar over an upright stream) is the chat's, all the
+        // way: scrolling the messages, writing; not the player's volume, brightness, seek or swipe gestures
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            mTouchOnChat = mLiveChat != null && mLiveChat.contains(event.getRawX(), event.getRawY());
+        }
+        if (mTouchOnChat) {
+            if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                mTouchOnChat = false;
+                return super.dispatchTouchEvent(event);
+            }
+            return super.dispatchTouchEvent(event);
+        }
+
         // Press and hold the video: 2x while held
         if (handleHoldSpeed(event)) {
             return true;
@@ -4601,6 +4614,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // region Live chat
 
     private PhoneLiveChat mLiveChat;
+    private boolean mTouchOnChat;
     private Boolean mChatLabelLive;
 
     /**

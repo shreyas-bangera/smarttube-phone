@@ -348,6 +348,20 @@ final class PhoneLiveChat {
         return mReceiver != null;
     }
 
+    /** The screen point is on the chat (its panel, or the channel bar over an upright stream) */
+    boolean contains(float rawX, float rawY) {
+        for (View view : new View[] {mPanel, mTopBar}) {
+            if (view.getVisibility() != View.VISIBLE) {
+                continue;
+            }
+            Rect rect = new Rect();
+            if (view.getGlobalVisibleRect(rect) && rect.contains((int) rawX, (int) rawY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     boolean isShowing() {
         return mPanel.getVisibility() == View.VISIBLE;
     }
