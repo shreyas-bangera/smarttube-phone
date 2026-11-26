@@ -597,7 +597,7 @@ final class PhoneLiveChat {
     private void ensureChannel() {
         String[] page = PhoneChatSignInActivity.readPage(mActivity);
         if (page != null) {
-            showMe(page[1]);
+            showMe(page[1], page[2]);
             return;
         }
         String appName = null;
@@ -673,8 +673,8 @@ final class PhoneLiveChat {
     }
 
     private void chooseChannel(com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel) {
-        PhoneChatSignInActivity.choosePage(mActivity, channel.pageId, channel.photo);
-        showMe(channel.photo);
+        PhoneChatSignInActivity.choosePage(mActivity, channel.pageId, channel.photo, channel.name);
+        showMe(channel.photo, channel.name);
         android.util.Log.d("PhoneLiveChat", "chatting as " + channel.name);
         String key = mChatKey;
         if (key != null) {
@@ -682,9 +682,13 @@ final class PhoneLiveChat {
         }
     }
 
-    private void showMe(String photo) {
+    /** The channel that writes: its picture by the box, and its name in the box (Chat as …) */
+    private void showMe(String photo, String name) {
         if (photo != null && !photo.isEmpty()) {
             PhoneUi.loadAvatar(mMe, photo);
+        }
+        if (name != null && !name.isEmpty()) {
+            mInput.setHint(mActivity.getString(R.string.phone_live_chat_as_hint, name));
         }
     }
 

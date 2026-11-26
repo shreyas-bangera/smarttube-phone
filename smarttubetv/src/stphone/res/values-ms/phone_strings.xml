@@ -259,6 +259,7 @@
     <string name="phone_live_chat_delete">Padam</string>
     <string name="phone_live_chat_delete_failed">Tidak dapat dipadam: %1$s</string>
     <string name="phone_live_badge">Langsung</string>
+    <string name="phone_live_chat_as_hint">Sembang sebagai %1$s…</string>
     <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s (%2$s).\n\nPastikan TV dihidupkan dan pada Wi-Fi yang sama dengan telefon anda.</string>
     <string name="phone_tweak_ambient">Mod ambien</string>
     <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>

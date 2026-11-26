@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..06e4ef1
+index 0000000..bb2bcd1
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,633 @@
+@@ -0,0 +1,644 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -516,8 +516,19 @@ index 0000000..06e4ef1
 +                val json = try { com.google.gson.JsonParser().parse(answer).asJsonObject } catch (e: Exception) { JsonObject() }
 +                throw CantChatException(apiError(json, response.code()))
 +            }
++            com.liskovsoft.sharedutils.mylogger.Log.d("LiveChatWriter", "send_message as " + (webPageId ?: "main channel") +
++                    ": " + response.code() + " " + answer.take(1500))
 +            if (answer.contains("runAttestationCommand") && !answer.contains("addChatItemAction")) {
 +                throw CantChatException("YouTube asked for a check before taking the message")
++            }
++            if (!answer.contains("addChatItemAction")) {
++                // An OK that posted nothing: say what YouTube said instead of pretending it went
++                val said = try {
++                    val json = com.google.gson.JsonParser().parse(answer).asJsonObject
++                    text(find(json, "errorMessage")?.let { find(it, "text") ?: it }) ?: text(find(json, "text"))
++                } catch (e: Exception) { null }
++                throw CantChatException("YouTube didn't post it" + (if (webPageId != null) " (as the chosen channel)" else "") +
++                        ": " + (said ?: answer.take(300).ifEmpty { "empty answer" }))
 +            }
 +            rememberSent(answer)
 +        }

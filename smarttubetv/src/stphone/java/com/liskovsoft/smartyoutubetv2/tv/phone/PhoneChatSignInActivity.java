@@ -67,15 +67,16 @@ public class PhoneChatSignInActivity extends Activity {
             int read = in.read(bytes);
             String text = read > 0 ? new String(bytes, 0, read, StandardCharsets.UTF_8) : "";
             String[] parts = text.split("\n", -1);
-            return new String[] {parts[0], parts.length > 1 ? parts[1] : ""};
+            return new String[] {parts[0], parts.length > 1 ? parts[1] : "", parts.length > 2 ? parts[2] : ""};
         } catch (Exception e) {
             return null;
         }
     }
 
-    static void choosePage(Context context, String pageId, String photo) {
+    static void choosePage(Context context, String pageId, String photo, String name) {
         try (FileOutputStream out = new FileOutputStream(new File(context.getNoBackupFilesDir(), PAGE_FILE))) {
-            out.write(((pageId != null ? pageId : "") + "\n" + (photo != null ? photo : "")).getBytes(StandardCharsets.UTF_8));
+            out.write(((pageId != null ? pageId : "") + "\n" + (photo != null ? photo : "") + "\n" + (name != null ? name : ""))
+                    .getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             android.util.Log.d("PhoneLiveChat", "chat channel not kept: " + e);
         }
