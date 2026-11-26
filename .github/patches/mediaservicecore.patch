@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..a940807
+index 0000000..61e1a20
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,651 @@
+@@ -0,0 +1,665 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -273,15 +273,20 @@ index 0000000..a940807
 +            com.google.gson.JsonParser().parse(text).asJsonObject
 +        }
 +        val result = ArrayList<WebChannel>()
-+        collect(answer, "accountItem") { item ->
-+            val name = text(item.get("accountName")) ?: return@collect
-+            val handle = text(item.get("channelHandle"))
++        // (the channel switcher's items: accountItemRenderer now, accountItem before)
++        val onItem: (JsonObject) -> Unit = { item ->
++            val name = text(item.get("accountName"))
++            val handle = text(item.get("channelHandle")) ?: text(item.get("accountByline"))
 +            val photo = item.getAsJsonObject("accountPhoto")?.getAsJsonArray("thumbnails")?.lastOrNull()
 +                ?.asJsonObject?.get("url")?.asString
-+            val pageId = find(item.get("serviceEndpoint"), "pageId")?.asString
++            val pageId = find(item, "pageId")?.asString
 +            val selected = item.get("isSelected")?.asBoolean ?: false
-+            result.add(WebChannel(name, handle, photo, pageId, selected))
++            if (name != null && result.none { it.name == name && it.pageId == pageId }) {
++                result.add(WebChannel(name, handle, photo, pageId, selected))
++            }
 +        }
++        collect(answer, "accountItemRenderer", onItem)
++        collect(answer, "accountItem", onItem)
 +        if (result.isEmpty()) {
 +            throw CantChatException("YouTube's channel list had no channels: " + raw.take(300))
 +        }
@@ -332,12 +337,21 @@ index 0000000..a940807
 +        synchronized(mOwn) { mOwn.remove(messageId) }
 +    }
 +
++    /** The message last posted, as YouTube shows it: {id, author, photo, text} (the app shows it at once) */
++    @JvmStatic
++    @Volatile
++    var lastSent: Array<String>? = null
++        private set
++
 +    /** The message just sent, from YouTube's answer: its id and menu, so it can be deleted */
 +    private fun rememberSent(answer: String) {
 +        try {
 +            val json = com.google.gson.JsonParser().parse(answer).asJsonObject
 +            val message = find(json, "liveChatTextMessageRenderer")?.asJsonObject ?: return
 +            val id = message.get("id")?.asString ?: return
++            lastSent = arrayOf(id, text(message.get("authorName")) ?: "", message.getAsJsonObject("authorPhoto")
++                ?.getAsJsonArray("thumbnails")?.lastOrNull()?.asJsonObject?.get("url")?.asString ?: "",
++                text(message.get("message")) ?: "")
 +            val menu = find(message.get("contextMenuEndpoint"), "params")?.asString ?: return
 +            synchronized(mOwn) {
 +                mOwn[id] = menu

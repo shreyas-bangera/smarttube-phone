@@ -767,6 +767,7 @@ final class PhoneLiveChat {
                 if (failed == null) {
                     mInput.setText("");
                     hideKeyboard();
+                    showSent();
                 } else {
                     // In full (each way tried and YouTube's answer), so it can be read and reported
                     new android.app.AlertDialog.Builder(mActivity)
@@ -776,6 +777,36 @@ final class PhoneLiveChat {
                 }
             });
         });
+    }
+
+    /** One's message, in the list as soon as YouTube took it (the chat's own feed brings it later, or not at all in Top messages) */
+    private void showSent() {
+        String[] sent = com.liskovsoft.youtubeapi.chat.LiveChatWriter.getLastSent();
+        if (sent == null || sent.length < 4) {
+            return;
+        }
+        mAdapter.add(new ChatItem() {
+            @Override
+            public String getId() {
+                return sent[0];
+            }
+
+            @Override
+            public String getMessage() {
+                return sent[3];
+            }
+
+            @Override
+            public String getAuthorName() {
+                return sent[1];
+            }
+
+            @Override
+            public String getAuthorPhoto() {
+                return sent[2];
+            }
+        });
+        mList.scrollToPosition(mAdapter.getItemCount() - 1);
     }
 
     private void hideKeyboard() {
@@ -821,6 +852,13 @@ final class PhoneLiveChat {
         void add(ChatItem item) {
             if (item == null || TextUtils.isEmpty(item.getMessage())) {
                 return;
+            }
+            if (item.getId() != null) {
+                for (int i = mItems.size() - 1; i >= 0 && i >= mItems.size() - 60; i--) {
+                    if (item.getId().equals(mItems.get(i).getId())) {
+                        return; // already shown (one's own, added when sent)
+                    }
+                }
             }
             boolean atBottom = !mList.canScrollVertically(1);
             mItems.add(item);
