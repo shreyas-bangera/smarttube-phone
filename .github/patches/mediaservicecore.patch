@@ -36,6 +36,35 @@ index 490fd9c..1e5efbe 100644
      MediaGroup getSubscribedChannelsByNewContent();
      MediaGroup getSubscribedChannelsByName();
      MediaGroup getSubscribedChannelsByLastViewed();
+diff --git a/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/ChatItem.java b/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/ChatItem.java
+index 439ba76..829b096 100644
+--- a/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/ChatItem.java
++++ b/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/ChatItem.java
+@@ -1,8 +1,16 @@
+-package com.liskovsoft.mediaserviceinterfaces.data;
+-
+-public interface ChatItem {
+-    String getId();
+-    String getMessage();
+-    String getAuthorName();
+-    String getAuthorPhoto();
+-}
++package com.liskovsoft.mediaserviceinterfaces.data;
++
++public interface ChatItem {
++    String getId();
++    String getMessage();
++    String getAuthorName();
++    String getAuthorPhoto();
++
++    /**
++     * Phone: the message in its parts, each {text, image url}: text, or one of YouTube's own emoji (an image, with its
++     * shortcut as text). Null when the message has no such emoji (getMessage then has it all).
++     */
++    default java.util.List<String[]> getMessageParts() {
++        return null;
++    }
++}
 diff --git a/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/MediaItemMetadata.java b/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/MediaItemMetadata.java
 index a633990..c5e160c 100644
 --- a/mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/data/MediaItemMetadata.java
@@ -842,6 +871,85 @@ index 0000000..61e1a20
 +            v = v ushr 7
 +        }
 +        out.writeByte(v.toInt())
++    }
++}
+diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/impl/ChatItemImpl.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/impl/ChatItemImpl.kt
+index c3ea84d..0d433a4 100644
+--- a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/impl/ChatItemImpl.kt
++++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/impl/ChatItemImpl.kt
+@@ -1,29 +1,45 @@
+-package com.liskovsoft.youtubeapi.chat.impl
+-
+-import com.liskovsoft.mediaserviceinterfaces.data.ChatItem
+-import com.liskovsoft.youtubeapi.chat.gen.LiveChatAction
+-import com.liskovsoft.youtubeapi.common.models.gen.getOptimalResThumbnailUrl
+-import com.liskovsoft.youtubeapi.common.models.gen.getText
+-
+-internal data class ChatItemImpl(val liveChatAction: LiveChatAction): ChatItem {
+-    private val messageRenderer by lazy {
+-        liveChatAction.addChatItemAction?.item?.liveChatTextMessageRenderer ?:
+-        liveChatAction.addBannerToLiveChatCommand?.bannerRenderer?.liveChatBannerRenderer?.contents?.liveChatTextMessageRenderer
+-    }
+-
+-    override fun getId(): String? {
+-        return messageRenderer?.id
+-    }
+-
+-    override fun getMessage(): String? {
+-        return messageRenderer?.message?.getText()
+-    }
+-
+-    override fun getAuthorName(): String? {
+-        return messageRenderer?.authorName?.getText()
+-    }
+-
+-    override fun getAuthorPhoto(): String? {
+-        return messageRenderer?.authorPhoto?.getOptimalResThumbnailUrl()
+-    }
+-}
++package com.liskovsoft.youtubeapi.chat.impl
++
++import com.liskovsoft.mediaserviceinterfaces.data.ChatItem
++import com.liskovsoft.youtubeapi.chat.gen.LiveChatAction
++import com.liskovsoft.youtubeapi.common.models.gen.getOptimalResThumbnailUrl
++import com.liskovsoft.youtubeapi.common.models.gen.getText
++
++internal data class ChatItemImpl(val liveChatAction: LiveChatAction): ChatItem {
++    private val messageRenderer by lazy {
++        liveChatAction.addChatItemAction?.item?.liveChatTextMessageRenderer ?:
++        liveChatAction.addBannerToLiveChatCommand?.bannerRenderer?.liveChatBannerRenderer?.contents?.liveChatTextMessageRenderer
++    }
++
++    override fun getId(): String? {
++        return messageRenderer?.id
++    }
++
++    override fun getMessage(): String? {
++        return messageRenderer?.message?.getText()
++    }
++
++    override fun getMessageParts(): List<Array<String?>>? {
++        val runs = messageRenderer?.message?.runs ?: return null
++        if (runs.none { it?.emoji?.isCustomEmoji == true }) {
++            return null
++        }
++        return runs.mapNotNull { run ->
++            when {
++                run == null -> null
++                run.emoji?.isCustomEmoji == true -> arrayOf(run.emoji.shortcuts?.firstOrNull() ?: "",
++                    run.emoji.image?.thumbnails?.lastOrNull()?.url)
++                run.emoji != null -> arrayOf(run.emoji.emojiId ?: "", null)
++                else -> arrayOf(run.text ?: "", null)
++            }
++        }
++    }
++
++    override fun getAuthorName(): String? {
++        return messageRenderer?.authorName?.getText()
++    }
++
++    override fun getAuthorPhoto(): String? {
++        return messageRenderer?.authorPhoto?.getOptimalResThumbnailUrl()
 +    }
 +}
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/comments/CommentWriteAnswers.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/comments/CommentWriteAnswers.kt

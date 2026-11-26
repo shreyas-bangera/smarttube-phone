@@ -231,6 +231,20 @@ final class PhoneLiveChat {
         mSend.setVisibility(View.GONE);
         mSend.setOnClickListener(v -> send());
         mPill.addView(mSend, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        ImageView emoji = new ImageView(activity);
+        emoji.setImageResource(R.drawable.ic_phone_emoji);
+        emoji.setImageTintList(ColorStateList.valueOf(GREY));
+        emoji.setPadding(dp(8), dp(8), dp(8), dp(8));
+        emoji.setBackgroundResource(R.drawable.phone_ripple);
+        emoji.setContentDescription("Emoji");
+        emoji.setOnClickListener(v -> {
+            if (com.liskovsoft.youtubeapi.chat.LiveChatWriter.hasWebLogin()) {
+                pickEmoji();
+            } else {
+                PhoneChatSignInActivity.open(mActivity);
+            }
+        });
+        mPill.addView(emoji, mPill.getChildCount() - 1, new LinearLayout.LayoutParams(dp(40), dp(40)));
         mInput.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -611,6 +625,9 @@ final class PhoneLiveChat {
         String match = appName;
         loadChannels(channels -> {
             if (channels.isEmpty()) {
+                // No list: the account's main channel
+                chooseChannel(new com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel(
+                        mActivity.getString(R.string.phone_live_chat_main_channel), null, null, null, true));
                 return;
             }
             for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
@@ -619,11 +636,19 @@ final class PhoneLiveChat {
                     return;
                 }
             }
-            if (channels.size() == 1) {
-                chooseChannel(channels.get(0));
-            } else {
-                pickChannel(channels);
+            // Not found by name: the one YouTube has as current, else the account's main channel (never none)
+            com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel pick = null;
+            for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
+                if (channel.selected) {
+                    pick = channel;
+                }
             }
+            for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
+                if (pick == null && channel.pageId == null) {
+                    pick = channel;
+                }
+            }
+            chooseChannel(pick != null ? pick : channels.get(0));
         });
     }
 
@@ -667,26 +692,49 @@ final class PhoneLiveChat {
             channels.add(0, new com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel(
                     mActivity.getString(R.string.phone_live_chat_main_channel), null, null, null, false));
         }
-        String[] names = new String[channels.size()];
         String[] page = PhoneChatSignInActivity.readPage(mActivity);
-        int checked = -1;
-        for (int i = 0; i < channels.size(); i++) {
-            com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel = channels.get(i);
-            names[i] = channel.handle != null && !channel.handle.isEmpty() ? channel.name + "  " + channel.handle : channel.name;
+        LinearLayout content = sheetContent(mActivity.getString(R.string.phone_live_chat_as), mChannelsError);
+        android.app.Dialog[] dialog = new android.app.Dialog[1];
+        for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
             String id = channel.pageId != null ? channel.pageId : "";
-            if (page != null ? page[0].equals(id) : channel.selected) {
-                checked = i;
+            boolean current = page != null ? page[0].equals(id) : channel.selected;
+            LinearLayout row = sheetRow();
+            ImageView photo = new ImageView(mActivity);
+            if (channel.photo != null) {
+                PhoneUi.loadAvatar(photo, channel.photo);
+            } else {
+                photo.setImageResource(R.drawable.ic_phone_person);
+                photo.setImageTintList(ColorStateList.valueOf(GREY));
             }
+            row.addView(photo, new LinearLayout.LayoutParams(dp(40), dp(40)));
+            LinearLayout names = new LinearLayout(mActivity);
+            names.setOrientation(LinearLayout.VERTICAL);
+            TextView name = text(channel.name, 16, color(R.color.phone_text));
+            name.setTypeface(PhoneUi.medium(mActivity));
+            names.addView(name);
+            if (channel.handle != null && !channel.handle.isEmpty()) {
+                TextView handle = text(channel.handle, 14, GREY);
+                handle.setPadding(0, dp(3), 0, 0);
+                names.addView(handle);
+            }
+            LinearLayout.LayoutParams namesParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            namesParams.setMarginStart(dp(16));
+            row.addView(names, namesParams);
+            if (current) {
+                ImageView check = new ImageView(mActivity);
+                check.setImageResource(R.drawable.ic_phone_check);
+                check.setImageTintList(ColorStateList.valueOf(color(R.color.phone_text)));
+                row.addView(check, new LinearLayout.LayoutParams(dp(24), dp(24)));
+            }
+            row.setOnClickListener(v -> {
+                if (dialog[0] != null) {
+                    dialog[0].dismiss();
+                }
+                chooseChannel(channel);
+            });
+            content.addView(row);
         }
-        String error = mChannelsError;
-        new android.app.AlertDialog.Builder(mActivity)
-                .setTitle(error != null ? mActivity.getString(R.string.phone_live_chat_as) + "\n" + error : mActivity.getString(R.string.phone_live_chat_as))
-                .setSingleChoiceItems(names, checked, (dialog, which) -> {
-                    chooseChannel(channels.get(which));
-                    dialog.dismiss();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        dialog[0] = showSheet(content);
     }
 
     private void chooseChannel(com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel) {
@@ -821,36 +869,263 @@ final class PhoneLiveChat {
 
     // region The messages
 
+    /** One's own message held: the message at the top, then Remove (as in the YouTube app) */
     private void confirmDelete(ChatItem item) {
-        new android.app.AlertDialog.Builder(mActivity)
-                .setMessage(item.getMessage())
-                .setPositiveButton(R.string.phone_live_chat_delete, (dialog, which) -> WORKER.execute(() -> {
-                    String error = null;
-                    try {
-                        com.liskovsoft.youtubeapi.chat.LiveChatWriter.delete(item.getId());
-                    } catch (Throwable e) {
-                        error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                        android.util.Log.d("PhoneLiveChat", "delete: " + e);
+        LinearLayout content = sheetContent(null, null);
+        LinearLayout message = new LinearLayout(mActivity);
+        message.setPadding(dp(20), dp(8), dp(20), dp(14));
+        ImageView photo = new ImageView(mActivity);
+        PhoneUi.loadAvatar(photo, item.getAuthorPhoto());
+        message.addView(photo, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        TextView words = text("", 15, color(R.color.phone_text));
+        words.setText(line(item, false, words));
+        words.setLineSpacing(0, 1.05f);
+        LinearLayout.LayoutParams wordsParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        wordsParams.setMarginStart(dp(16));
+        wordsParams.topMargin = dp(4);
+        message.addView(words, wordsParams);
+        content.addView(message);
+        content.addView(divider());
+        TextView section = text(mActivity.getString(R.string.phone_live_chat_message), 15, GREY);
+        section.setPadding(dp(20), dp(16), dp(20), dp(6));
+        content.addView(section);
+        android.app.Dialog[] dialog = new android.app.Dialog[1];
+        LinearLayout remove = sheetRow();
+        ImageView trash = new ImageView(mActivity);
+        trash.setImageResource(R.drawable.ic_phone_delete);
+        trash.setImageTintList(ColorStateList.valueOf(color(R.color.phone_text)));
+        remove.addView(trash, new LinearLayout.LayoutParams(dp(26), dp(26)));
+        TextView label = text(mActivity.getString(R.string.phone_live_chat_remove), 17, color(R.color.phone_text));
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        labelParams.setMarginStart(dp(24));
+        remove.addView(label, labelParams);
+        remove.setOnClickListener(v -> {
+            if (dialog[0] != null) {
+                dialog[0].dismiss();
+            }
+            WORKER.execute(() -> {
+                String error = null;
+                try {
+                    com.liskovsoft.youtubeapi.chat.LiveChatWriter.delete(item.getId());
+                } catch (Throwable e) {
+                    error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    android.util.Log.d("PhoneLiveChat", "delete: " + e);
+                }
+                String failed = error;
+                mMain.post(() -> {
+                    if (failed == null) {
+                        mAdapter.remove(item.getId());
+                    } else {
+                        android.widget.Toast.makeText(mActivity, mActivity.getString(R.string.phone_live_chat_delete_failed, failed),
+                                android.widget.Toast.LENGTH_LONG).show();
                     }
-                    String failed = error;
-                    mMain.post(() -> {
-                        if (failed == null) {
-                            mAdapter.remove(item.getId());
-                        } else {
-                            android.widget.Toast.makeText(mActivity, mActivity.getString(R.string.phone_live_chat_delete_failed, failed),
-                                    android.widget.Toast.LENGTH_LONG).show();
+                });
+            });
+        });
+        content.addView(remove);
+        dialog[0] = showSheet(content);
+    }
+
+    // region Sheets (from the bottom, as the YouTube app's)
+
+    private LinearLayout sheetContent(String title, String note) {
+        LinearLayout content = new LinearLayout(mActivity);
+        content.setOrientation(LinearLayout.VERTICAL);
+        if (title != null) {
+            TextView heading = text(title, 18, color(R.color.phone_text));
+            heading.setTypeface(PhoneUi.medium(mActivity));
+            heading.setPadding(dp(20), dp(6), dp(20), note != null ? dp(4) : dp(12));
+            content.addView(heading);
+        }
+        if (note != null) {
+            TextView why = text(note, 13, GREY);
+            why.setMaxLines(3);
+            why.setEllipsize(TextUtils.TruncateAt.END);
+            why.setPadding(dp(20), 0, dp(20), dp(12));
+            content.addView(why);
+        }
+        return content;
+    }
+
+    private LinearLayout sheetRow() {
+        LinearLayout row = new LinearLayout(mActivity);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(20), dp(10), dp(20), dp(10));
+        row.setMinimumHeight(dp(56));
+        row.setBackgroundResource(R.drawable.phone_ripple);
+        return row;
+    }
+
+    private android.app.Dialog showSheet(View content) {
+        android.app.Dialog dialog = new android.app.Dialog(mActivity);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        PhoneSheetLayout root = new PhoneSheetLayout(mActivity);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundResource(R.drawable.phone_sheet_bg);
+        root.setPadding(0, dp(8), 0, dp(16));
+        root.setClickable(true);
+        root.setOnDismiss(dialog::dismiss);
+        View handle = new View(mActivity);
+        handle.setBackgroundResource(R.drawable.phone_handle);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(40), dp(4));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        handleParams.bottomMargin = dp(12);
+        root.addView(handle, handleParams);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(mActivity);
+        scroll.addView(content);
+        root.addView(scroll);
+        FrameLayout frame = new FrameLayout(mActivity);
+        frame.setOnClickListener(v -> dialog.dismiss());
+        frame.addView(root, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        dialog.setContentView(frame);
+        dialog.setCanceledOnTouchOutside(true);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            window.setGravity(Gravity.BOTTOM);
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setWindowAnimations(android.R.style.Animation_InputMethod);
+            android.view.WindowManager.LayoutParams params = window.getAttributes();
+            params.dimAmount = 0.5f;
+            window.setAttributes(params);
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        }
+        dialog.show();
+        return dialog;
+    }
+
+    // endregion
+
+    // region Emoji
+
+    /** The emoji picker: tap one to add it to the message */
+    private void pickEmoji() {
+        LinearLayout content = sheetContent(null, null);
+        android.widget.GridLayout grid = new android.widget.GridLayout(mActivity);
+        int columns = 8;
+        grid.setColumnCount(columns);
+        grid.setPadding(dp(10), 0, dp(10), dp(8));
+        int size = (PhoneSheetLayout.screen().widthPixels - dp(20)) / columns;
+        for (String emoji : EMOJI) {
+            TextView cell = text(emoji, 26, color(R.color.phone_text));
+            cell.setGravity(Gravity.CENTER);
+            cell.setBackgroundResource(R.drawable.phone_ripple);
+            cell.setOnClickListener(v -> {
+                int at = Math.max(0, mInput.getSelectionStart());
+                mInput.getText().insert(at, emoji);
+            });
+            android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
+            params.width = size;
+            params.height = size;
+            grid.addView(cell, params);
+        }
+        content.addView(grid);
+        showSheet(content);
+    }
+
+    private static final String[] EMOJI = {
+            "😀", "😂", "🤣", "😊", "😍", "🥰", "😘", "😎", "🤩", "🥳", "😇", "🙂", "😉", "😋", "😜", "🤪",
+            "🤔", "🤨", "😐", "🙄", "😏", "😴", "😮", "😱", "😭", "😢", "😡", "🤯", "🥺", "😳", "🤗", "🤭",
+            "👍", "👎", "👏", "🙌", "🙏", "💪", "👋", "🤝", "✌️", "🤞", "👌", "👀", "🫶", "❤️", "🧡", "💛",
+            "💚", "💙", "💜", "🖤", "🤍", "💔", "💯", "🔥", "✨", "⭐", "🎉", "🎊", "🎁", "🏆", "⚽", "🎮",
+            "🎵", "🎶", "📢", "💬", "✅", "❌", "⚡", "🌈", "☀️", "🌙", "🌸", "🍕", "🍿", "☕", "🚀", "🇮🇳"};
+
+    /**
+     * The message's line: the name in grey, then the message, YouTube's own emoji (the channel's, the green faces)
+     * as their pictures, loaded into the line as they come
+     */
+    private CharSequence line(ChatItem item, boolean onVideo, TextView into) {
+        String author = item.getAuthorName() != null ? item.getAuthorName() : "";
+        SpannableStringBuilder line = new SpannableStringBuilder(author);
+        line.setSpan(new ForegroundColorSpan(onVideo ? 0xD9FFFFFF : GREY), 0, author.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        line.append(" ");
+        List<String[]> parts = item.getMessageParts();
+        if (parts == null) {
+            line.append(item.getMessage() != null ? item.getMessage() : "");
+            return line;
+        }
+        int size = Math.round(PhoneSheetLayout.sp(15) * 1.35f);
+        for (String[] part : parts) {
+            String url = part.length > 1 ? part[1] : null;
+            if (url == null) {
+                line.append(part[0] != null ? part[0] : "");
+                continue;
+            }
+            int start = line.length();
+            line.append("￼");
+            RemoteEmoji emoji = new RemoteEmoji(size, into);
+            line.setSpan(new android.text.style.ImageSpan(emoji, android.text.style.DynamicDrawableSpan.ALIGN_BOTTOM),
+                    start, line.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            emoji.load(mActivity, url);
+        }
+        return line;
+    }
+
+    /** An emoji's picture, drawn in the line once loaded */
+    private static final class RemoteEmoji extends android.graphics.drawable.Drawable {
+        private final int mSize;
+        private final java.lang.ref.WeakReference<TextView> mView;
+        private android.graphics.drawable.Drawable mImage;
+
+        RemoteEmoji(int size, TextView view) {
+            mSize = size;
+            mView = new java.lang.ref.WeakReference<>(view);
+            setBounds(0, 0, size, size);
+        }
+
+        void load(Activity activity, String url) {
+            if (!PhoneUi.isAlive(activity)) {
+                return;
+            }
+            com.bumptech.glide.Glide.with(activity).load(url).into(
+                    new com.bumptech.glide.request.target.CustomTarget<android.graphics.drawable.Drawable>(mSize, mSize) {
+                        @Override
+                        public void onResourceReady(@NonNull android.graphics.drawable.Drawable resource,
+                                                    com.bumptech.glide.request.transition.Transition<? super android.graphics.drawable.Drawable> transition) {
+                            mImage = resource;
+                            mImage.setBounds(0, 0, mSize, mSize);
+                            TextView view = mView.get();
+                            if (view != null) {
+                                view.invalidate();
+                            }
+                        }
+
+                        @Override
+                        public void onLoadCleared(android.graphics.drawable.Drawable placeholder) {
+                            mImage = null;
                         }
                     });
-                }))
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        }
+
+        @Override
+        public void draw(@NonNull android.graphics.Canvas canvas) {
+            if (mImage != null) {
+                mImage.draw(canvas);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter colorFilter) {
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
     }
+
+    // endregion
 
     private final class Adapter extends RecyclerView.Adapter<Holder> {
         private final List<ChatItem> mItems = new ArrayList<>();
 
         void add(ChatItem item) {
-            if (item == null || TextUtils.isEmpty(item.getMessage())) {
+            if (item == null || (TextUtils.isEmpty(item.getMessage()) && item.getMessageParts() == null)) {
                 return;
             }
             if (item.getId() != null) {
@@ -900,12 +1175,8 @@ final class PhoneLiveChat {
         public void onBindViewHolder(@NonNull Holder holder, int position) {
             ChatItem item = mItems.get(position);
             boolean onVideo = mMode == 2;
-            String author = item.getAuthorName() != null ? item.getAuthorName() : "";
-            // The name in grey, a gap, then the message (as in the YouTube app)
-            SpannableStringBuilder line = new SpannableStringBuilder(author);
-            line.setSpan(new ForegroundColorSpan(onVideo ? 0xD9FFFFFF : GREY), 0, author.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            line.append(" ").append(item.getMessage());
-            holder.text.setText(line);
+            // The name in grey, a gap, then the message with its emoji (as in the YouTube app)
+            holder.text.setText(line(item, onVideo, holder.text));
             holder.text.setTextColor(onVideo ? 0xFFFFFFFF : color(R.color.phone_text));
             holder.text.setShadowLayer(onVideo ? dp(3) : 0, 0, onVideo ? dp(1) : 0, 0xB3000000);
             PhoneUi.loadAvatar(holder.avatar, item.getAuthorPhoto());
