@@ -38,8 +38,27 @@ final class PhoneShortsDetect {
         }
     };
 
-    /** Videos seen playing in portrait (any length): they open in the Shorts player */
+    /** Short videos seen playing in portrait (up to 3 minutes): they open in the Shorts player */
     private static final java.util.Set<String> sPortraitPlayed = java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+    /** Longer videos seen playing in portrait: the regular player shows them tall (videoId: height to width) */
+    private static final Map<String, Float> sTall = java.util.Collections.synchronizedMap(new LinkedHashMap<String, Float>(32, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Float> eldest) {
+            return size() > 300;
+        }
+    });
+
+    static void rememberTall(String videoId, float heightToWidth) {
+        if (videoId != null) {
+            sTall.put(videoId, heightToWidth);
+        }
+    }
+
+    /** The video's height to width if it's a long portrait video seen before, else 0 */
+    static float tallRatio(String videoId) {
+        Float ratio = videoId != null ? sTall.get(videoId) : null;
+        return ratio != null ? ratio : 0f;
+    }
 
     private PhoneShortsDetect() {
     }

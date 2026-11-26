@@ -527,6 +527,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mMusicPlayer != null && mMusicPlayer.onBack()) {
             return; // the full lyrics close first
         }
+        if (mTallFull && mPortrait && !isPip()) {
+            toggleFullscreen(); // leave the upright full screen first
+            return;
+        }
         if (!mPortrait && !isPip()) {
             // Leave full screen first, like the YouTube app
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -883,7 +887,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * plays (its picture's shape), then remembered, so it opens in the Shorts player straight away next time.
      */
     private void portraitTick() {
-        if (mShortsMode || mMusicMode || mAwaitingNewVideo || isPip() || mMinimized || mMinimizing || mStopped
+        if (mShortsMode || mTallVideo || mMusicMode || mAwaitingNewVideo || isPip() || mMinimized || mMinimizing || mStopped
                 || PhoneCast.isCasting()) {
             return;
         }
@@ -903,6 +907,14 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (height <= width * 1.15f) {
             return;
         }
+        long duration = exo.getDuration();
+        if (duration > 3 * 60_000L + 1_000 || duration <= 0) {
+            // A long portrait video: the regular player, tall (as in the YouTube app), full screen stays upright
+            android.util.Log.d("PhoneShorts", "long portrait video " + video.videoId + " (" + width + "x" + height + "): tall player");
+            PhoneShortsDetect.rememberTall(video.videoId, (float) height / width);
+            showTall((float) height / width);
+            return;
+        }
         android.util.Log.d("PhoneShorts", "portrait video " + video.videoId + " (" + width + "x" + height + "): Shorts player");
         PhoneShortsDetect.rememberPortrait(video.videoId);
         if (!mPortrait) {
@@ -919,6 +931,91 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         preloadNextShorts();
     }
 
+    // region Tall videos: long videos filmed upright, shown like the YouTube app does
+
+    /** The video playing is a long portrait one: the player is tall, its full screen upright */
+    private boolean mTallVideo;
+    /** Upright full screen for a tall video (instead of turning the phone sideways) */
+    private boolean mTallFull;
+    private float mTallRatio;
+
+    private void showTall(float heightToWidth) {
+        mTallVideo = true;
+        mTallRatio = heightToWidth;
+        if (!mPortrait) {
+            // Was turned sideways for full screen: upright full screen instead
+            mTallFull = true;
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+        applyLayoutMode();
+        applySystemBars();
+    }
+
+    /** Another video: back to the usual layout, unless it's a long portrait video seen before */
+    private void checkTall(Video video) {
+        float ratio = video != null && !isShort(video) ? PhoneShortsDetect.tallRatio(video.videoId) : 0f;
+        boolean tall = ratio > 0f && !mMusicMode;
+        if (tall == mTallVideo && (!tall || ratio == mTallRatio)) {
+            return;
+        }
+        mTallVideo = tall;
+        mTallRatio = ratio;
+        if (!tall) {
+            mTallFull = false;
+        }
+        applyLayoutMode();
+        applySystemBars();
+    }
+
+    /** The tall player's height: the video's own shape, up to most of the screen (the details stay in view below) */
+    private float tallHeightToWidth() {
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        float max = metrics.heightPixels * 0.66f / Math.max(1, metrics.widthPixels);
+        return Math.max(9f / 16f, Math.min(mTallRatio, max));
+    }
+
+    private boolean mTallExitSwipe;
+
+    /** Upright full screen: swipe down on the video to leave it */
+    private boolean handleTallExitSwipe(MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            mTallExitSwipe = false;
+            mDragStartY = event.getRawY();
+            mDragStartX = event.getRawX();
+            return false;
+        }
+        float down = event.getRawY() - mDragStartY;
+        float dx = Math.abs(event.getRawX() - mDragStartX);
+        if (action == MotionEvent.ACTION_MOVE) {
+            if (!mTallExitSwipe) {
+                int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop() * 2;
+                if (down <= slop || down <= dx * 1.5f) {
+                    return false;
+                }
+                mTallExitSwipe = true;
+                cancelRoutedTouch(event);
+                showPhoneControls(false);
+            }
+            float pull = Math.max(0f, Math.min(1f, down / dp(160)));
+            mVideoBox.setScaleX(1f - 0.06f * pull);
+            mVideoBox.setScaleY(1f - 0.06f * pull);
+            return true;
+        }
+        if (!mTallExitSwipe) {
+            return false;
+        }
+        mTallExitSwipe = false;
+        mRouteTouchToPlayer = null;
+        mVideoBox.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+        if (action == MotionEvent.ACTION_UP && down > dp(56)) {
+            toggleFullscreen();
+        }
+        return true;
+    }
+
+    // endregion
+
     // region Layout modes
 
     private void applyLayoutMode() {
@@ -928,8 +1025,10 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         boolean pip = isPip();
         boolean shorts = mShortsMode && !pip;
-        boolean withDetails = mPortrait && !shorts && !pip;
+        boolean tallFull = mTallVideo && mTallFull && mPortrait && !shorts && !pip;
+        boolean withDetails = mPortrait && !shorts && !pip && !tallFull;
 
+        mVideoBox.setHeightToWidth(mTallVideo && !shorts ? tallHeightToWidth() : 9f / 16f);
         mVideoBox.setRatioEnabled(withDetails);
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) mVideoBox.getLayoutParams();
         params.height = withDetails ? ViewGroup.LayoutParams.WRAP_CONTENT : 0;
@@ -938,8 +1037,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         mDetails.setVisibility(withDetails ? View.VISIBLE : View.GONE);
         // Shorts have their own progress line (with a red dot) above their tabs
-        mMiniProgress.setVisibility(mPortrait && !pip && !shorts ? View.VISIBLE : View.GONE);
-        mRoot.setPadding(0, withDetails ? mStatusInset : 0, 0, 0);
+        mMiniProgress.setVisibility(mPortrait && !pip && !shorts && !tallFull ? View.VISIBLE : View.GONE);
+        mRoot.setPadding(0, withDetails || tallFull ? mStatusInset : 0, 0, 0);
 
         mShorts.setVisibility(shorts ? View.VISIBLE : View.GONE);
         if (shorts) {
@@ -954,7 +1053,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         View bottom = findViewById(R.id.phone_ctl_bottom);
         int side = mPortrait ? 0 : dp(28);
         bottom.setPadding(side, 0, side, mPortrait ? 0 : dp(48));
-        mFullscreenButton.setImageResource(mPortrait ? R.drawable.ic_phone_fullscreen : R.drawable.ic_phone_fullscreen_exit);
+        mFullscreenButton.setImageResource(mPortrait && !tallFull ? R.drawable.ic_phone_fullscreen : R.drawable.ic_phone_fullscreen_exit);
 
         if (shorts || pip) {
             showPhoneControls(false);
@@ -1012,6 +1111,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
     private void toggleFullscreen() {
         showPhoneControls(false);
+        if (mTallVideo && mPortrait) {
+            // A tall video's full screen stays upright (as in the YouTube app): the video fills the screen
+            mTallFull = !mTallFull;
+            applyLayoutMode();
+            applySystemBars();
+            return;
+        }
         setRequestedOrientation(mPortrait
                 ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -1585,13 +1691,19 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             return true;
         }
 
+        // Upright full screen (tall videos): swipe down to leave it
+        if (mTallFull && mTouchStartedOnVideo && mPortrait && !mShortsMode) {
+            if (handleTallExitSwipe(event)) {
+                return true;
+            }
+        } else
         // Swipe the video up: full screen
         if (mTouchStartedOnVideo && mPortrait && !mShortsMode && handleFullscreenSwipe(event)) {
             return true;
         }
 
         // Swipe the video down to shrink the player (portrait, regular videos): the video follows the finger
-        if (mTouchStartedOnVideo && mPortrait && !mShortsMode && handleShrinkDrag(event)) {
+        if (mTouchStartedOnVideo && mPortrait && !mShortsMode && !mTallFull && handleShrinkDrag(event)) {
             return true;
         }
 
@@ -3921,6 +4033,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         boolean subscribed = getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
         TextView subscribe = findViewById(R.id.phone_shorts_subscribe);
+        subscribe.setVisibility(View.GONE); // no Subscribe on Shorts (the channel's picture opens the channel)
         subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
         subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
         subscribe.setTextColor(subscribed ? Color.WHITE : getResources().getColor(R.color.phone_bg));
@@ -4353,6 +4466,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             applyLayoutMode();
             applySystemBars();
         }
+        checkTall(video);
         mDescriptionExpanded = false;
         if (mAdapter != null && video != null) {
             mAdapter.setExcludedVideoId(video.videoId);
