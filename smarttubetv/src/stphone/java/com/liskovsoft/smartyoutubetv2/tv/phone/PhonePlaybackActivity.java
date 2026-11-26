@@ -1156,6 +1156,18 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * The TV player listens to every touch on the screen. Only touches on the bare video reach it (tap shows the
      * controls, double tap seeks); the details list, the phone controls and the Shorts overlay handle their own.
      */
+    /**
+     * Typing (the live chat box): keys go straight to the text box. The TV player's key translation would turn
+     * the keyboard's backspace into 0 (a TV remote's "back to the start" key), and digits into seeks.
+     */
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (getCurrentFocus() instanceof android.widget.EditText && event.getKeyCode() != android.view.KeyEvent.KEYCODE_BACK) {
+            return getWindow().superDispatchKeyEvent(event); // (not the player's key handling either)
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         if (mMinimizing) {

@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..4e23055
+index 0000000..83162a2
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,296 @@
+@@ -0,0 +1,369 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -227,6 +227,19 @@ index 0000000..4e23055
 +    @JvmStatic
 +    fun whyNot(chatKey: String): String? {
 +        var reason: String? = null
++        // As the Android app asks for it (bare context): its answer says whether this account may write here
++        try {
++            val chat = fetchClean(chatKey, "ANDROID")
++            if (chat != null) {
++                find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
++                    synchronized(mParams) { mParams[chatKey] = it }
++                    return null
++                }
++                reason = restriction(chat)
++            }
++        } catch (e: Exception) {
++            // the other ways below
++        }
 +        for (client in CLIENTS) {
 +            val chat = try { fetch(chatKey, client) } catch (e: Exception) { null } ?: continue
 +            find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
@@ -295,10 +308,70 @@ index 0000000..4e23055
 +                }
 +            }
 +        }
-+        throw CantChatException(errors.entries.joinToString("\n") { "${it.key}: ${it.value}" })
++        val details = errors.entries.joinToString("\n") { "${it.key}: ${it.value}" }
++        if (errors["ANDROID clean"]?.contains("failedPrecondition") == true) {
++            // The message itself was fine: YouTube doesn't let this account write in this chat
++            throw CantChatException("YouTube didn't let this account write in this chat. It may be for subscribers or " +
++                    "members only, or in slow mode.\n\n$details")
++        }
++        throw CantChatException(details)
 +    }
 +
 +    private val CLIENTS = listOf(AppClient.ANDROID, AppClient.WEB, AppClient.TV)
++
++    /** get_live_chat as YouTube's own app asks for it (bare context, its headers) */
++    private fun fetchClean(chatKey: String, client: String): JsonObject? {
++        val body = JsonObject().apply {
++            add("context", JsonObject().apply { add("client", cleanClient(client)) })
++            addProperty("continuation", chatKey)
++        }
++        cleanCall("get_live_chat", client, body).use { response ->
++            val answer = response.body()?.string() ?: return null
++            return if (response.isSuccessful) com.google.gson.JsonParser().parse(answer).asJsonObject else null
++        }
++    }
++
++    private fun cleanClient(client: String): JsonObject {
++        val web = client == "WEB"
++        return JsonObject().apply {
++            addProperty("clientName", client)
++            addProperty("clientVersion", if (web) "2.20260710.06.00" else "19.44.38")
++            addProperty("hl", "en")
++            addProperty("gl", "US")
++            com.liskovsoft.youtubeapi.app.AppService.instance().visitorData?.let { addProperty("visitorData", it) }
++            if (!web) {
++                addProperty("osName", "Android")
++                addProperty("osVersion", "11")
++                addProperty("androidSdkVersion", 30)
++            }
++        }
++    }
++
++    private fun cleanCall(endpoint: String, client: String, body: JsonObject): okhttp3.Response {
++        val web = client == "WEB"
++        val version = if (web) "2.20260710.06.00" else "19.44.38"
++        val agent = if (web) "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
++            else "com.google.android.youtube/19.44.38 (Linux; U; Android 11) gzip"
++        val visitor = com.liskovsoft.youtubeapi.app.AppService.instance().visitorData
++        val request = okhttp3.Request.Builder()
++            .url("https://www.youtube.com/youtubei/v1/live_chat/$endpoint?prettyPrint=false")
++            .header("User-Agent", agent)
++            .header("X-YouTube-Client-Name", if (web) "1" else "3")
++            .header("X-YouTube-Client-Version", version)
++            .header("X-Goog-Api-Format-Version", "1")
++            .apply {
++                if (web) {
++                    header("X-Origin", "https://www.youtube.com")
++                    header("Origin", "https://www.youtube.com")
++                    header("Referer", "https://www.youtube.com/")
++                }
++                visitor?.let { header("X-Goog-Visitor-Id", it) }
++            }
++            .post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), body.toString()))
++            .build()
++        // The library's client: it adds the sign-in (Authorization) to youtubei requests
++        return com.liskovsoft.googlecommon.common.helpers.RetrofitOkHttpHelper.client.newCall(request).execute()
++    }
 +
 +    /** send_message with only what YouTube's own clients put in the request (no player fields), and their headers */
 +    private fun sendClean(client: String, params: String, text: String) {
