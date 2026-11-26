@@ -3,3 +3,4 @@
 - Smoother Shorts — Swiping through Shorts now slides the whole video with your finger, even when you swipe quickly one after another, and the next Short comes in as real video, like Reels. A new swipe while the last one is still sliding now works instead of being ignored.
 - Fixed: going back from a Short could leave its sound playing.
 - Fixed: coming back from Shorts to your search could search again and show a different, shorter page; your results now stay as they were, scrolled where you left them. Swiping through Shorts from a search also keeps going into the next results.
+- Portrait videos in the Shorts player — Any video filmed upright now plays in the Shorts player, full screen and upright, however long it is, with the seek bar to move through it. The first time, it switches over a moment after it starts; after that it opens there straight away.

@@ -38,7 +38,28 @@ final class PhoneShortsDetect {
         }
     };
 
+    /** Videos seen playing in portrait (any length): they open in the Shorts player */
+    private static final java.util.Set<String> sPortraitPlayed = java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
+
     private PhoneShortsDetect() {
+    }
+
+    static void rememberPortrait(String videoId) {
+        if (videoId == null) {
+            return;
+        }
+        sPortraitPlayed.add(videoId);
+        if (sPortraitPlayed.size() > 300) {
+            synchronized (sPortraitPlayed) {
+                java.util.Iterator<String> oldest = sPortraitPlayed.iterator();
+                oldest.next();
+                oldest.remove();
+            }
+        }
+    }
+
+    static boolean isPortraitVideo(String videoId) {
+        return videoId != null && sPortraitPlayed.contains(videoId);
     }
 
     /**

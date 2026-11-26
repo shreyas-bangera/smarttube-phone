@@ -137,6 +137,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             syncMusicPlayer();
             peekTick();
             shortsAutoAdvance();
+            portraitTick();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
             boolean waitingForShort = mShortsMode && mPoster != null && mPoster.getVisibility() == View.VISIBLE;
             mHandler.postDelayed(this, waitingForShort ? SHORT_TICK_MS : TICK_MS);
@@ -872,7 +873,50 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // endregion
 
     private static boolean isShort(Video video) {
-        return video != null && (video.isShorts || video.belongsToShorts() || PhoneShortsQueue.contains(video));
+        return video != null && (video.isShorts || video.belongsToShorts() || PhoneShortsQueue.contains(video)
+                || PhoneShortsDetect.isPortraitVideo(video.videoId));
+    }
+
+    /**
+     * A portrait video plays in the Shorts player whatever its length (like a Short: full screen, upright, swipe to
+     * the next); the regular player would show it as a thin strip, and sideways in full screen. Known once the video
+     * plays (its picture's shape), then remembered, so it opens in the Shorts player straight away next time.
+     */
+    private void portraitTick() {
+        if (mShortsMode || mMusicMode || mAwaitingNewVideo || isPip() || mMinimized || mMinimizing || mStopped
+                || PhoneCast.isCasting()) {
+            return;
+        }
+        com.google.android.exoplayer2.SimpleExoPlayer exo = exoPlayer();
+        Video video = currentVideo();
+        if (exo == null || video == null || video.videoId == null || video.isLive
+                || exo.getPlaybackState() != com.google.android.exoplayer2.Player.STATE_READY) {
+            return;
+        }
+        com.google.android.exoplayer2.Format format = exo.getVideoFormat();
+        if (format == null || format.width <= 0 || format.height <= 0) {
+            return;
+        }
+        boolean turned = format.rotationDegrees == 90 || format.rotationDegrees == 270;
+        int width = turned ? format.height : format.width;
+        int height = turned ? format.width : format.height;
+        if (height <= width * 1.15f) {
+            return;
+        }
+        android.util.Log.d("PhoneShorts", "portrait video " + video.videoId + " (" + width + "x" + height + "): Shorts player");
+        PhoneShortsDetect.rememberPortrait(video.videoId);
+        if (!mPortrait) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); // upright, like any Short
+        }
+        if (mShortsHistory.isEmpty() || !Helpers_equals(mShortsHistory.get(mShortsHistory.size() - 1).videoId, video.videoId)) {
+            mShortsHistory.add(video);
+        }
+        mShortsMode = true;
+        applyLayoutMode();
+        applySystemBars();
+        refreshShorts(video);
+        syncMusicPlayer();
+        preloadNextShorts();
     }
 
     // region Layout modes
