@@ -2162,7 +2162,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     /** The cast button: pick a TV (or, while casting, stop) */
     private void openCast() {
         mHandler.removeCallbacks(mAutoHide);
-        PhoneCastSheet.show(this, new PhoneCastSheet.Listener() {
+        PhoneCastSheet.show(this, castListener());
+    }
+
+    private PhoneCastSheet.Listener castListener() {
+        return new PhoneCastSheet.Listener() {
             @Override
             public void onTvPicked(PhoneCast.Tv tv) {
                 startCast(tv);
@@ -2172,7 +2176,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             public void onStopCasting() {
                 stopCast();
             }
-        });
+        };
     }
 
     private void startCast(PhoneCast.Tv tv) {
@@ -2187,7 +2191,13 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
                 return;
             }
             if (!ok) {
-                android.widget.Toast.makeText(this, getString(R.string.phone_cast_failed, tv.name), android.widget.Toast.LENGTH_LONG).show();
+                // Why, and the way that always works with SmartTube on the TV: its Remote control code
+                new android.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.phone_cast_failed_title)
+                        .setMessage(getString(R.string.phone_cast_failed, tv.name, error != null ? error : "?"))
+                        .setPositiveButton(R.string.phone_cast_link, (d, w) -> PhoneCastSheet.askCode(this, castListener()))
+                        .setNegativeButton(android.R.string.ok, null)
+                        .show();
                 return;
             }
             if (mPlayer != null) {

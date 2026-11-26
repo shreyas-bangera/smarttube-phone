@@ -151,7 +151,9 @@ final class PhoneCast {
                     done.done(true, null);
                 } else {
                     Log.d(TAG, "no ad-free cast to " + tv.name + " (" + error + "): the TV's YouTube app");
-                    startYouTube(app, tv, videoId, positionMs, done);
+                    // Both reasons, if the YouTube app doesn't open either (e.g. a TV with only SmartTube)
+                    startYouTube(app, tv, videoId, positionMs, (started, youTubeError) -> done.done(started,
+                            started ? null : "no ads: " + error + "; YouTube app: " + youTubeError));
                 }
             });
             return;
@@ -192,7 +194,8 @@ final class PhoneCast {
             } catch (Exception e) {
                 Log.d(TAG, "cast to " + tv.name + ": " + e);
                 sTv = null;
-                MAIN.post(() -> done.done(false, e.getMessage()));
+                String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                MAIN.post(() -> done.done(false, reason));
             }
         });
     }
@@ -323,7 +326,8 @@ final class PhoneCast {
                 MAIN.post(() -> done.done(true, tv.name));
             } catch (Exception e) {
                 Log.d(TAG, "link: " + e);
-                MAIN.post(() -> done.done(false, e.getMessage()));
+                String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                MAIN.post(() -> done.done(false, reason));
             }
         });
     }

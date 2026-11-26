@@ -142,7 +142,7 @@ final class PhoneCastSheet {
     }
 
     /** Link with TV code: the code the TV shows (YouTube or SmartTube: Settings > Link with TV code) */
-    private static void askCode(Activity activity, Listener listener) {
+    static void askCode(Activity activity, Listener listener) {
         EditText input = new EditText(activity);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setHint("123 456 789 012");

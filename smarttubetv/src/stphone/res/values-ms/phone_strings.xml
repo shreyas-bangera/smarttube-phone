@@ -230,7 +230,7 @@
     <string name="phone_cast">Hantar</string>
     <string name="phone_cast_title">Main di TV</string>
     <string name="phone_cast_casting">Sedang menghantar</string>
-    <string name="phone_cast_hint">TV anda memainkan video dari YouTube dalam kualiti penuh, dan telefon anda menjadi alat kawalan. TV memerlukan YouTube atau SmartTube.</string>
+    <string name="phone_cast_hint">Google TV, Android TV dan Chromecast memainkan video tanpa iklan, dan telefon anda menjadi alat kawalan. TV dengan SmartTube? Pautkannya sekali dengan kodnya.</string>
     <string name="phone_cast_searching">Mencari TV di Wi-Fi anda…</string>
     <string name="phone_cast_search_done">Tiada di sini? Pautkan dengan kod TV</string>
     <string name="phone_cast_none">Tiada TV ditemui di Wi-Fi anda. Pautkan satu dengan kod TV</string>
@@ -238,14 +238,15 @@
     <string name="phone_cast_linked">TV dipautkan</string>
     <string name="phone_cast_link">Pautkan dengan kod TV</string>
     <string name="phone_cast_link_hint">Untuk TV yang tidak ditemui, atau bukan di Wi-Fi ini</string>
-    <string name="phone_cast_link_message">Pada TV, buka YouTube atau SmartTube: Tetapan > Pautkan dengan kod TV. Taip kod yang dipaparkan.</string>
+    <string name="phone_cast_link_message">Pada TV, buka SmartTube: Tetapan > Kawalan jauh (atau YouTube: Tetapan > Paut dengan kod TV). Taip kod yang dipaparkan.</string>
     <string name="phone_cast_link_button">Pautkan</string>
     <string name="phone_cast_link_failed">Kod itu tidak berfungsi. Semak pada TV dan cuba lagi.</string>
     <string name="phone_cast_playing_there">Dimainkan di TV ini</string>
     <string name="phone_cast_stop">Berhenti menghantar</string>
     <string name="phone_cast_playing_on">Dimainkan di %1$s</string>
     <string name="phone_cast_connecting">Menyambung ke %1$s…</string>
-    <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s. Adakah ia dihidupkan, dengan YouTube atau SmartTube?</string>
+    <string name="phone_cast_failed_title">Tidak dapat menghantar</string>
+    <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s (%2$s).\n\nJika TV mempunyai SmartTube, pautkannya sekali dengan kodnya: pada TV, buka SmartTube > Tetapan > Kawalan jauh.</string>
     <string name="phone_tweak_ambient">Mod ambien</string>
     <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>
     <string name="phone_tweak_glow">Kekuatan cahaya</string>
