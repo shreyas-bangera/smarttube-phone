@@ -7,6 +7,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.liskovsoft.smartyoutubetv2.tv.R;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -72,13 +74,15 @@ final class PhoneCast {
         /** On the Wi-Fi, a Google Cast TV (Google TV, Android TV, Chromecast): its address */
         String castHost;
         int castPort;
+        /** On the Wi-Fi, a smart TV's built-in media player (DLNA): where it takes commands */
+        String dlnaControl;
 
         Tv(String name) {
             this.name = name;
         }
 
         boolean onWifi() {
-            return dialUrl != null || castHost != null;
+            return dialUrl != null || castHost != null || dlnaControl != null;
         }
     }
 
@@ -116,18 +120,24 @@ final class PhoneCast {
     private static boolean sDirect;
     private static Context sApp;
 
+    /** Casting to a smart TV's built-in media player (see PhoneCastDlna) */
+    private static boolean sDlna;
+
     static boolean isPlaying() {
-        return sDirect ? PhoneCastDirect.isPlaying() : sPlaying;
+        return sDirect ? PhoneCastDirect.isPlaying() : sDlna ? PhoneCastDlna.isPlaying() : sPlaying;
     }
 
     static String videoId() {
-        return sDirect ? PhoneCastDirect.videoId() : sVideoId;
+        return sDirect ? PhoneCastDirect.videoId() : sDlna ? PhoneCastDlna.videoId() : sVideoId;
     }
 
     /** Where the TV should be by now in the video (for picking up on the phone when casting stops) */
     static long positionMs() {
         if (sDirect) {
             return PhoneCastDirect.positionMs();
+        }
+        if (sDlna) {
+            return PhoneCastDlna.positionMs();
         }
         return sPositionMs + (sPlaying ? System.currentTimeMillis() - sPositionAt : 0);
     }
@@ -150,15 +160,39 @@ final class PhoneCast {
                     remember(app, tv);
                     done.done(true, null);
                 } else {
-                    Log.d(TAG, "no ad-free cast to " + tv.name + " (" + error + "): the TV's YouTube app");
-                    // Both reasons, if the YouTube app doesn't open either (e.g. a TV with only SmartTube)
-                    startYouTube(app, tv, videoId, positionMs, (started, youTubeError) -> done.done(started,
-                            started ? null : "no ads: " + error + "; YouTube app: " + youTubeError));
+                    // StreamTube's own casting only: no YouTube or SmartTube app needed (or used) on the TV
+                    Log.d(TAG, "cast to " + tv.name + " failed: " + error);
+                    done.done(false, error);
+                }
+            });
+            return;
+        }
+        if (tv.dlnaControl != null) {
+            // A smart TV's built-in media player: nothing needed on the TV
+            PhoneCastDlna.start(local(app), tv.dlnaControl, videoId, positionMs, PhoneCast::dlnaEnded, (ok, error) -> {
+                if (ok) {
+                    sTv = tv;
+                    sDlna = true;
+                    Log.d(TAG, "casting " + videoId + " to " + tv.name + "'s media player");
+                    done.done(true, null);
+                } else {
+                    Log.d(TAG, "cast to " + tv.name + " failed: " + error);
+                    done.done(false, error);
                 }
             });
             return;
         }
         startYouTube(app, tv, videoId, positionMs, done);
+    }
+
+    private static void dlnaEnded() {
+        if (sDlna) {
+            sPositionMs = PhoneCastDlna.positionMs();
+            sVideoId = PhoneCastDlna.videoId();
+            sDlna = false;
+            sTv = null;
+            sPlaying = false;
+        }
     }
 
     /** The TV stopped its player (closed on the TV, or the Wi-Fi was lost) */
@@ -205,16 +239,25 @@ final class PhoneCast {
         if (sTv == null || videoId == null) {
             return;
         }
+        if (sDlna) {
+            PhoneCastDlna.load(videoId, positionMs, (ok, error) -> {
+                if (!ok && sApp != null) {
+                    android.widget.Toast.makeText(sApp, sApp.getString(R.string.phone_cast_video_failed, error),
+                            android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+            return;
+        }
         if (sDirect) {
             Tv tv = sTv;
             PhoneCastDirect.load(videoId, positionMs, (ok, error) -> {
                 if (!ok && sDirect && sTv == tv) {
-                    // This one can't be cast with no ads (e.g. live): the TV's YouTube app plays it
-                    Log.d(TAG, "no ad-free cast of " + videoId + " (" + error + "): the TV's YouTube app");
-                    PhoneCastDirect.stop();
-                    sDirect = false;
-                    sTv = null;
-                    startYouTube(sApp, tv, videoId, positionMs, (started, e) -> { });
+                    // This one can't be cast (e.g. live): the TV keeps the last one
+                    Log.d(TAG, "can't cast " + videoId + ": " + error);
+                    if (sApp != null) {
+                        android.widget.Toast.makeText(sApp, sApp.getString(R.string.phone_cast_video_failed, error),
+                                android.widget.Toast.LENGTH_LONG).show();
+                    }
                 }
             });
             return;
@@ -236,6 +279,10 @@ final class PhoneCast {
             PhoneCastDirect.togglePlay();
             return;
         }
+        if (sDlna) {
+            PhoneCastDlna.togglePlay();
+            return;
+        }
         boolean play = !sPlaying;
         sPositionMs = positionMs();
         sPositionAt = System.currentTimeMillis();
@@ -251,6 +298,15 @@ final class PhoneCast {
 
     /** Stops casting: the TV pauses and the phone leaves its lounge */
     static void stop() {
+        if (sDlna) {
+            sPositionMs = PhoneCastDlna.positionMs();
+            sVideoId = PhoneCastDlna.videoId();
+            sDlna = false;
+            sTv = null;
+            sPlaying = false;
+            PhoneCastDlna.stop();
+            return;
+        }
         if (sDirect) {
             sPositionMs = PhoneCastDirect.positionMs();
             sVideoId = PhoneCastDirect.videoId();
@@ -493,8 +549,9 @@ final class PhoneCast {
                     lock.setReferenceCounted(false);
                     lock.acquire();
                 }
-                for (String location : search(app)) {
-                    Tv tv = describe(app, location);
+                // Smart TVs' built-in media players (DLNA): they play what the phone hands them, no app needed
+                for (String location : search(app, "urn:schemas-upnp-org:device:MediaRenderer:1")) {
+                    Tv tv = PhoneCastDlna.describe(local(app), location);
                     if (tv != null) {
                         add(tvs, tv);
                         report.run();
@@ -521,6 +578,9 @@ final class PhoneCast {
                     if (tv.castHost != null) {
                         other.castHost = tv.castHost;
                         other.castPort = tv.castPort;
+                    }
+                    if (tv.dlnaControl != null) {
+                        other.dlnaControl = tv.dlnaControl;
                     }
                     return;
                 }
@@ -613,10 +673,10 @@ final class PhoneCast {
     }
 
     /** Asks the Wi-Fi who can open apps (DIAL), for three seconds: the addresses of their descriptions */
-    private static List<String> search(Context app) throws Exception {
+    private static List<String> search(Context app, String target) throws Exception {
         List<String> locations = new ArrayList<>();
         String message = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\n"
-                + "ST: urn:dial-multiscreen-org:service:dial:1\r\n\r\n";
+                + "ST: " + target + "\r\n\r\n";
         try (MulticastSocket socket = new MulticastSocket()) {
             android.net.Network wifi = wifiNetwork(app);
             if (wifi != null) {
@@ -644,7 +704,7 @@ final class PhoneCast {
                 Matcher location = Pattern.compile("(?im)^location:\\s*(\\S+)").matcher(answer);
                 if (location.find() && !locations.contains(location.group(1))) {
                     locations.add(location.group(1));
-                    Log.d(TAG, "dial device at " + location.group(1));
+                    Log.d(TAG, target + " at " + location.group(1));
                 }
             }
         }

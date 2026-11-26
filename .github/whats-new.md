@@ -1,4 +1,4 @@
-- Cast to your TV, with no ads — Tap the cast button in the player and pick your TV; your phone becomes the remote. Google TV, Android TV and Chromecast play with no ads.
+- Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install on the TV (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
 - Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
 - Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.
 - Upright videos look right — Long videos filmed upright play in a tall player, and full screen stays upright instead of turning sideways.

@@ -80,7 +80,7 @@ final class PhoneCastDirect {
         });
         // First the video's streams (fails fast for live streams, and videos the TV can't play)
         WORKER.execute(() -> {
-            byte[] manifest;
+            Media media;
             CastProxyServer proxy = new CastProxyServer();
             try {
                 proxy.setUserAgent(com.liskovsoft.googlecommon.common.helpers.DefaultHeaders.APP_USER_AGENT);
@@ -90,17 +90,18 @@ final class PhoneCastDirect {
                     once.done(false, "no Wi-Fi address");
                     return;
                 }
-                manifest = manifest(proxy, videoId);
+                media = prepare(proxy, videoId, false);
             } catch (Exception e) {
                 proxy.stop();
                 Log.d(TAG, "direct cast of " + videoId + " not possible: " + e.getMessage());
                 once.done(false, e.getMessage());
                 return;
             }
+            Media ready = media;
             MAIN.post(() -> {
                 sProxy = proxy;
                 sVideoId = videoId;
-                proxy.loadVideo(manifest);
+                use(proxy, ready);
                 sSession = CastV2Session.forDefaultMediaReceiver(host, port, new Listener(videoId, positionMs, once));
                 sSession.start();
                 Log.d(TAG, "direct cast: opening the TV's media player for " + videoId);
@@ -119,20 +120,21 @@ final class PhoneCastDirect {
         }
         int generation = ++sLoadGeneration;
         WORKER.execute(() -> {
-            byte[] manifest;
+            Media media;
             try {
-                manifest = manifest(proxy, videoId);
+                media = prepare(proxy, videoId, false);
             } catch (Exception e) {
                 Log.d(TAG, "direct cast of " + videoId + " not possible: " + e.getMessage());
                 MAIN.post(() -> done.done(false, e.getMessage()));
                 return;
             }
+            Media ready = media;
             MAIN.post(() -> {
                 if (generation != sLoadGeneration || sSession == null || sProxy != proxy) {
                     return; // another video came meanwhile, or casting stopped
                 }
                 sVideoId = videoId;
-                proxy.loadVideo(manifest);
+                use(proxy, ready);
                 sendLoad(videoId, positionMs);
                 done.done(true, null);
             });
@@ -178,35 +180,159 @@ final class PhoneCastDirect {
         }
     }
 
-    /** The video's DASH manifest, rewritten to point at the phone's relay (throws if it can't be cast this way) */
-    private static byte[] manifest(CastProxyServer proxy, String videoId) throws Exception {
-        MediaItemFormatInfo info = com.liskovsoft.youtubeapi.service.YouTubeMediaItemService.preloadFormatInfo(videoId);
-        if (info == null || info.isUnplayable()) {
-            throw new IllegalStateException("no streams");
+    /**
+     * What the TV is given for a video: a DASH manifest pointing at the phone's relay (best: separate video and
+     * sound up to 1080p), or one file with both (one stream, lower quality, for when there's no DASH) also through
+     * the relay. userAgent: the one YouTube gave the links for (the relay presents it).
+     */
+    static final class Media {
+        byte[] manifest;
+        String fileUrl;
+        String userAgent;
+        String what;
+        String title;
+
+        /** The URL the TV opens */
+        String url(CastProxyServer proxy, String videoId) {
+            if (manifest != null) {
+                return proxy.getManifestUrl() + "?v=" + videoId; // a fresh URL per video (no stale manifest)
+            }
+            // (the name at the end is for TVs that look at it; the relay ignores it)
+            return proxy.getBaseUrl() + "/seg/" + com.liskovsoft.smartyoutubetv2.tv.phone.cast.SegmentToken.encode(fileUrl) + "?f=video.mp4";
         }
-        if (info.isLive()) {
+
+        String mimeType() {
+            return manifest != null ? MpdRewriter.MIME_TYPE : "video/mp4";
+        }
+    }
+
+    /**
+     * Gets a video ready for the TV's player, trying in turn: the links the download feature uses (plain links that
+     * play anywhere), the player's own streams, then a single file with video and sound. Throws if none work.
+     */
+    static Media prepare(CastProxyServer proxy, String videoId, boolean fileOnly) throws Exception {
+        StringBuilder why = new StringBuilder();
+        MediaItemFormatInfo download = null;
+        String downloadAgent = null;
+        try {
+            com.liskovsoft.youtubeapi.service.YouTubeDownloadService.DownloadInfo info =
+                    com.liskovsoft.youtubeapi.service.YouTubeDownloadService.getDownloadInfo(videoId);
+            if (info != null) {
+                download = info.formatInfo;
+                downloadAgent = info.userAgent;
+            }
+        } catch (Throwable e) {
+            why.append("links: ").append(e.getMessage()).append("; ");
+        }
+        if (download != null && download.isLive()) {
             throw new IllegalStateException("live stream");
         }
-        InputStream mpd = info.containsDashFormats() ? info.createMpdStream() : null;
-        if (mpd == null) {
-            throw new IllegalStateException("no DASH streams");
+        String appAgent = com.liskovsoft.googlecommon.common.helpers.DefaultHeaders.APP_USER_AGENT;
+        if (!fileOnly) {
+            Media media = dash(proxy, download, downloadAgent, "download links", why);
+            if (media != null) {
+                return media;
+            }
         }
-        MpdRewriter.Result result = MpdRewriter.rewrite(mpd, proxy.getBaseUrl());
-        if (result.isEmpty() || !result.hasCompatibleVideo()) {
-            throw new IllegalStateException("no video the TV can play");
+        MediaItemFormatInfo player = null;
+        try {
+            player = com.liskovsoft.youtubeapi.service.YouTubeMediaItemService.preloadFormatInfo(videoId);
+        } catch (Throwable e) {
+            why.append("player: ").append(e.getMessage()).append("; ");
         }
-        return result.getMpdBytes();
+        if (player != null && player.isLive()) {
+            throw new IllegalStateException("live stream");
+        }
+        if (!fileOnly) {
+            Media media = dash(proxy, player, appAgent, "player streams", why);
+            if (media != null) {
+                return media;
+            }
+        }
+        Media file = file(download, downloadAgent);
+        if (file == null) {
+            file = file(player, appAgent);
+        }
+        if (file != null) {
+            file.title = download != null ? download.getTitle() : player != null ? player.getTitle() : null;
+            return file;
+        }
+        throw new IllegalStateException(why.length() > 0 ? why.toString() : "no stream the TV can play");
+    }
+
+    private static Media dash(CastProxyServer proxy, MediaItemFormatInfo info, String userAgent, String what, StringBuilder why) {
+        if (info == null || info.isUnplayable() || !info.containsDashFormats()) {
+            why.append(what).append(": no DASH; ");
+            return null;
+        }
+        try {
+            InputStream mpd = info.createMpdStream();
+            if (mpd == null) {
+                why.append(what).append(": no manifest; ");
+                return null;
+            }
+            MpdRewriter.Result result = MpdRewriter.rewrite(mpd, proxy.getBaseUrl());
+            if (result.isEmpty() || !result.hasCompatibleVideo()) {
+                why.append(what).append(": no H.264 video; ");
+                return null;
+            }
+            Media media = new Media();
+            media.manifest = result.getMpdBytes();
+            media.userAgent = userAgent;
+            media.what = what + " (DASH)";
+            return media;
+        } catch (Throwable e) {
+            why.append(what).append(": ").append(e.getMessage()).append("; ");
+            return null;
+        }
+    }
+
+    /** A single file with video and sound (MP4, H.264), the highest there is */
+    private static Media file(MediaItemFormatInfo info, String userAgent) {
+        if (info == null || info.getUrlFormats() == null) {
+            return null;
+        }
+        com.liskovsoft.mediaserviceinterfaces.data.MediaFormat best = null;
+        for (com.liskovsoft.mediaserviceinterfaces.data.MediaFormat format : info.getUrlFormats()) {
+            String mime = format != null && format.getMimeType() != null ? format.getMimeType() : "";
+            if (format == null || format.getUrl() == null || !mime.startsWith("video/mp4")) {
+                continue;
+            }
+            if (best == null || format.getHeight() > best.getHeight()) {
+                best = format;
+            }
+        }
+        if (best == null) {
+            return null;
+        }
+        Media media = new Media();
+        media.fileUrl = best.getUrl();
+        media.userAgent = userAgent;
+        media.what = "one file " + best.getHeight() + "p";
+        return media;
+    }
+
+    private static Media sMedia;
+
+    /** The relay serves this video now */
+    private static void use(CastProxyServer proxy, Media media) {
+        sMedia = media;
+        proxy.setUserAgent(media.userAgent);
+        if (media.manifest != null) {
+            proxy.loadVideo(media.manifest);
+        }
+        Log.d(TAG, "direct cast: " + media.what);
     }
 
     private static void sendLoad(String videoId, long positionMs) {
         CastV2Session session = sSession;
         CastProxyServer proxy = sProxy;
-        if (session == null || proxy == null || proxy.getManifestUrl() == null) {
+        Media media = sMedia;
+        if (session == null || proxy == null || media == null || proxy.getBaseUrl() == null) {
             return;
         }
-        // A fresh URL per video, so the TV doesn't reuse the last video's manifest
-        String url = proxy.getManifestUrl() + "?v=" + videoId;
-        session.load(url, MpdRewriter.MIME_TYPE, null, "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg", Math.max(0, positionMs));
+        session.load(media.url(proxy, videoId), media.mimeType(), null,
+                "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg", Math.max(0, positionMs));
         sPlayerState = "BUFFERING";
         sPositionMs = Math.max(0, positionMs);
         sPositionAt = SystemClock.elapsedRealtime();

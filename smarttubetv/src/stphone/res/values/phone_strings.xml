@@ -261,14 +261,14 @@
     <string name="phone_cast">Cast</string>
     <string name="phone_cast_title">Play on a TV</string>
     <string name="phone_cast_casting">Casting</string>
-    <string name="phone_cast_hint">Google TV, Android TV and Chromecast play the video with no ads, and your phone is the remote. TV with SmartTube? Link it with its code once.</string>
+    <string name="phone_cast_hint">Plays on your TV\'s own player, with no ads and nothing to install on the TV. Your phone streams it and is the remote: keep it on the same Wi-Fi.</string>
     <string name="phone_cast_searching">Looking for TVs on your Wi-Fi…</string>
     <string name="phone_cast_search_done">Not there? Link it with its TV code</string>
     <string name="phone_cast_none">No TVs found on your Wi-Fi. Link one with its TV code</string>
     <string name="phone_cast_on_wifi">On your Wi-Fi</string>
     <string name="phone_cast_linked">Linked TV</string>
     <string name="phone_cast_link">Link with TV code</string>
-    <string name="phone_cast_link_hint">For a TV not found, or not on this Wi-Fi</string>
+    <string name="phone_cast_link_hint">Optional, for a TV with YouTube or SmartTube that isn\'t found</string>
     <string name="phone_cast_link_message">On the TV, open SmartTube: Settings > Remote control (or YouTube: Settings > Link with TV code). Type the code it shows.</string>
     <string name="phone_cast_link_button">Link</string>
     <string name="phone_cast_link_failed">That code didn\'t work. Check it on the TV and try again.</string>
@@ -277,7 +277,8 @@
     <string name="phone_cast_playing_on">Playing on %1$s</string>
     <string name="phone_cast_connecting">Connecting to %1$s…</string>
     <string name="phone_cast_failed_title">Couldn\'t cast</string>
-    <string name="phone_cast_failed">Couldn\'t cast to %1$s (%2$s).\n\nIf the TV has SmartTube, link it once with its code: on the TV, open SmartTube > Settings > Remote control.</string>
+    <string name="phone_cast_video_failed">This video can\'t be cast (%1$s)</string>
+    <string name="phone_cast_failed">Couldn\'t cast to %1$s (%2$s).\n\nCheck the TV is on and on the same Wi-Fi as your phone.</string>
     <string name="phone_tweak_ambient">Ambient mode</string>
     <string name="phone_tweak_ambient_summary">A soft glow of the video\'s colours around the player, in the dark appearance</string>
     <string name="phone_tweak_glow">Glow strength</string>
