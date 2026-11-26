@@ -84,6 +84,10 @@
             android:supportsPictureInPicture="true"
             android:theme="@style/App.Theme.Leanback.Player" />
         <activity
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneChatSignInActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneSignInActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"

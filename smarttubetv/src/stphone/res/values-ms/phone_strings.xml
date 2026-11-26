@@ -252,6 +252,9 @@
     <string name="phone_live_chat_hint">Sembang…</string>
     <string name="phone_live_chat_sign_in">Log masuk untuk bersembang</string>
     <string name="phone_live_chat_failed">Tidak dapat dihantar: %1$s</string>
+    <string name="phone_chat_sign_in">Log masuk untuk bersembang</string>
+    <string name="phone_chat_sign_in_why">YouTube hanya menerima mesej sembang daripada log masuk laman web YouTube. Ia kekal pada telefon ini, untuk sembang sahaja.</string>
+    <string name="phone_chat_signed_in">Telah log masuk: anda boleh bersembang sekarang</string>
     <string name="phone_cast_failed">Tidak dapat menghantar ke %1$s (%2$s).\n\nPastikan TV dihidupkan dan pada Wi-Fi yang sama dengan telefon anda.</string>
     <string name="phone_tweak_ambient">Mod ambien</string>
     <string name="phone_tweak_ambient_summary">Cahaya lembut warna video di sekeliling pemain, dalam rupa gelap</string>

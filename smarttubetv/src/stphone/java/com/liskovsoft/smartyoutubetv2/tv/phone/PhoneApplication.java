@@ -25,6 +25,7 @@ public class PhoneApplication extends MainApplication {
         CrashReport.install(this);
         PhoneUi.init(this);
         PhoneDebugLog.record(this); // the app's own log lines, kept across restarts for Settings > Share debug log
+        PhoneChatSignInActivity.apply(this); // the live chat's website login, if one was made
         // Videos open faster: formats requested on tap, playback after 0.5 s of media, recommendations alongside
         com.liskovsoft.smartyoutubetv2.common.misc.FastStart.enable();
         // The music player plays a song's recording, not its music video (see PhoneMusic.streamFor)

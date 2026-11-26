@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..83162a2
+index 0000000..dbdf834
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,369 @@
+@@ -0,0 +1,495 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -220,12 +220,42 @@ index 0000000..83162a2
 +    class CantChatException(message: String) : Exception(message)
 +
 +    /**
++     * The YouTube website login (its cookies), from the app's chat sign-in. YouTube only takes chat messages from
++     * a website session: with it, the chat is read and written as the website (SAPISIDHASH), as YouTube.js does.
++     */
++    @JvmStatic
++    @Volatile
++    var webCookie: String? = null
++        set(value) {
++            field = value
++            synchronized(mParams) { mParams.clear() }
++        }
++
++    /** The sign-in was refused (expired, signed out elsewhere): the app asks to sign in again */
++    class SignInNeededException(message: String) : Exception(message)
++
++    @JvmStatic
++    fun hasWebLogin(): Boolean = !webCookie.isNullOrEmpty()
++
++    /**
 +     * Null if the signed-in user can chat here, else YouTube's reason (blocking: not for the UI thread). The chat is
 +     * asked for as the TV app and as the website: the TV's answer often carries neither the send params nor the
 +     * reason one can't (e.g. Subscribers-only mode); the website's does.
 +     */
 +    @JvmStatic
 +    fun whyNot(chatKey: String): String? {
++        if (hasWebLogin()) {
++            // As the website, signed in: its answer has the send params, or why one can't write
++            val chat = try { fetchWeb(chatKey) } catch (e: Exception) { null }
++            if (chat != null) {
++                find(chat, "sendLiveChatMessageEndpoint")?.asJsonObject?.get("params")?.asString?.let {
++                    synchronized(mParams) { mParams[chatKey] = it }
++                    return null
++                }
++                restriction(chat)?.let { return it }
++            }
++            return null
++        }
 +        var reason: String? = null
 +        // As the Android app asks for it (bare context): its answer says whether this account may write here
 +        try {
@@ -258,6 +288,10 @@ index 0000000..83162a2
 +     */
 +    @JvmStatic
 +    fun send(chatKey: String, videoId: String, channelId: String?, text: String) {
++        if (hasWebLogin()) {
++            sendWeb(chatKey, videoId, channelId, text)
++            return
++        }
 +        if (synchronized(mParams) { mParams[chatKey] } == null) {
 +            whyNot(chatKey)?.let { throw CantChatException(it) }
 +        }
@@ -318,6 +352,98 @@ index 0000000..83162a2
 +    }
 +
 +    private val CLIENTS = listOf(AppClient.ANDROID, AppClient.WEB, AppClient.TV)
++
++    // region As the website, with its login
++
++    private const val ORIGIN = "https://www.youtube.com"
++    private const val WEB_VERSION = "2.20260710.06.00"
++    private const val WEB_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
++
++    private fun sendWeb(chatKey: String, videoId: String, channelId: String?, text: String) {
++        var params = synchronized(mParams) { mParams[chatKey] }
++        if (params == null) {
++            whyNot(chatKey)?.let { throw CantChatException(it) }
++            params = synchronized(mParams) { mParams[chatKey] }
++                ?: channelId?.let { buildParams(it, videoId) }
++                ?: throw CantChatException("Chat isn't open")
++        }
++        val body = JsonObject().apply {
++            add("context", JsonObject().apply { add("client", webClient()) })
++            add("richMessage", JsonObject().apply {
++                add("textSegments", com.google.gson.JsonArray().apply {
++                    add(JsonObject().apply { addProperty("text", text) })
++                })
++            })
++            addProperty("clientMessageId", UUID.randomUUID().toString())
++            addProperty("params", params)
++        }
++        webCall("send_message", body).use { response ->
++            val answer = response.body()?.string() ?: ""
++            if (response.code() == 401 || response.code() == 403) {
++                throw SignInNeededException("Signed out of YouTube: sign in to chat again")
++            }
++            if (!response.isSuccessful) {
++                val json = try { com.google.gson.JsonParser().parse(answer).asJsonObject } catch (e: Exception) { JsonObject() }
++                throw CantChatException(apiError(json, response.code()))
++            }
++            if (answer.contains("runAttestationCommand") && !answer.contains("addChatItemAction")) {
++                throw CantChatException("YouTube asked for a check before taking the message")
++            }
++        }
++    }
++
++    private fun fetchWeb(chatKey: String): JsonObject? {
++        val body = JsonObject().apply {
++            add("context", JsonObject().apply { add("client", webClient()) })
++            addProperty("continuation", chatKey)
++        }
++        webCall("get_live_chat", body).use { response ->
++            val answer = response.body()?.string() ?: return null
++            return if (response.isSuccessful) com.google.gson.JsonParser().parse(answer).asJsonObject else null
++        }
++    }
++
++    private fun webClient(): JsonObject = JsonObject().apply {
++        addProperty("clientName", "WEB")
++        addProperty("clientVersion", WEB_VERSION)
++        addProperty("hl", "en")
++        addProperty("gl", "US")
++    }
++
++    /** A youtubei call as the signed-in website: its cookies and the SAPISIDHASH proof made from them */
++    private fun webCall(endpoint: String, body: JsonObject): okhttp3.Response {
++        val cookie = webCookie ?: throw SignInNeededException("Sign in to chat")
++        val sapisid = cookieValue(cookie, "SAPISID") ?: cookieValue(cookie, "__Secure-3PAPISID")
++            ?: throw SignInNeededException("Sign in to chat")
++        val time = System.currentTimeMillis() / 1000
++        val hash = sha1("$time $sapisid $ORIGIN")
++        val request = okhttp3.Request.Builder()
++            .url("https://www.youtube.com/youtubei/v1/live_chat/$endpoint?prettyPrint=false")
++            .header("User-Agent", WEB_AGENT)
++            .header("Cookie", cookie)
++            .header("Authorization", "SAPISIDHASH ${time}_$hash")
++            .header("X-Origin", ORIGIN)
++            .header("Origin", ORIGIN)
++            .header("Referer", "$ORIGIN/")
++            .header("X-YouTube-Client-Name", "1")
++            .header("X-YouTube-Client-Version", WEB_VERSION)
++            .header("X-Goog-AuthUser", "0")
++            .post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), body.toString()))
++            .build()
++        // A plain client: not the library's (it would add the TV sign-in and its API key)
++        return com.liskovsoft.sharedutils.okhttp.OkHttpManager.instance().client.newCall(request).execute()
++    }
++
++    private fun cookieValue(cookie: String, name: String): String? = cookie.split(";")
++        .map { it.trim() }
++        .firstOrNull { it.startsWith("$name=") }
++        ?.substringAfter("=")
++
++    private fun sha1(text: String): String =
++        java.security.MessageDigest.getInstance("SHA-1").digest(text.toByteArray(Charsets.UTF_8))
++            .joinToString("") { "%02x".format(it) }
++
++    // endregion
 +
 +    /** get_live_chat as YouTube's own app asks for it (bare context, its headers) */
 +    private fun fetchClean(chatKey: String, client: String): JsonObject? {

@@ -544,15 +544,19 @@ final class PhoneLiveChat {
 
     // region Writing
 
-    private void checkWriting() {
-        boolean signedIn;
-        try {
-            signedIn = com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getSignInService().isSigned();
-        } catch (Throwable e) {
-            signedIn = false;
+    /** Back on the player (e.g. from signing in to chat): the box as it should be now */
+    void refreshWriting() {
+        if (mReceiver != null) {
+            checkWriting();
         }
-        if (!signedIn) {
-            showNotice(mActivity.getString(R.string.phone_live_chat_sign_in));
+    }
+
+    private void checkWriting() {
+        // YouTube takes chat messages only from a YouTube website login (the app's chat sign-in), not the TV one
+        boolean webLogin = com.liskovsoft.youtubeapi.chat.LiveChatWriter.hasWebLogin();
+        setSignInBox(!webLogin);
+        if (!webLogin) {
+            showNotice(null);
             return;
         }
         try {
@@ -585,6 +589,18 @@ final class PhoneLiveChat {
         });
     }
 
+    /** Not signed in to chat: the box reads Sign in to chat, and a tap opens the sign-in */
+    private void setSignInBox(boolean signIn) {
+        mInput.setHint(signIn ? R.string.phone_chat_sign_in : R.string.phone_live_chat_hint);
+        mInput.setFocusable(!signIn);
+        mInput.setFocusableInTouchMode(!signIn);
+        mInput.setCursorVisible(!signIn);
+        View.OnClickListener open = signIn ? v -> PhoneChatSignInActivity.open(mActivity) : null;
+        mInput.setOnClickListener(open);
+        mPill.setOnClickListener(open);
+        mPill.setClickable(signIn);
+    }
+
     /** Why one can't write here (null: the box to write in) */
     private void showNotice(String why) {
         mInputRow.setVisibility(why == null ? View.VISIBLE : View.GONE);
@@ -610,6 +626,15 @@ final class PhoneLiveChat {
             String error = null;
             try {
                 com.liskovsoft.youtubeapi.chat.LiveChatWriter.send(key, videoId, channelId, text);
+            } catch (com.liskovsoft.youtubeapi.chat.LiveChatWriter.SignInNeededException e) {
+                // The website login expired (or was signed out elsewhere): sign in again
+                mMain.post(() -> {
+                    PhoneChatSignInActivity.signOut(mActivity);
+                    setSignInBox(true);
+                    PhoneChatSignInActivity.open(mActivity);
+                });
+                error = e.getMessage();
+                android.util.Log.d("PhoneLiveChat", "send: " + e);
             } catch (Throwable e) {
                 error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 android.util.Log.d("PhoneLiveChat", "send: " + e);

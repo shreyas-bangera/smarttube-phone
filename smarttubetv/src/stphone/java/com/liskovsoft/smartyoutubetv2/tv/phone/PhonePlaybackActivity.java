@@ -379,6 +379,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         applyPrevNextButtons();
         mHandler.removeCallbacks(mTicker);
         mHandler.post(mTicker);
+        if (mLiveChat != null) {
+            mLiveChat.refreshWriting(); // e.g. back from signing in to chat
+        }
         refreshDetails();
         mPipState = null;
         updatePipParams(); // Android 12+: arms the automatic floating window for the home gesture
