@@ -343,6 +343,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         mTime.setSingleLine(true);
         mTime.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        // the pill hugs its words, short of the full screen button (a long chapter name ends in "…")
+        mTime.setMaxWidth(Math.max(dp(120), android.content.res.Resources.getSystem().getDisplayMetrics().widthPixels - dp(80)));
         // The chapter's name by the time: tap it for all the chapters
         mTime.setOnClickListener(v -> {
             if (mLiveBadge) {
@@ -2976,16 +2978,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         }
         if (mLiveBadge) {
             mLiveBadge = false;
-            mTime.setBackground(null);
-            mTime.setPadding(0, 0, 0, 0);
-            ViewGroup.LayoutParams params = mTime.getLayoutParams();
-            if (params instanceof LinearLayout.LayoutParams) {
-                LinearLayout.LayoutParams row = (LinearLayout.LayoutParams) params;
-                row.width = 0;
-                row.weight = 1;
-                mTime.setLayoutParams(row);
-            }
-            setSpaceWeight(0f);
+            // back to the time's own see-through pill (it hugs its words too)
+            mTime.setBackgroundResource(R.drawable.phone_time_pill);
+            mTime.setPadding(dp(10), dp(5), dp(10), dp(5));
         }
         String time = duration > 0 ? formatTime(position) + " / " + formatTime(duration) : formatTime(position);
         String chapter = mChapters.titleAt(position);

@@ -1,0 +1,4 @@
+<!-- The YouTube app's round, see-through backs of the buttons on the video -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#4D000000"/>
+</shape>
