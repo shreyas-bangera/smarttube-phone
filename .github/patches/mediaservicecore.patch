@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..bb2bcd1
+index 0000000..a940807
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,644 @@
+@@ -0,0 +1,651 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -261,10 +261,14 @@ index 0000000..bb2bcd1
 +            addProperty("requestType", "ACCOUNTS_LIST_REQUEST_TYPE_CHANNEL_SWITCHER")
 +            addProperty("callCircumstance", "SWITCHING_USERS_FULL")
 +        }
++        var raw = ""
 +        val answer = webCall("account/accounts_list", body, false).use { response ->
 +            val text = response.body()?.string() ?: ""
++            raw = text
++            com.liskovsoft.sharedutils.mylogger.Log.d("LiveChatWriter", "accounts_list: " + response.code() + " " + text.take(2000))
 +            if (!response.isSuccessful) {
-+                throw CantChatException("channels: ${response.code()}")
++                val json = try { com.google.gson.JsonParser().parse(text).asJsonObject } catch (e: Exception) { JsonObject() }
++                throw CantChatException("YouTube's channel list: " + apiError(json, response.code()))
 +            }
 +            com.google.gson.JsonParser().parse(text).asJsonObject
 +        }
@@ -277,6 +281,9 @@ index 0000000..bb2bcd1
 +            val pageId = find(item.get("serviceEndpoint"), "pageId")?.asString
 +            val selected = item.get("isSelected")?.asBoolean ?: false
 +            result.add(WebChannel(name, handle, photo, pageId, selected))
++        }
++        if (result.isEmpty()) {
++            throw CantChatException("YouTube's channel list had no channels: " + raw.take(300))
 +        }
 +        return result
 +    }

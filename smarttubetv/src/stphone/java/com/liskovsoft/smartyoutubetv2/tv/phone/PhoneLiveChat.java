@@ -631,15 +631,21 @@ final class PhoneLiveChat {
         void onChannels(List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels);
     }
 
+    /** Why the channel list couldn't be had (shown in the picker), or null */
+    private String mChannelsError;
+
     private void loadChannels(Channels onChannels) {
         WORKER.execute(() -> {
             List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels;
+            String error = null;
             try {
                 channels = com.liskovsoft.youtubeapi.chat.LiveChatWriter.channels();
             } catch (Throwable e) {
                 android.util.Log.d("PhoneLiveChat", "channels: " + e);
+                error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 channels = new ArrayList<>();
             }
+            mChannelsError = error;
             List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> result = channels;
             mMain.post(() -> {
                 if (!mActivity.isFinishing() && !mActivity.isDestroyed()) {
@@ -650,7 +656,17 @@ final class PhoneLiveChat {
     }
 
     /** Chat as: the login's channels, the current one ticked */
-    private void pickChannel(List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels) {
+    private void pickChannel(List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> found) {
+        // Always at least the account's main channel (the list may not have come)
+        List<com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel> channels = new ArrayList<>(found);
+        boolean hasMain = false;
+        for (com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel channel : channels) {
+            hasMain |= channel.pageId == null;
+        }
+        if (!hasMain) {
+            channels.add(0, new com.liskovsoft.youtubeapi.chat.LiveChatWriter.WebChannel(
+                    mActivity.getString(R.string.phone_live_chat_main_channel), null, null, null, false));
+        }
         String[] names = new String[channels.size()];
         String[] page = PhoneChatSignInActivity.readPage(mActivity);
         int checked = -1;
@@ -662,8 +678,9 @@ final class PhoneLiveChat {
                 checked = i;
             }
         }
+        String error = mChannelsError;
         new android.app.AlertDialog.Builder(mActivity)
-                .setTitle(R.string.phone_live_chat_as)
+                .setTitle(error != null ? mActivity.getString(R.string.phone_live_chat_as) + "\n" + error : mActivity.getString(R.string.phone_live_chat_as))
                 .setSingleChoiceItems(names, checked, (dialog, which) -> {
                     chooseChannel(channels.get(which));
                     dialog.dismiss();
