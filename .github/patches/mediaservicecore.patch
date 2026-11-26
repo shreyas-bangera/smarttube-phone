@@ -175,10 +175,10 @@ index ad4bafa..7862a39 100644
  
 diff --git a/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
 new file mode 100644
-index 0000000..f22f35b
+index 0000000..4e23055
 --- /dev/null
 +++ b/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt
-@@ -0,0 +1,225 @@
+@@ -0,0 +1,296 @@
 +package com.liskovsoft.youtubeapi.chat
 +
 +import com.google.gson.Gson
@@ -259,7 +259,20 @@ index 0000000..f22f35b
 +        // Sent as YouTube's Android app (signed in with a token like this app's), the website, then the TV app,
 +        // each with its own User-Agent: the first YouTube takes. All the refusals are kept for the message.
 +        val errors = LinkedHashMap<String, String>()
-+        // First YouTube's public API for live chat (liveChatMessages.insert), with the same sign-in
++        // First as YouTube's website does it (and YouGlideTube, YouTube.js): a bare WEB context with the website's
++        // headers, the sign-in as is; then as the Android app the same way
++        for (client in listOf("WEB", "ANDROID")) {
++            for (params in candidates) {
++                try {
++                    sendClean(client, params, text)
++                    synchronized(mParams) { mParams[chatKey] = params }
++                    return
++                } catch (e: Exception) {
++                    errors["$client clean"] = e.message ?: e.javaClass.simpleName
++                }
++            }
++        }
++        // YouTube's public API for live chat (liveChatMessages.insert), with the same sign-in
 +        try {
 +            sendWithDataApi(videoId, text)
 +            return
@@ -286,6 +299,64 @@ index 0000000..f22f35b
 +    }
 +
 +    private val CLIENTS = listOf(AppClient.ANDROID, AppClient.WEB, AppClient.TV)
++
++    /** send_message with only what YouTube's own clients put in the request (no player fields), and their headers */
++    private fun sendClean(client: String, params: String, text: String) {
++        val web = client == "WEB"
++        val version = if (web) "2.20260710.06.00" else "19.44.38"
++        val agent = if (web) "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
++            else "com.google.android.youtube/19.44.38 (Linux; U; Android 11) gzip"
++        val visitor = com.liskovsoft.youtubeapi.app.AppService.instance().visitorData
++        val clientJson = JsonObject().apply {
++            addProperty("clientName", client)
++            addProperty("clientVersion", version)
++            addProperty("hl", "en")
++            addProperty("gl", "US")
++            visitor?.let { addProperty("visitorData", it) }
++            if (!web) {
++                addProperty("osName", "Android")
++                addProperty("osVersion", "11")
++                addProperty("androidSdkVersion", 30)
++            }
++        }
++        val body = JsonObject().apply {
++            add("context", JsonObject().apply { add("client", clientJson) })
++            add("richMessage", JsonObject().apply {
++                add("textSegments", com.google.gson.JsonArray().apply {
++                    add(JsonObject().apply { addProperty("text", text) })
++                })
++            })
++            addProperty("clientMessageId", UUID.randomUUID().toString())
++            addProperty("params", params)
++        }
++        val request = okhttp3.Request.Builder()
++            .url("https://www.youtube.com/youtubei/v1/live_chat/send_message?prettyPrint=false")
++            .header("User-Agent", agent)
++            .header("X-YouTube-Client-Name", if (web) "1" else "3")
++            .header("X-YouTube-Client-Version", version)
++            .header("X-Goog-Api-Format-Version", "1")
++            .apply {
++                if (web) {
++                    header("X-Origin", "https://www.youtube.com")
++                    header("Origin", "https://www.youtube.com")
++                    header("Referer", "https://www.youtube.com/")
++                }
++                visitor?.let { header("X-Goog-Visitor-Id", it) }
++            }
++            .post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), body.toString()))
++            .build()
++        // The library's client: it adds the sign-in (Authorization) to youtubei requests
++        com.liskovsoft.googlecommon.common.helpers.RetrofitOkHttpHelper.client.newCall(request).execute().use { response ->
++            val answer = response.body()?.string() ?: ""
++            if (!response.isSuccessful) {
++                val json = try { com.google.gson.JsonParser().parse(answer).asJsonObject } catch (e: Exception) { JsonObject() }
++                throw CantChatException(apiError(json, response.code()))
++            }
++            if (answer.contains("runAttestationCommand") && !answer.contains("addChatItemAction")) {
++                throw CantChatException("YouTube asked for a check (attestation)")
++            }
++        }
++    }
 +
 +    /** YouTube Data API v3: the stream's chat id (videos.list), then the message (liveChatMessages.insert) */
 +    private fun sendWithDataApi(videoId: String, text: String) {
