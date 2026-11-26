@@ -626,16 +626,15 @@ final class PhoneLiveChat {
             String error = null;
             try {
                 com.liskovsoft.youtubeapi.chat.LiveChatWriter.send(key, videoId, channelId, text);
-            } catch (com.liskovsoft.youtubeapi.chat.LiveChatWriter.SignInNeededException e) {
-                // The website login expired (or was signed out elsewhere): sign in again
-                mMain.post(() -> {
-                    PhoneChatSignInActivity.signOut(mActivity);
-                    setSignInBox(true);
-                    PhoneChatSignInActivity.open(mActivity);
-                });
-                error = e.getMessage();
-                android.util.Log.d("PhoneLiveChat", "send: " + e);
             } catch (Throwable e) {
+                if (e instanceof com.liskovsoft.youtubeapi.chat.LiveChatWriter.SignInNeededException) {
+                    // The website login expired (or was signed out elsewhere): sign in again
+                    mMain.post(() -> {
+                        PhoneChatSignInActivity.signOut(mActivity);
+                        setSignInBox(true);
+                        PhoneChatSignInActivity.open(mActivity);
+                    });
+                }
                 error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 android.util.Log.d("PhoneLiveChat", "send: " + e);
             }
