@@ -56,7 +56,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:fontFamily="@font/roboto_medium"
+                android:fontFamily="sans-serif-medium"
                 android:singleLine="true"
                 android:text="@string/phone_more"
                 android:textColor="@color/phone_text"
@@ -140,7 +140,7 @@
                 android:id="@+id/phone_player_comments_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/roboto_medium"
+                android:fontFamily="sans-serif-medium"
                 android:text="@string/phone_comments"
                 android:textColor="@color/phone_text"
                 android:textSize="14sp" />

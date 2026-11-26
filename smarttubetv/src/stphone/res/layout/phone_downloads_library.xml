@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:accessibilityHeading="true"
-            android:fontFamily="@font/roboto_medium"
+            android:fontFamily="sans-serif-medium"
             android:text="@string/phone_downloads"
             android:textColor="@color/phone_text"
             android:textSize="24sp" />

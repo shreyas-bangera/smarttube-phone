@@ -14,7 +14,7 @@
             android:importantForAccessibility="no" android:src="@drawable/ic_phone_play" android:tint="@color/phone_accent" />
         <TextView android:id="@id/phone_moment_time"
             android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp"
-            android:fontFamily="@font/roboto_medium" android:fontFeatureSettings="tnum"
+            android:fontFamily="sans-serif-medium" android:fontFeatureSettings="tnum"
             android:importantForAccessibility="no" android:textSize="14sp" android:textColor="@color/phone_text" />
         <FrameLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:layout_marginStart="12dp" android:paddingTop="8dp" android:paddingBottom="8dp">

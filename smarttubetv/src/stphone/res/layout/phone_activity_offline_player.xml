@@ -22,7 +22,7 @@
             <TextView android:id="@+id/phone_offline_title"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textColor="@color/phone_text" android:textSize="22sp"
-                android:fontFamily="@font/roboto_medium" />
+                android:fontFamily="sans-serif-medium" />
             <TextView android:id="@+id/phone_offline_author"
                 android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
                 android:textColor="@color/phone_text" android:textSize="15sp" />
@@ -34,7 +34,7 @@
                 android:orientation="vertical" android:padding="16dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="@string/phone_offline_description" android:textColor="@color/phone_text"
-                    android:textSize="16sp" android:fontFamily="@font/roboto_medium" />
+                    android:textSize="16sp" android:fontFamily="sans-serif-medium" />
                 <TextView android:id="@+id/phone_offline_description"
                     android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
                     android:textColor="@color/phone_text_2" android:textSize="14sp" android:lineSpacingExtra="3dp"

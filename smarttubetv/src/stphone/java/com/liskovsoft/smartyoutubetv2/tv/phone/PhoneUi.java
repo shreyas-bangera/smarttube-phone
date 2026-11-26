@@ -165,7 +165,7 @@ final class PhoneUi {
             context = sApp;
         }
         if (sRegular == null && context != null) {
-            sRegular = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_regular);
+            sRegular = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL); // the phone's own font, as the YouTube app
         }
         return sRegular;
     }
@@ -175,7 +175,7 @@ final class PhoneUi {
             context = sApp;
         }
         if (sMedium == null && context != null) {
-            sMedium = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.roboto_medium);
+            sMedium = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL);
         }
         return sMedium;
     }

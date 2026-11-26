@@ -19,7 +19,7 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="8dp"
         android:background="@drawable/phone_badge_bg"
-        android:fontFamily="@font/roboto_medium"
+        android:fontFamily="sans-serif-medium"
         android:paddingStart="5dp"
         android:paddingTop="1dp"
         android:paddingEnd="5dp"
