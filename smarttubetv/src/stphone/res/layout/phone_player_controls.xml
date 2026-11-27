@@ -57,6 +57,17 @@
             android:tint="#FFFFFF"
             android:visibility="gone" />
 
+        <!-- Search inside the video: what's said in it (PhoneVideoSearch) -->
+        <ImageView
+            android:id="@+id/phone_ctl_search"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/phone_find"
+            android:src="@drawable/ic_phone_search"
+            android:tint="#FFFFFF" />
+
         <!-- Cast: play on a TV (PhoneCast) -->
         <ImageView
             android:id="@+id/phone_ctl_cast"

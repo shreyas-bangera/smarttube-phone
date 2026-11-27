@@ -345,4 +345,19 @@
     <string name="phone_bell_all_about">Setiap muat naik baharu, termasuk Shorts</string>
     <string name="phone_bell_personalized_about">Video baharu dan siaran langsung, tanpa Shorts</string>
     <string name="phone_bell_none_about">Tiada pemberitahuan daripada saluran ini</string>
+    <string name="phone_find">Cari dalam video</string>
+    <string name="phone_find_hint">Cari apa yang disebut dalam video ini</string>
+    <string name="phone_find_clear">Kosongkan</string>
+    <string name="phone_find_loading">Memuatkan apa yang disebut…</string>
+    <string name="phone_find_no_captions">Video ini tiada sari kata untuk dicari</string>
+    <string name="phone_find_transcript">Transkrip · ketik baris untuk main dari situ</string>
+    <string name="phone_find_none">Tiada yang sepadan. Cuba perkataan lain.</string>
+    <string name="phone_find_position">%1$d daripada %2$d</string>
+    <string name="phone_find_previous">Padanan sebelumnya</string>
+    <string name="phone_find_next">Padanan seterusnya</string>
+    <string name="phone_find_end">Tamatkan carian</string>
+    <plurals name="phone_find_count">
+        <item quantity="one">%d detik dalam apa yang disebut</item>
+        <item quantity="other">%d detik dalam apa yang disebut</item>
+    </plurals>
 </resources>

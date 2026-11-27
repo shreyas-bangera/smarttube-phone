@@ -85,6 +85,9 @@ final class PhoneChapters {
         private final float mGap;
         private final float mHeight;
         private float[] mMarks = new float[0];
+        /** Search inside the video: a yellow tick at each match */
+        private float[] mTicks = new float[0];
+        private final Paint mTickPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         /** gap: how wide each cut is; height: how tall (a little more than the line); color: what's behind */
         Gaps(float gap, float height, int color) {
@@ -98,16 +101,26 @@ final class PhoneChapters {
             invalidateSelf();
         }
 
+        void setTicks(float[] ticks) {
+            mTicks = ticks != null ? ticks : new float[0];
+            mTickPaint.setColor(0xFFFFD54A);
+            invalidateSelf();
+        }
+
         @Override
         public void draw(@NonNull Canvas canvas) {
-            if (mMarks.length == 0) {
-                return;
-            }
             Rect b = getBounds();
             float cy = b.exactCenterY();
             for (float mark : mMarks) {
                 float x = b.left + b.width() * mark;
                 canvas.drawRect(x - mGap / 2f, cy - mHeight / 2f, x + mGap / 2f, cy + mHeight / 2f, mPaint);
+            }
+            // match ticks: a little wider and taller than the line, rounded
+            float w = Math.max(2f, mGap * 1.2f);
+            float h = mHeight * 1.6f;
+            for (float tick : mTicks) {
+                float x = b.left + b.width() * tick;
+                canvas.drawRoundRect(x - w / 2f, cy - h / 2f, x + w / 2f, cy + h / 2f, w / 2f, w / 2f, mTickPaint);
             }
         }
 

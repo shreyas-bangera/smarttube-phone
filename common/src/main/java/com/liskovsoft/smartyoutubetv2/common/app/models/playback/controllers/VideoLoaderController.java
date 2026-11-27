@@ -285,11 +285,26 @@ public class VideoLoaderController extends BasePlayerController {
                            });
     }
 
+    /** Phone UI: the playing video's caption tracks (to search what's said in it) */
+    public interface CaptionsListener {
+        void onCaptions(String videoId, java.util.List<com.liskovsoft.mediaserviceinterfaces.data.MediaSubtitle> subtitles);
+    }
+
+    private static CaptionsListener sCaptionsListener;
+
+    public static void setCaptionsListener(CaptionsListener listener) {
+        sCaptionsListener = listener;
+    }
+
     private void processFormatInfo(MediaItemFormatInfo formatInfo) {
         PlaybackView player = getPlayer();
 
         if (player == null || getVideo() == null) {
             return;
+        }
+
+        if (sCaptionsListener != null) {
+            sCaptionsListener.onCaptions(getVideo().videoId, formatInfo.getSubtitles());
         }
 
         String bgImageUrl = null;

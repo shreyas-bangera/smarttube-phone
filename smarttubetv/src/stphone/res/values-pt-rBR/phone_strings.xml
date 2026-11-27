@@ -352,4 +352,19 @@
     <string name="phone_bell_all_about">Todo envio novo, Shorts também</string>
     <string name="phone_bell_personalized_about">Vídeos novos e transmissões ao vivo, sem Shorts</string>
     <string name="phone_bell_none_about">Nenhuma notificação deste canal</string>
+    <string name="phone_find">Buscar no vídeo</string>
+    <string name="phone_find_hint">Buscar o que é dito neste vídeo</string>
+    <string name="phone_find_clear">Limpar</string>
+    <string name="phone_find_loading">Carregando o que é dito…</string>
+    <string name="phone_find_no_captions">Este vídeo não tem legendas para buscar</string>
+    <string name="phone_find_transcript">Transcrição · toque numa linha para tocar dali</string>
+    <string name="phone_find_none">Nada do que é dito corresponde. Tente outra palavra.</string>
+    <string name="phone_find_position">%1$d de %2$d</string>
+    <string name="phone_find_previous">Resultado anterior</string>
+    <string name="phone_find_next">Próximo resultado</string>
+    <string name="phone_find_end">Encerrar busca</string>
+    <plurals name="phone_find_count">
+        <item quantity="one">%d momento no que é dito</item>
+        <item quantity="other">%d momentos no que é dito</item>
+    </plurals>
 </resources>

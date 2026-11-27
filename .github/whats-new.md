@@ -1,3 +1,4 @@
+- Search inside a video — Tap the search button on the video (or Find in video under it) and type a word: every moment it's said is listed and marked in yellow on the seek bar. Tap one to jump there, then step through them with the arrows.
 - Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install there (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
 - Live chat like YouTube — Live streams show their chat under the video, or beside it in full screen. Once signed in, you can chat, choose which channel you post as, and use emoji.
 - Looks like YouTube — The player, the video details, the comments and the share sheet now match the YouTube app, down to your phone's own font. The title sits on one line, followed by small icons for like, dislike, share, save and download, and a comments card with the top comment.

@@ -376,4 +376,19 @@
     <string name="phone_bell_all_about">Every new upload, Shorts too</string>
     <string name="phone_bell_personalized_about">New videos and live streams, no Shorts</string>
     <string name="phone_bell_none_about">No notifications from this channel</string>
+    <string name="phone_find">Find in video</string>
+    <string name="phone_find_hint">Search what\'s said in this video</string>
+    <string name="phone_find_clear">Clear</string>
+    <string name="phone_find_loading">Loading what\'s said…</string>
+    <string name="phone_find_no_captions">This video has no captions to search</string>
+    <string name="phone_find_transcript">Transcript · tap a line to play from there</string>
+    <string name="phone_find_none">Nothing said matches. Try another word.</string>
+    <string name="phone_find_position">%1$d of %2$d</string>
+    <string name="phone_find_previous">Previous match</string>
+    <string name="phone_find_next">Next match</string>
+    <string name="phone_find_end">End search</string>
+    <plurals name="phone_find_count">
+        <item quantity="one">%d moment in what\'s said</item>
+        <item quantity="other">%d moments in what\'s said</item>
+    </plurals>
 </resources>

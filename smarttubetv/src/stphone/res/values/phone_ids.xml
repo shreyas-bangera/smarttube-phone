@@ -8,4 +8,6 @@
     <item name="phone_music_shuffle" type="id"/>
     <item name="phone_action_listen" type="id"/>
     <item name="phone_music_search_button" type="id"/>
+    <!-- Search inside the video, in the row under the title -->
+    <item name="phone_action_find" type="id"/>
 </resources>

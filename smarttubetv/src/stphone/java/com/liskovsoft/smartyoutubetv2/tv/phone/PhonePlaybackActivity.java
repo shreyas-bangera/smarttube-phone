@@ -146,6 +146,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             if (mPlaylistPanel != null) {
                 mPlaylistPanel.tick();
             }
+            videoSearchTick();
             sleepTick();
             keepDetailsClearOfBar();
             // A Short's picture is still over the video: look often, so the video shows the moment it plays
@@ -526,8 +527,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             sInstance = null;
         }
         if (sInstance == null) {
-            // no newer player took the comments over
+            // no newer player took the comments (and the captions) over
             com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(null);
+            com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController.setCaptionsListener(null);
         }
         RxHelper_dispose();
         mHandler.removeCallbacks(mBackgroundTicker);
@@ -588,6 +590,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public void onBackPressed() {
         if (mMusicPlayer != null && mMusicPlayer.onBack()) {
             return; // the full lyrics close first
+        }
+        if (mVideoSearch != null && mVideoSearch.onBack()) {
+            return; // the search inside the video closes first
         }
         if (mPlaylistPanel != null && mPlaylistPanel.isOpen()) {
             mPlaylistPanel.close(true); // the playlist panel closes first, as the YouTube app
@@ -947,6 +952,86 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
      * the next); the regular player would show it as a thin strip, and sideways in full screen. Known once the video
      * plays (its picture's shape), then remembered, so it opens in the Shorts player straight away next time.
      */
+    // region Search inside the video (PhoneVideoSearch)
+
+    private PhoneVideoSearch mVideoSearch;
+
+    private void openVideoSearch() {
+        Video video = currentVideo();
+        if (mVideoSearch == null || video == null || video.isLive || mShortsMode) {
+            return;
+        }
+        showPhoneControls(false);
+        if (!mPortrait) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); // the results need room under the video
+            mHandler.postDelayed(() -> mVideoSearch.open(), 350);
+            return;
+        }
+        mVideoSearch.open();
+    }
+
+    /** Only in the portrait player: anything else (full screen, mini player, Shorts) ends the search on screen */
+    private void videoSearchTick() {
+        if (mVideoSearch == null) {
+            return;
+        }
+        if ((mVideoSearch.isOpen() || mVideoSearch.isBarShown())
+                && (!mPortrait || mShortsMode || mMinimized || mMinimizing || isPip())) {
+            mVideoSearch.end();
+            return;
+        }
+        mVideoSearch.tick();
+    }
+
+    private PhoneVideoSearch.Host videoSearchHost() {
+        return new PhoneVideoSearch.Host() {
+            @Override
+            public Video current() {
+                return currentVideo();
+            }
+
+            @Override
+            public long positionMs() {
+                return mPlayer != null ? mPlayer.getPositionMs() : 0;
+            }
+
+            @Override
+            public long durationMs() {
+                return mPlayer != null ? mPlayer.getDurationMs() : 0;
+            }
+
+            @Override
+            public void seekTo(long ms) {
+                if (mPlayer != null) {
+                    mPlayer.setPositionMs(ms);
+                    mPlayer.setPlayWhenReady(true);
+                    updateProgress();
+                    updatePlayButton();
+                }
+            }
+
+            @Override
+            public View videoBox() {
+                return mVideoBox;
+            }
+
+            @Override
+            public int navInset() {
+                return mNavInset;
+            }
+
+            @Override
+            public void setTicks(float[] ticks) {
+                if (mSeekGaps != null) {
+                    mSeekGaps.setTicks(ticks);
+                    mLineGaps.setTicks(ticks);
+                }
+            }
+        };
+    }
+
+    // endregion
+
     // region Playlist: its bar at the bottom and its panel (PhonePlaylistPanel)
 
     private PhonePlaylistPanel mPlaylistPanel;
@@ -2844,6 +2929,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         findViewById(R.id.phone_ctl_speed).setOnClickListener(v -> openSpeedMenu());
         findViewById(R.id.phone_ctl_autoplay).setOnClickListener(v -> toggleAutoplay());
         findViewById(R.id.phone_ctl_cast).setOnClickListener(v -> openCast());
+        findViewById(R.id.phone_ctl_search).setOnClickListener(v -> openVideoSearch());
         // Same list as SmartTube's playback mode button: play next, pause, repeat, shuffle, play the list, close
         findViewById(R.id.phone_ctl_mode).setOnClickListener(v ->
                 presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat)));
@@ -4599,12 +4685,17 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
         addRating(actions);
         addAction(actions, R.id.action_share, R.drawable.ic_phone_share_arrow, getString(R.string.phone_share));
+        addAction(actions, R.id.phone_action_find, R.drawable.ic_phone_search, getString(R.string.phone_find));
         addAction(actions, R.id.action_playlist_add, R.drawable.ic_phone_save, getString(R.string.phone_save));
         addAction(actions, R.id.phone_action_download, R.drawable.ic_phone_download, getString(R.string.phone_download));
         // Listen: this video (and the next ones) in the music player
         addAction(actions, R.id.phone_action_listen, R.drawable.ic_phone_headphones, getString(R.string.phone_music_listen));
 
         mPlaylistPanel = new PhonePlaylistPanel(this, playlistHost());
+        mVideoSearch = new PhoneVideoSearch(this, videoSearchHost());
+        // The video's caption tracks: what "Find in video" searches
+        com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController.setCaptionsListener(
+                (videoId, subtitles) -> runOnUiThread(() -> PhoneTranscript.setTracks(videoId, subtitles)));
 
         // The comments card under the buttons opens the comments (the live chat for a live stream)
         View comments = mHeader.findViewById(R.id.phone_player_comments);
@@ -4721,6 +4812,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         pill.setOnClickListener(v -> {
             if (buttonId == R.id.action_share) {
                 shareCurrent();
+            } else if (buttonId == R.id.phone_action_find) {
+                openVideoSearch();
             } else if (buttonId == R.id.phone_action_download) {
                 PhoneDownloads.showOptions(this, currentVideo());
             } else if (buttonId == R.id.phone_action_listen) {
@@ -5055,6 +5148,9 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         syncMusicPlayer();
         if (mPlaylistPanel != null) {
             mPlaylistPanel.onVideo(video);
+        }
+        if (mVideoSearch != null) {
+            mVideoSearch.onVideo(video);
         }
         refreshDetails();
         if (mShortsMode) {
