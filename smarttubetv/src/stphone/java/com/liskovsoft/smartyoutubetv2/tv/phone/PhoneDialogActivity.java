@@ -382,6 +382,10 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
                     continue;
                 }
                 OptionItem first = category.options.get(0);
+                if (PhoneTvOnly.isCategory(this, category.title) || PhoneTvOnly.isCategory(this, first.getTitle())
+                        || PhoneTvOnly.isOption(this, first.getTitle())) {
+                    continue; // only does something on a TV (PhoneTvOnly)
+                }
                 switch (category.type) {
                     case OptionCategory.TYPE_SINGLE_BUTTON:
                         rows.add(new Row(ROW_BUTTON, first.getTitle(), first.getDescription(), first, category, false));
@@ -415,6 +419,9 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
     private Page categoryPage(OptionCategory category, CharSequence title) {
         List<Row> rows = new ArrayList<>();
         for (OptionItem item : category.options) {
+            if (category.type != OptionCategory.TYPE_RADIO_LIST && item != null && PhoneTvOnly.isOption(this, item.getTitle())) {
+                continue; // a TV-only option in a list of options
+            }
             switch (category.type) {
                 case OptionCategory.TYPE_RADIO_LIST:
                     rows.add(new Row(ROW_RADIO, item.getTitle(), item.getDescription(), item, category, item.isSelected()));

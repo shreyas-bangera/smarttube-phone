@@ -91,6 +91,54 @@ final class PhoneNewVideos {
         return prefs(context).getBoolean(KEY_ENABLED, true);
     }
 
+    // region Each channel's bell, as the YouTube app: All (Shorts too), Personalised (videos and live: the default), None
+
+    static final int BELL_NONE = 0;
+    static final int BELL_PERSONALIZED = 1;
+    static final int BELL_ALL = 2;
+    private static final String KEY_MUTED = "muted_channels";
+    private static final String KEY_ALL = "all_channels";
+
+    static int bell(Context context, String channelId) {
+        if (TextUtils.isEmpty(channelId)) {
+            return BELL_PERSONALIZED;
+        }
+        if (set(context, KEY_MUTED).contains(channelId)) {
+            return BELL_NONE;
+        }
+        return set(context, KEY_ALL).contains(channelId) ? BELL_ALL : BELL_PERSONALIZED;
+    }
+
+    static boolean isBellOn(Context context, String channelId) {
+        return bell(context, channelId) != BELL_NONE;
+    }
+
+    static void setBell(Context context, String channelId, boolean on) {
+        setBell(context, channelId, on ? BELL_PERSONALIZED : BELL_NONE);
+    }
+
+    static void setBell(Context context, String channelId, int level) {
+        if (TextUtils.isEmpty(channelId)) {
+            return;
+        }
+        Set<String> muted = set(context, KEY_MUTED);
+        Set<String> all = set(context, KEY_ALL);
+        muted.remove(channelId);
+        all.remove(channelId);
+        if (level == BELL_NONE) {
+            muted.add(channelId);
+        } else if (level == BELL_ALL) {
+            all.add(channelId);
+        }
+        prefs(context).edit().putStringSet(KEY_MUTED, muted).putStringSet(KEY_ALL, all).apply();
+    }
+
+    private static Set<String> set(Context context, String key) {
+        return new java.util.HashSet<>(prefs(context).getStringSet(key, java.util.Collections.emptySet()));
+    }
+
+    // endregion
+
     static void setEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
         schedule(context);
@@ -194,7 +242,9 @@ final class PhoneNewVideos {
             // since the last look (a channel subscribed to meanwhile doesn't bring its older videos).
             long published = item.getPublishedDate();
             boolean recent = published <= 0 || (published > lastCheck - RECENT_MARGIN_MS && published > now - MAX_AGE_MS);
-            if (!seen.contains(id) && recent && !item.isShorts() && !item.isUpcoming()) {
+            // (a channel whose bell is on All brings its Shorts too)
+            boolean shortOk = !item.isShorts() || bell(app, item.getChannelId()) == BELL_ALL;
+            if (!seen.contains(id) && recent && shortOk && !item.isUpcoming()) {
                 fresh.add(Video.from(item));
             }
         }
@@ -230,7 +280,17 @@ final class PhoneNewVideos {
         } catch (Exception e) {
             Log.e(TAG, "store: " + e);
         }
-        post(app, fresh);
+        // Phone notifications only for the channels whose bell is on (all of them shown on the Notifications tab)
+        List<Video> ringing = new ArrayList<>();
+        for (Video video : fresh) {
+            if (isBellOn(app, video.channelId)) {
+                ringing.add(video);
+            }
+        }
+        Log.d(TAG, "notified: " + ringing.size() + " of " + fresh.size());
+        if (!ringing.isEmpty()) {
+            post(app, ringing);
+        }
         return fresh.size();
     }
 

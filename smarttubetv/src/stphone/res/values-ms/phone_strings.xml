@@ -320,4 +320,24 @@
     <string name="phone_playlist_mix">Campuran</string>
     <string name="phone_playlist_next">Seterusnya: %s</string>
     <string name="phone_playlist_mix_about">Campuran ialah senarai main yang dibuat oleh YouTube untuk anda</string>
+    <string name="phone_notifications_allow">Benarkan pemberitahuan</string>
+    <string name="phone_channel_notifications">Pemberitahuan saluran</string>
+    <string name="phone_channel_notifications_summary">Pilih saluran yang memberitahu anda</string>
+    <string name="phone_settings_content">Kandungan</string>
+    <string name="phone_debug_log_summary">Untuk laporan pepijat</string>
+    <string name="phone_bell_title">Pemberitahuan</string>
+    <string name="phone_bell_about">Pilih kekerapan anda mahu diberitahu apabila saluran ini memuat naik kandungan baharu.</string>
+    <string name="phone_bell_all">Semua</string>
+    <string name="phone_bell_personalized">Diperibadikan</string>
+    <string name="phone_bell_none">Tiada</string>
+    <string name="phone_unsubscribe">Nyahlanggan</string>
+    <string name="phone_bells_sign_in">Log masuk untuk memilih saluran yang memberitahu anda</string>
+    <string name="phone_bells_about">Matikan saluran untuk menghentikan pemberitahuannya. Video baharunya masih dipaparkan di tab Pemberitahuan.</string>
+    <string name="phone_bells_none">Tiada langganan ditemui</string>
+    <string name="phone_saved_playlists">Senarai main disimpan</string>
+    <string name="phone_saved_playlists_none">Belum ada senarai main disimpan</string>
+    <plurals name="phone_saved_playlists_count">
+        <item quantity="one">%d senarai main</item>
+        <item quantity="other">%d senarai main</item>
+    </plurals>
 </resources>

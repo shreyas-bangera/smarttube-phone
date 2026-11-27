@@ -1,3 +1,6 @@
+- Channel notifications like YouTube — Once subscribed, the button becomes a bell: All (Shorts too), Personalised or None for each channel. Manage them all in Settings › Notifications › Channel notifications.
+- Saved playlists folder — Playlists you saved from other channels are now in one Saved playlists folder on the You tab; your own playlists stay on the page.
+- Tidier Settings — TV-only options are gone and everything is grouped: Account, Appearance, Playback, Notifications, Content, General and About.
 - Mini player inside the app — Swipe a video down or press Back and it keeps playing in a small player while you browse, on every Android version. Tap another video and it plays straight away.
 - Sleep timer — In the player's settings (the gear), pick 10 minutes to 2 hours or the end of the video; the time left shows at the bottom and the video pauses by itself.
 - Playlists like YouTube — A playing playlist or mix shows what's next in a bar at the bottom; tap it for the whole list, with repeat and shuffle. Playlists and mixes in the feeds look like a stack.

@@ -161,6 +161,12 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
+        <!-- You > Saved playlists -->
+        <activity
+            android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneSavedPlaylistsActivity"
+            android:exported="false"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:screenOrientation="portrait" />
         <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.phone.PhoneMomentsActivity"
             android:exported="false"

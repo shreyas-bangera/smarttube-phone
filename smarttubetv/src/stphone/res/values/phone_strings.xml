@@ -351,4 +351,24 @@
     <string name="phone_playlist_mix">Mix</string>
     <string name="phone_playlist_next">Next: %s</string>
     <string name="phone_playlist_mix_about">Mixes are playlists that YouTube makes for you</string>
+    <string name="phone_notifications_allow">Allow notifications</string>
+    <string name="phone_channel_notifications">Channel notifications</string>
+    <string name="phone_channel_notifications_summary">Choose which channels notify you</string>
+    <string name="phone_settings_content">Content</string>
+    <string name="phone_debug_log_summary">For bug reports</string>
+    <string name="phone_bell_title">Notifications</string>
+    <string name="phone_bell_about">Choose how often you want to be notified when this channel uploads new content.</string>
+    <string name="phone_bell_all">All</string>
+    <string name="phone_bell_personalized">Personalised</string>
+    <string name="phone_bell_none">None</string>
+    <string name="phone_unsubscribe">Unsubscribe</string>
+    <string name="phone_bells_sign_in">Sign in to choose which channels notify you</string>
+    <string name="phone_bells_about">Turn a channel off to stop its notifications. Its new videos still show on the Notifications tab.</string>
+    <string name="phone_bells_none">No subscriptions found</string>
+    <string name="phone_saved_playlists">Saved playlists</string>
+    <string name="phone_saved_playlists_none">No saved playlists yet</string>
+    <plurals name="phone_saved_playlists_count">
+        <item quantity="one">%d playlist</item>
+        <item quantity="other">%d playlists</item>
+    </plurals>
 </resources>

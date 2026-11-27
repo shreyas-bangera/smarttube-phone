@@ -60,7 +60,7 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
         mTabsView = mHeader.findViewById(R.id.phone_channel_tabs);
         ((com.liskovsoft.smartyoutubetv2.tv.phone.widget.RatioFrameLayout) mHeader.findViewById(R.id.phone_channel_banner_frame))
                 .setHeightToWidth(1f / 4f);
-        mHeader.findViewById(R.id.phone_channel_subscribe).setOnClickListener(v -> toggleSubscribe());
+        mHeader.findViewById(R.id.phone_channel_subscribe).setOnClickListener(v -> onSubscribeClicked());
         mHeader.findViewById(R.id.phone_channel_description).setOnClickListener(v -> {
             mDescriptionExpanded = !mDescriptionExpanded;
             ((TextView) v).setMaxLines(mDescriptionExpanded ? 100 : 2);
@@ -269,11 +269,30 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
         }), error -> { /* keep the default Subscribe button */ });
     }
 
-    private void toggleSubscribe() {
+    private String channelId() {
         String channelId = mPresenter != null ? mPresenter.getChannelId() : null;
         if (channelId == null && getChannel() != null) {
             channelId = getChannel().channelId;
         }
+        return channelId;
+    }
+
+    /** Subscribed: the YouTube app's sheet (notifications All / None, Unsubscribe); otherwise subscribes */
+    private void onSubscribeClicked() {
+        String channelId = channelId();
+        if (channelId == null) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(mSubscribed)) {
+            toggleSubscribe();
+            return;
+        }
+        PhoneBellSheet.show(this, channelId, this::renderSubscribe, this::toggleSubscribe);
+    }
+
+
+    private void toggleSubscribe() {
+        String channelId = channelId();
         if (channelId == null) {
             return;
         }
@@ -292,6 +311,23 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
         subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
         subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
         subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
+        // Subscribed: the bell (this channel's notifications) and a ▾ for the choices, as the YouTube app
+        if (subscribed) {
+            int bell = PhoneNewVideos.bell(this, channelId());
+            int size = Math.round(18 * getResources().getDisplayMetrics().density);
+            android.graphics.drawable.Drawable start = getResources().getDrawable(PhoneBellSheet.icon(bell)).mutate();
+            android.graphics.drawable.Drawable end = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            int tint = getResources().getColor(R.color.phone_text);
+            start.setTint(tint);
+            end.setTint(tint);
+            start.setBounds(0, 0, size, size);
+            end.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(start, null, end, null);
+            subscribe.setCompoundDrawablePadding(Math.round(8 * getResources().getDisplayMetrics().density));
+            subscribe.setGravity(android.view.Gravity.CENTER);
+        } else {
+            subscribe.setCompoundDrawablesRelative(null, null, null, null);
+        }
     }
 
     // endregion
