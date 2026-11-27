@@ -169,6 +169,11 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState); // inflates the phone fragment_playback layout (TV player keeps TV density)
         sInstance = new java.lang.ref.WeakReference<>(this);
+        if (savedInstanceState != null && presenter().getVideo() == null) {
+            // Android brought the player back by itself (after an app update, or after it closed the app in the
+            // background) without its video: Home instead of an empty player
+            mHandler.post(this::closeEmptyPlayer);
+        }
         registerPipReceiver();
         PhoneTheme.apply(this); // details panel follows the Appearance setting
         PhoneUi.applyPhoneDensity(this); // phone views use the phone's real density
@@ -375,9 +380,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         applyLayoutMode();
     }
 
+    /** The player with nothing to play: closed, Home shows (opened if the player was all that was left) */
+    private void closeEmptyPlayer() {
+        if (isFinishing() || isDestroyed() || currentVideo() != null) {
+            return;
+        }
+        android.util.Log.d("PhonePip", "player without a video: closed");
+        if (isTaskRoot()) {
+            startActivity(new android.content.Intent(this, PhoneBrowseActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION));
+        }
+        finish();
+        overridePendingTransition(0, 0);
+    }
+
+    /** Still nothing to play a while after the player came to the front (it was restored, not opened): closed */
+    private final Runnable mEmptyCheck = this::closeEmptyPlayer;
+
     @Override
     protected void onResume() {
         super.onResume();
+        mHandler.removeCallbacks(mEmptyCheck);
+        if (currentVideo() == null) {
+            mHandler.postDelayed(mEmptyCheck, 3000);
+        }
         mResumed = true;
         mPipEnterPending = false;
         mAppLeaving = false;
@@ -4558,7 +4584,15 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         };
         mHeader.findViewById(R.id.phone_player_title).setOnClickListener(expand);
         mHeader.findViewById(R.id.phone_player_meta_row).setOnClickListener(expand);
-        mHeader.findViewById(R.id.phone_player_subscribe).setOnClickListener(v -> clickButton(R.id.action_subscribe));
+        mHeader.findViewById(R.id.phone_player_subscribe).setOnClickListener(v -> {
+            Video video = currentVideo();
+            if (getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON && video != null && video.channelId != null) {
+                // Subscribed: the bell's choices (All / Personalised / None, Unsubscribe), as the YouTube app
+                PhoneBellSheet.show(this, video.channelId, this::refreshDetails, () -> clickButton(R.id.action_subscribe));
+            } else {
+                clickButton(R.id.action_subscribe);
+            }
+        });
 
         // As the YouTube app: the channel's picture, Subscribe, like | dislike, then the actions as icons, the most
         // used first. Speed and quality are in the player's gear.
@@ -4874,8 +4908,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         avatar.setOnClickListener(v -> clickButton(R.id.action_channel));
 
         boolean subscribed = getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
-        subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
+        // Subscribed: the pill turns into the channel's bell and a ▾ (no words), as the YouTube app
+        if (subscribed) {
+            subscribe.setText(null);
+            int size = dp(20);
+            android.graphics.drawable.Drawable bell = getResources().getDrawable(
+                    PhoneBellSheet.icon(PhoneNewVideos.bell(this, video.channelId))).mutate();
+            android.graphics.drawable.Drawable chevron = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            bell.setTint(getResources().getColor(R.color.phone_text));
+            chevron.setTint(getResources().getColor(R.color.phone_text));
+            bell.setBounds(0, 0, size, size);
+            chevron.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(bell, null, chevron, null);
+            subscribe.setCompoundDrawablePadding(dp(4));
+            subscribe.setContentDescription(getString(R.string.phone_bell_title));
+        } else {
+            subscribe.setText(R.string.phone_subscribe);
+            subscribe.setCompoundDrawablesRelative(null, null, null, null);
+            subscribe.setContentDescription(null);
+        }
+        if (subscribed) {
+            subscribe.setBackground(glass(dp(16)));
+        } else {
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+        }
         subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);

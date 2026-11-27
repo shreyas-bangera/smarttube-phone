@@ -197,14 +197,42 @@ final class PhoneYouDashboard {
                         () -> mCallback.openSection(MediaGroup.TYPE_MY_VIDEOS));
             }
             addPlaylistRow(later, WATCH_LATER, R.string.phone_you_watch_later, R.drawable.ic_phone_history);
+            // The user's own playlists here; those of other channels (saved to the library) in one folder
+            List<Video> saved = new ArrayList<>();
             for (Video playlist : others) {
-                addRow(playlist.getTitle(), subtitle(playlist, null), playlist, R.drawable.ic_phone_library,
-                        () -> mCallback.listener().onVideoClicked(playlist));
+                if (isOwn(playlist)) {
+                    addRow(playlist.getTitle(), subtitle(playlist, null), playlist, R.drawable.ic_phone_library,
+                            () -> mCallback.listener().onVideoClicked(playlist));
+                } else {
+                    saved.add(playlist);
+                }
+            }
+            if (!saved.isEmpty()) {
+                addRow(mActivity.getString(R.string.phone_saved_playlists),
+                        mActivity.getResources().getQuantityString(R.plurals.phone_saved_playlists_count, saved.size(), saved.size()),
+                        saved.get(0), R.drawable.ic_phone_library_added,
+                        () -> PhoneSavedPlaylistsActivity.open(mActivity, saved));
             }
         }
         addRow(mActivity.getString(R.string.phone_moments), null, null, R.drawable.ic_phone_bookmark,
                 () -> mActivity.startActivity(new android.content.Intent(mActivity, PhoneMomentsActivity.class)));
         addRow(mActivity.getString(R.string.phone_downloads), null, null, R.drawable.ic_phone_download, mCallback::openDownloads);
+    }
+
+    /** Made by the user (no other channel named as its owner); a playlist of another channel was saved */
+    private static boolean isOwn(Video playlist) {
+        String author = playlist.getAuthor();
+        if (TextUtils.isEmpty(author)) {
+            return true;
+        }
+        // YouTube shows its privacy (Private / Public / Unlisted) only on the user's own playlists
+        CharSequence line = playlist.getSecondTitle();
+        if (line != null && line.toString().matches("(?is).*\\b(private|public|unlisted)\\b.*")) {
+            return true;
+        }
+        com.liskovsoft.mediaserviceinterfaces.oauth.Account account =
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getSignInService().getSelectedAccount();
+        return account == null || author.equals(account.getName());
     }
 
     private static boolean isPlaylist(Video video, String id) {

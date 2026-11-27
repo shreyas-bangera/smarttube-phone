@@ -60,7 +60,7 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
         mTabsView = mHeader.findViewById(R.id.phone_channel_tabs);
         ((com.liskovsoft.smartyoutubetv2.tv.phone.widget.RatioFrameLayout) mHeader.findViewById(R.id.phone_channel_banner_frame))
                 .setHeightToWidth(1f / 4f);
-        mHeader.findViewById(R.id.phone_channel_subscribe).setOnClickListener(v -> toggleSubscribe());
+        mHeader.findViewById(R.id.phone_channel_subscribe).setOnClickListener(v -> onSubscribeClicked());
         mHeader.findViewById(R.id.phone_channel_description).setOnClickListener(v -> {
             mDescriptionExpanded = !mDescriptionExpanded;
             ((TextView) v).setMaxLines(mDescriptionExpanded ? 100 : 2);
@@ -269,11 +269,30 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
         }), error -> { /* keep the default Subscribe button */ });
     }
 
-    private void toggleSubscribe() {
+    private String channelId() {
         String channelId = mPresenter != null ? mPresenter.getChannelId() : null;
         if (channelId == null && getChannel() != null) {
             channelId = getChannel().channelId;
         }
+        return channelId;
+    }
+
+    /** Subscribed: the YouTube app's sheet (notifications All / None, Unsubscribe); otherwise subscribes */
+    private void onSubscribeClicked() {
+        String channelId = channelId();
+        if (channelId == null) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(mSubscribed)) {
+            toggleSubscribe();
+            return;
+        }
+        PhoneBellSheet.show(this, channelId, this::renderSubscribe, this::toggleSubscribe);
+    }
+
+
+    private void toggleSubscribe() {
+        String channelId = channelId();
         if (channelId == null) {
             return;
         }
@@ -289,10 +308,37 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
     private void renderSubscribe() {
         TextView subscribe = mHeader.findViewById(R.id.phone_channel_subscribe);
         boolean subscribed = Boolean.TRUE.equals(mSubscribed);
-        subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
-        subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
+        android.view.ViewGroup.LayoutParams params = subscribe.getLayoutParams();
+        float density = getResources().getDisplayMetrics().density;
+        if (subscribed) {
+            // Subscribed: just the channel's bell and a ▾ (its notification choices), as the YouTube app
+            subscribe.setText(null);
+            subscribe.setBackgroundResource(R.drawable.phone_pill_bg);
+            int size = Math.round(22 * density);
+            int tint = getResources().getColor(R.color.phone_text);
+            android.graphics.drawable.Drawable bell = getResources().getDrawable(PhoneBellSheet.icon(PhoneNewVideos.bell(this, channelId()))).mutate();
+            android.graphics.drawable.Drawable more = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            bell.setTint(tint);
+            more.setTint(tint);
+            bell.setBounds(0, 0, size, size);
+            more.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(bell, null, more, null);
+            subscribe.setCompoundDrawablePadding(Math.round(4 * density));
+            subscribe.setPadding(Math.round(18 * density), 0, Math.round(14 * density), 0);
+            subscribe.setContentDescription(getString(R.string.phone_bell_title));
+            params.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
+        } else {
+            subscribe.setText(R.string.phone_subscribe);
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+            subscribe.setTextColor(getResources().getColor(R.color.phone_bg));
+            subscribe.setCompoundDrawablesRelative(null, null, null, null);
+            subscribe.setPadding(0, 0, 0, 0);
+            subscribe.setContentDescription(null);
+            params.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+        }
+        subscribe.setLayoutParams(params);
     }
+
 
     // endregion
 

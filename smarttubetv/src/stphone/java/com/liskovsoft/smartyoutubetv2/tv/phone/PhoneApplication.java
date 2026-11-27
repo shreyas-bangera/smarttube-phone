@@ -160,6 +160,7 @@ public class PhoneApplication extends MainApplication {
         viewManager.register(PhoneUpdateActivity.class, PhoneUpdateActivity.class, PhoneBrowseActivity.class);
         viewManager.register(PhoneDownloadsActivity.class, PhoneDownloadsActivity.class, PhoneBrowseActivity.class);
         viewManager.register(PhoneMomentsActivity.class, PhoneMomentsActivity.class, PhoneBrowseActivity.class);
+        viewManager.register(PhoneSavedPlaylistsActivity.class, PhoneSavedPlaylistsActivity.class, PhoneBrowseActivity.class);
         viewManager.register(PhoneCustomizeActivity.class, PhoneCustomizeActivity.class, PhoneBrowseActivity.class);
         viewManager.register(PhoneWhatsNewActivity.class, PhoneWhatsNewActivity.class, PhoneBrowseActivity.class);
         viewManager.register(PhoneNotificationsActivity.class, PhoneNotificationsActivity.class, PhoneBrowseActivity.class);

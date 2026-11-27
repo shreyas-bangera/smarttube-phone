@@ -1614,45 +1614,51 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
 
         items.add(PhoneSetting.header(getString(R.string.phone_settings_playback)));
         addEngineSetting(items, engine, R.string.settings_player);
+        addEngineSetting(items, engine, R.string.subtitle_category_title);
         if (android.os.Build.VERSION.SDK_INT >= 26 && !PhonePip.systemAllows(this)) {
             // Picture in picture is always on in the app; only Android's own switch for the app can stop it
             items.add(PhoneSetting.value(getString(R.string.phone_pip), getString(R.string.phone_pip_blocked),
                     R.drawable.ic_phone_collapse, () -> PhonePip.openSystemSettings(this)));
         }
-        addEngineSetting(items, engine, R.string.subtitle_category_title);
-        addEngineSetting(items, engine, R.string.content_block_provider);
-        addEngineSetting(items, engine, R.string.dearrow_provider);
 
-        items.add(PhoneSetting.header(getString(R.string.phone_settings_general)));
-        addEngineSetting(items, engine, R.string.settings_general);
-        addEngineSetting(items, engine, R.string.settings_search);
-        items.add(PhoneSetting.row(getString(R.string.phone_open_links), R.drawable.ic_phone_link, this::openLinkSettings));
-        items.add(PhoneSetting.value(getString(R.string.phone_notifications),
+        // Notifications: Android's permission, new videos from subscriptions, and each channel's bell
+        items.add(PhoneSetting.header(getString(R.string.phone_notifications)));
+        items.add(PhoneSetting.value(getString(R.string.phone_notifications_allow),
                 getString(PhoneNotifications.isEnabled(this) ? R.string.phone_value_on : R.string.phone_value_off),
                 R.drawable.ic_phone_bell, () -> PhoneNotifications.open(this)));
-
-        items.add(PhoneSetting.toggle(getString(R.string.phone_new_videos), PhoneNewVideos.isEnabled(this), R.drawable.ic_phone_bell, () -> {
+        items.add(PhoneSetting.toggle(getString(R.string.phone_new_videos), PhoneNewVideos.isEnabled(this), R.drawable.ic_phone_subs, () -> {
             PhoneNewVideos.setEnabled(this, !PhoneNewVideos.isEnabled(this));
             refreshSettingsRows();
         }));
+        if (PhoneNewVideos.isEnabled(this)) {
+            items.add(PhoneSetting.row(getString(R.string.phone_channel_notifications), R.drawable.ic_phone_bell_on,
+                    () -> PhoneChannelBells.show(this)).summary(getString(R.string.phone_channel_notifications_summary)));
+        }
 
-        items.add(PhoneSetting.header(getString(R.string.phone_settings_backup)));
+        // What's shown: skipping sponsors, better titles, search
+        items.add(PhoneSetting.header(getString(R.string.phone_settings_content)));
+        addEngineSetting(items, engine, R.string.content_block_provider);
+        addEngineSetting(items, engine, R.string.dearrow_provider);
+        addEngineSetting(items, engine, R.string.settings_search);
+
+        items.add(PhoneSetting.header(getString(R.string.phone_settings_general)));
+        addEngineSetting(items, engine, R.string.settings_general);
+        items.add(PhoneSetting.row(getString(R.string.phone_open_links), R.drawable.ic_phone_link, this::openLinkSettings));
         addEngineSetting(items, engine, R.string.app_backup_restore);
-
-        items.add(PhoneSetting.header(getString(R.string.phone_settings_about)));
-        items.add(PhoneSetting.row(getString(R.string.phone_about_title), R.drawable.ic_phone_info, () -> PhoneAbout.show(this)));
-        items.add(PhoneSetting.row(getString(R.string.phone_debug_log), R.drawable.ic_phone_info, () -> PhoneDebugLog.share(this)));
 
         if (!engine.isEmpty()) {
             items.add(PhoneSetting.header(getString(R.string.phone_settings_more)));
             items.addAll(engine.values());
         }
 
-        // Last: what's new in this version, and the app updating itself
-        items.add(PhoneSetting.header(getString(R.string.phone_settings_updates)));
+        // About: what's new, the app updating itself, the app's details, and the log to send with a bug report
+        items.add(PhoneSetting.header(getString(R.string.phone_settings_about)));
         items.add(PhoneSetting.row(getString(R.string.phone_whats_new), R.drawable.ic_phone_info, () -> PhoneWhatsNewActivity.open(this))
                 .summary(getString(R.string.phone_whats_new_summary)).badge(PhoneWhatsNew.hasUnread(this)));
         items.add(PhoneSetting.row(PhoneUpdater.settingsTitle(this), R.drawable.ic_phone_update, () -> PhoneUpdater.open(this)));
+        items.add(PhoneSetting.row(getString(R.string.phone_about_title), R.drawable.ic_phone_info, () -> PhoneAbout.show(this)));
+        items.add(PhoneSetting.row(getString(R.string.phone_debug_log), R.drawable.ic_phone_send, () -> PhoneDebugLog.share(this))
+                .summary(getString(R.string.phone_debug_log_summary)));
 
         // A heading with no rows under it (its pages are missing in this SmartTube version) is dropped
         for (int i = items.size() - 1; i >= 0; i--) {

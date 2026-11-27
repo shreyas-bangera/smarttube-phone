@@ -327,4 +327,29 @@
     <string name="phone_playlist_mix">Mix</string>
     <string name="phone_playlist_next">A seguir: %s</string>
     <string name="phone_playlist_mix_about">Os mixes são playlists que o YouTube cria para você</string>
+    <string name="phone_notifications_allow">Permitir notificações</string>
+    <string name="phone_channel_notifications">Notificações dos canais</string>
+    <string name="phone_channel_notifications_summary">Escolha quais canais notificam você</string>
+    <string name="phone_settings_content">Conteúdo</string>
+    <string name="phone_debug_log_summary">Para relatar erros</string>
+    <string name="phone_bell_title">Notificações</string>
+    <string name="phone_bell_about">Escolha com que frequência você quer ser notificado quando este canal enviar conteúdo novo.</string>
+    <string name="phone_bell_all">Todas</string>
+    <string name="phone_bell_personalized">Personalizadas</string>
+    <string name="phone_bell_none">Nenhuma</string>
+    <string name="phone_unsubscribe">Cancelar inscrição</string>
+    <string name="phone_bells_sign_in">Faça login para escolher quais canais notificam você</string>
+    <string name="phone_bells_about">Desative um canal para parar as notificações dele. Os vídeos novos continuam na aba Notificações.</string>
+    <string name="phone_bells_none">Nenhuma inscrição encontrada</string>
+    <string name="phone_saved_playlists">Playlists salvas</string>
+    <string name="phone_saved_playlists_none">Nenhuma playlist salva ainda</string>
+    <plurals name="phone_saved_playlists_count">
+        <item quantity="one">%d playlist</item>
+        <item quantity="other">%d playlists</item>
+    </plurals>
+    <string name="phone_open">Abrir</string>
+    <string name="phone_playlist_remove_library">Remover da biblioteca</string>
+    <string name="phone_bell_all_about">Todo envio novo, Shorts também</string>
+    <string name="phone_bell_personalized_about">Vídeos novos e transmissões ao vivo, sem Shorts</string>
+    <string name="phone_bell_none_about">Nenhuma notificação deste canal</string>
 </resources>

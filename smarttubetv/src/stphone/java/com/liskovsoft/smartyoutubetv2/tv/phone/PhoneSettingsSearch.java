@@ -166,7 +166,7 @@ final class PhoneSettingsSearch {
             }
             for (OptionItem option : category.options) {
                 CharSequence title = option != null ? option.getTitle() : null;
-                if (TextUtils.isEmpty(title)) {
+                if (TextUtils.isEmpty(title) || PhoneTvOnly.isOption(mContext, title) || PhoneTvOnly.isCategory(mContext, title)) {
                     continue;
                 }
                 String path = group != null ? page.title + " › " + group : page.title;
