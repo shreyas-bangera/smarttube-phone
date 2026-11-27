@@ -340,4 +340,9 @@
         <item quantity="one">%d senarai main</item>
         <item quantity="other">%d senarai main</item>
     </plurals>
+    <string name="phone_open">Buka</string>
+    <string name="phone_playlist_remove_library">Alih keluar daripada pustaka</string>
+    <string name="phone_bell_all_about">Setiap muat naik baharu, termasuk Shorts</string>
+    <string name="phone_bell_personalized_about">Video baharu dan siaran langsung, tanpa Shorts</string>
+    <string name="phone_bell_none_about">Tiada pemberitahuan daripada saluran ini</string>
 </resources>

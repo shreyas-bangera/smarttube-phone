@@ -57,9 +57,50 @@ public class PhoneSavedPlaylistsActivity extends PhoneListActivity {
         ChannelUploadsPresenter.instance(this).openChannel(video);
     }
 
+    /** Long press or ⋮: open it, or remove it from the library */
     @Override
     public void onVideoLongClicked(Video video) {
-        onVideoClicked(video);
+        PhonePlayerSheet.Sheet sheet = new PhonePlayerSheet.Sheet(this, video.getTitle());
+        sheet.addRow(R.drawable.ic_phone_playlist, getString(R.string.phone_open), null, false, () -> {
+            sheet.dismiss();
+            onVideoClicked(video);
+        });
+        sheet.addRow(R.drawable.ic_phone_delete, getString(R.string.phone_playlist_remove_library), null, false, () -> {
+            sheet.dismiss();
+            new android.app.AlertDialog.Builder(this)
+                    .setMessage(getString(R.string.phone_playlist_remove_ask, video.getTitle()))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.phone_playlist_remove, (d, w) -> remove(video))
+                    .show();
+        });
+        sheet.show();
+    }
+
+    private void remove(Video playlist) {
+        String id = playlist.playlistId;
+        if (id == null) {
+            return;
+        }
+        if (id.startsWith("VL")) {
+            id = id.substring(2);
+        }
+        // Gone at once (back if it fails)
+        sPlaylists.remove(playlist);
+        VideoGroup gone = VideoGroup.from(playlist);
+        gone.setAction(VideoGroup.ACTION_REMOVE);
+        mAdapter.update(gone);
+        if (sPlaylists.isEmpty()) {
+            showMessage(getString(R.string.phone_saved_playlists_none), null, null);
+        }
+        com.liskovsoft.sharedutils.rx.RxHelper.execute(
+                com.liskovsoft.youtubeapi.service.YouTubeServiceManager.instance().getMediaItemService().removePlaylistObserve(id),
+                error -> {
+                    android.widget.Toast.makeText(this, R.string.phone_playlist_save_failed, android.widget.Toast.LENGTH_SHORT).show();
+                    sPlaylists.add(playlist);
+                    hideMessage();
+                    mAdapter.update(VideoGroup.from(playlist));
+                },
+                () -> android.widget.Toast.makeText(this, R.string.phone_playlist_removed, android.widget.Toast.LENGTH_SHORT).show());
     }
 
     @Override

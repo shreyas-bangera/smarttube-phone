@@ -60,9 +60,10 @@ final class PhoneBellSheet {
 
         int[] levels = {PhoneNewVideos.BELL_ALL, PhoneNewVideos.BELL_PERSONALIZED, PhoneNewVideos.BELL_NONE};
         int[] names = {R.string.phone_bell_all, R.string.phone_bell_personalized, R.string.phone_bell_none};
+        int[] abouts = {R.string.phone_bell_all_about, R.string.phone_bell_personalized_about, R.string.phone_bell_none_about};
         for (int i = 0; i < levels.length; i++) {
             int level = levels[i];
-            sheet.addView(row(activity, sheet, icon(level), activity.getString(names[i]), level == current, () -> {
+            sheet.addView(row(activity, sheet, icon(level), activity.getString(names[i]), activity.getString(abouts[i]), level == current, () -> {
                 sheet.dismiss();
                 if (level != current) {
                     PhoneNewVideos.setBell(activity, channelId, level);
@@ -72,7 +73,7 @@ final class PhoneBellSheet {
                 }
             }));
         }
-        sheet.addView(row(activity, sheet, R.drawable.ic_phone_unsubscribe, activity.getString(R.string.phone_unsubscribe), false, () -> {
+        sheet.addView(row(activity, sheet, R.drawable.ic_phone_unsubscribe, activity.getString(R.string.phone_unsubscribe), null, false, () -> {
             sheet.dismiss();
             if (onUnsubscribe != null) {
                 onUnsubscribe.run();
@@ -82,7 +83,8 @@ final class PhoneBellSheet {
     }
 
     /** Icon, name, and a tick on the right when it's the choice */
-    private static View row(Activity activity, PhonePlayerSheet.Sheet sheet, int icon, String text, boolean ticked, Runnable onClick) {
+    private static View row(Activity activity, PhonePlayerSheet.Sheet sheet, int icon, String text, String about, boolean ticked,
+            Runnable onClick) {
         LinearLayout row = new LinearLayout(activity);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(sheet.dp(56));
@@ -102,7 +104,21 @@ final class PhoneBellSheet {
         label.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(17));
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         labelParams.setMarginStart(sheet.dp(32));
-        row.addView(label, labelParams);
+        if (about == null) {
+            row.addView(label, labelParams);
+        } else {
+            // what the choice does, under its name
+            LinearLayout texts = new LinearLayout(activity);
+            texts.setOrientation(LinearLayout.VERTICAL);
+            texts.setPadding(0, sheet.dp(8), sheet.dp(8), sheet.dp(8));
+            texts.addView(label);
+            TextView line = new TextView(activity);
+            line.setText(about);
+            line.setTextColor(color(activity, R.color.phone_text_2));
+            line.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
+            texts.addView(line);
+            row.addView(texts, labelParams);
+        }
 
         if (ticked) {
             ImageView tick = new ImageView(activity);

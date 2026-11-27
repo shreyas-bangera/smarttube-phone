@@ -308,27 +308,37 @@ public class PhoneChannelActivity extends PhoneListActivity implements ChannelVi
     private void renderSubscribe() {
         TextView subscribe = mHeader.findViewById(R.id.phone_channel_subscribe);
         boolean subscribed = Boolean.TRUE.equals(mSubscribed);
-        subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
-        subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
-        // Subscribed: the bell (this channel's notifications) and a ▾ for the choices, as the YouTube app
+        android.view.ViewGroup.LayoutParams params = subscribe.getLayoutParams();
+        float density = getResources().getDisplayMetrics().density;
         if (subscribed) {
-            int bell = PhoneNewVideos.bell(this, channelId());
-            int size = Math.round(18 * getResources().getDisplayMetrics().density);
-            android.graphics.drawable.Drawable start = getResources().getDrawable(PhoneBellSheet.icon(bell)).mutate();
-            android.graphics.drawable.Drawable end = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            // Subscribed: just the channel's bell and a ▾ (its notification choices), as the YouTube app
+            subscribe.setText(null);
+            subscribe.setBackgroundResource(R.drawable.phone_pill_bg);
+            int size = Math.round(22 * density);
             int tint = getResources().getColor(R.color.phone_text);
-            start.setTint(tint);
-            end.setTint(tint);
-            start.setBounds(0, 0, size, size);
-            end.setBounds(0, 0, size, size);
-            subscribe.setCompoundDrawablesRelative(start, null, end, null);
-            subscribe.setCompoundDrawablePadding(Math.round(8 * getResources().getDisplayMetrics().density));
-            subscribe.setGravity(android.view.Gravity.CENTER);
+            android.graphics.drawable.Drawable bell = getResources().getDrawable(PhoneBellSheet.icon(PhoneNewVideos.bell(this, channelId()))).mutate();
+            android.graphics.drawable.Drawable more = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            bell.setTint(tint);
+            more.setTint(tint);
+            bell.setBounds(0, 0, size, size);
+            more.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(bell, null, more, null);
+            subscribe.setCompoundDrawablePadding(Math.round(4 * density));
+            subscribe.setPadding(Math.round(18 * density), 0, Math.round(14 * density), 0);
+            subscribe.setContentDescription(getString(R.string.phone_bell_title));
+            params.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
         } else {
+            subscribe.setText(R.string.phone_subscribe);
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+            subscribe.setTextColor(getResources().getColor(R.color.phone_bg));
             subscribe.setCompoundDrawablesRelative(null, null, null, null);
+            subscribe.setPadding(0, 0, 0, 0);
+            subscribe.setContentDescription(null);
+            params.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
         }
+        subscribe.setLayoutParams(params);
     }
+
 
     // endregion
 

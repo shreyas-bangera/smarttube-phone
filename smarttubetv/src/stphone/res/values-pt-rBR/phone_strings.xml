@@ -347,4 +347,9 @@
         <item quantity="one">%d playlist</item>
         <item quantity="other">%d playlists</item>
     </plurals>
+    <string name="phone_open">Abrir</string>
+    <string name="phone_playlist_remove_library">Remover da biblioteca</string>
+    <string name="phone_bell_all_about">Todo envio novo, Shorts também</string>
+    <string name="phone_bell_personalized_about">Vídeos novos e transmissões ao vivo, sem Shorts</string>
+    <string name="phone_bell_none_about">Nenhuma notificação deste canal</string>
 </resources>
