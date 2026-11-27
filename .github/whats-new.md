@@ -1,14 +1,13 @@
-- Channel notifications like YouTube — Once subscribed, the button becomes a bell: All (Shorts too), Personalised or None for each channel. Manage them all in Settings › Notifications › Channel notifications.
-- Saved playlists folder — Playlists you saved from other channels are now in one Saved playlists folder on the You tab; your own playlists stay on the page.
-- Tidier Settings — TV-only options are gone and everything is grouped: Account, Appearance, Playback, Notifications, Content, General and About.
+- Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install there (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
+- Live chat like YouTube — Live streams show their chat under the video, or beside it in full screen. Once signed in, you can chat, choose which channel you post as, and use emoji.
+- Looks like YouTube — The player, the video details, the comments and the share sheet now match the YouTube app, down to your phone's own font. The title sits on one line, followed by small icons for like, dislike, share, save and download, and a comments card with the top comment.
 - Mini player inside the app — Swipe a video down or press Back and it keeps playing in a small player while you browse, on every Android version. Tap another video and it plays straight away.
-- Sleep timer — In the player's settings (the gear), pick 10 minutes to 2 hours or the end of the video; the time left shows at the bottom and the video pauses by itself.
-- Playlists like YouTube — A playing playlist or mix shows what's next in a bar at the bottom; tap it for the whole list, with repeat and shuffle. Playlists and mixes in the feeds look like a stack.
-- New share sheet — Share opens your apps, Copy link, and can start the link where you are in the video.
-- Video details like YouTube — The title on one line, then the channel's picture, Subscribe, like and dislike and the other actions as small icons, and a comments card with the top comment.
-- Save playlists — Save a playlist to your library from its page or from the playlist panel in the player; saved playlists show up in You › Playlists.
-- Cast to your TV, with no ads — Tap the cast button in the player and pick your TV. It plays on the TV's own player with nothing to install on the TV (Google TV, Android TV, Chromecast and most smart TVs), and your phone is the remote.
-- Shorts in search — Shorts show as tall tiles side by side, like the YouTube app, and open in the Shorts player.
-- Smoother Shorts — Swiping moves the whole video with your finger, even when you swipe fast, and the next Short slides in as real video.
-- Upright videos look right — Long videos filmed upright play in a tall player, and full screen stays upright instead of turning sideways.
-- Live chat like YouTube — Live streams show their chat in a panel under the video, or beside it in full screen, and you can chat when signed in.
+- Channel notifications — Once you subscribe, the button becomes a bell. For each channel, choose All (Shorts too), Personalised or None. You can manage them all in Settings › Notifications.
+- Playlists like YouTube — A playing playlist or mix shows what's next in a bar at the bottom. Tap the bar for the whole list, with repeat, shuffle and Save. Playlists and mixes in your feeds look like a stack.
+- Save playlists — Save any playlist to your library. Saved playlists from other channels have their own folder on the You tab, and you can remove them from there.
+- Sleep timer — In the player's settings (the gear), pick 10 minutes to 2 hours, or the end of the video. The time left shows at the bottom of the screen.
+- Share like YouTube — Share shows your apps and a Copy link button, and the link can start where you are in the video.
+- Shorts in search, and smoother Shorts — Shorts in search results show as tall tiles and open in the Shorts player. Swiping is smooth, even when you swipe fast.
+- Upright videos look right — Long videos filmed upright play in a tall player, and full screen stays upright.
+- Tidier Settings — TV-only options are gone, and everything is grouped: Account, Appearance, Playback, Notifications, Content, General and About.
+- Fixes — Comments no longer get stuck loading. There's no double seekbar, and no empty player screen after an update.
