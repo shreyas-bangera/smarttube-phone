@@ -116,7 +116,8 @@ final class PhoneChapters {
                 canvas.drawRect(x - mGap / 2f, cy - mHeight / 2f, x + mGap / 2f, cy + mHeight / 2f, mPaint);
             }
             // match ticks: a little wider and taller than the line, rounded
-            float w = Math.max(2f, mGap * 1.2f);
+            // many matches: thinner ticks, so they stay ticks instead of running into one band
+            float w = mTicks.length > 40 ? Math.max(1.5f, mGap * 0.5f) : mTicks.length > 15 ? Math.max(1.5f, mGap * 0.8f) : Math.max(2f, mGap * 1.2f);
             float h = mHeight * 1.6f;
             for (float tick : mTicks) {
                 float x = b.left + b.width() * tick;

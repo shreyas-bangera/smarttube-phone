@@ -59,6 +59,9 @@ final class PhoneVideoSearch {
 
         /** Fractions of the video's length to mark on the seek bar, empty for none */
         void setTicks(float[] ticks);
+
+        /** Room at the top of the details for the match bar (0: none), so it covers nothing */
+        void setBarSpace(int px);
     }
 
     private static final int YELLOW = 0xFFFFD54A;
@@ -534,11 +537,13 @@ final class PhoneVideoSearch {
         mBar.setLayoutParams(params);
         bindBar();
         mBar.setVisibility(View.VISIBLE);
+        mHost.setBarSpace(dp(56)); // the details move down under it, as in the YouTube app
     }
 
     private void hideBar() {
-        if (mBar != null) {
+        if (mBar != null && mBar.getVisibility() != View.GONE) {
             mBar.setVisibility(View.GONE);
+            mHost.setBarSpace(0);
         }
     }
 

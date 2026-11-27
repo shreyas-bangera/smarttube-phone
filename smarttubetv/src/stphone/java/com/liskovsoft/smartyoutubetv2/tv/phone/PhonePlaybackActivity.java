@@ -1021,6 +1021,16 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             }
 
             @Override
+            public void setBarSpace(int px) {
+                if (mDetails != null && mDetails.getPaddingTop() != px) {
+                    mDetails.setPadding(mDetails.getPaddingLeft(), px, mDetails.getPaddingRight(), mDetails.getPaddingBottom());
+                    if (px > 0) {
+                        mDetails.scrollToPosition(0); // the title right under the bar
+                    }
+                }
+            }
+
+            @Override
             public void setTicks(float[] ticks) {
                 if (mSeekGaps != null) {
                     mSeekGaps.setTicks(ticks);
