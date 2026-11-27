@@ -4325,25 +4325,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         boolean subscribed = getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
         TextView subscribe = findViewById(R.id.phone_shorts_subscribe);
         subscribe.setVisibility(View.GONE); // no Subscribe on Shorts (the channel's picture opens the channel)
-        // Subscribed: the pill turns into the channel's bell and a ▾ (no words), as the YouTube app
-        if (subscribed) {
-            subscribe.setText(null);
-            int size = dp(20);
-            android.graphics.drawable.Drawable bell = getResources().getDrawable(
-                    PhoneBellSheet.icon(PhoneNewVideos.bell(this, video.channelId))).mutate();
-            android.graphics.drawable.Drawable more = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
-            bell.setTint(getResources().getColor(R.color.phone_text));
-            more.setTint(getResources().getColor(R.color.phone_text));
-            bell.setBounds(0, 0, size, size);
-            more.setBounds(0, 0, size, size);
-            subscribe.setCompoundDrawablesRelative(bell, null, more, null);
-            subscribe.setCompoundDrawablePadding(dp(4));
-            subscribe.setContentDescription(getString(R.string.phone_bell_title));
-        } else {
-            subscribe.setText(R.string.phone_subscribe);
-            subscribe.setCompoundDrawablesRelative(null, null, null, null);
-            subscribe.setContentDescription(null);
-        }
+        subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
         if (subscribed) {
             subscribe.setBackground(glass(dp(16)));
         } else {
@@ -4926,8 +4908,30 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         avatar.setOnClickListener(v -> clickButton(R.id.action_channel));
 
         boolean subscribed = getButtonState(R.id.action_subscribe) == PlayerUI.BUTTON_ON;
-        subscribe.setText(subscribed ? R.string.phone_subscribed : R.string.phone_subscribe);
-        subscribe.setBackgroundResource(subscribed ? R.drawable.phone_pill_bg : R.drawable.phone_button_bg);
+        // Subscribed: the pill turns into the channel's bell and a ▾ (no words), as the YouTube app
+        if (subscribed) {
+            subscribe.setText(null);
+            int size = dp(20);
+            android.graphics.drawable.Drawable bell = getResources().getDrawable(
+                    PhoneBellSheet.icon(PhoneNewVideos.bell(this, video.channelId))).mutate();
+            android.graphics.drawable.Drawable more = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            bell.setTint(getResources().getColor(R.color.phone_text));
+            more.setTint(getResources().getColor(R.color.phone_text));
+            bell.setBounds(0, 0, size, size);
+            more.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(bell, null, more, null);
+            subscribe.setCompoundDrawablePadding(dp(4));
+            subscribe.setContentDescription(getString(R.string.phone_bell_title));
+        } else {
+            subscribe.setText(R.string.phone_subscribe);
+            subscribe.setCompoundDrawablesRelative(null, null, null, null);
+            subscribe.setContentDescription(null);
+        }
+        if (subscribed) {
+            subscribe.setBackground(glass(dp(16)));
+        } else {
+            subscribe.setBackgroundResource(R.drawable.phone_button_bg);
+        }
         subscribe.setTextColor(getResources().getColor(subscribed ? R.color.phone_text : R.color.phone_bg));
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
