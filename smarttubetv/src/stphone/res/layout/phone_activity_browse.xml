@@ -38,7 +38,7 @@
         <!-- Sized like the YouTube app's header: logo and search at the same size and spot -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="49dp"
+            android:layout_height="44dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="15dp"
@@ -223,7 +223,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:paddingStart="8dp"
-                android:paddingTop="7dp"
+                android:paddingTop="1dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="8dp" />
         </HorizontalScrollView>

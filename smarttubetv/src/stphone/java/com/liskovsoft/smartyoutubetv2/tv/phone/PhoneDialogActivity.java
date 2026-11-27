@@ -155,6 +155,8 @@ public class PhoneDialogActivity extends MotherActivity implements AppDialogView
             View root = findViewById(R.id.phone_dialog_root);
             root.setPadding(root.getPaddingLeft(), mVideoLimit, root.getPaddingRight(), root.getPaddingBottom());
             mListFrame.setMaxScreenFraction(1f); // limited by the space under the video instead
+            // Flush against the video: square top corners, as the YouTube app's comments
+            findViewById(R.id.phone_sheet).setBackgroundColor(getResources().getColor(R.color.phone_sheet));
         }
 
         findViewById(R.id.phone_dialog_root).setOnClickListener(v -> finish());

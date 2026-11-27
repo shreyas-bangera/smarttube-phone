@@ -11,11 +11,11 @@
 
     <ImageView
         android:id="@+id/phone_thumb"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:importantForAccessibility="no"
         android:src="@drawable/ic_phone_shorts"
-        android:tint="@color/phone_accent" />
+        android:tint="@color/phone_text" />
 
     <TextView
         android:id="@+id/phone_title"
