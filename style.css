@@ -675,7 +675,9 @@ section[id] { scroll-margin-top: 84px; }
 .panel-ic {
   display: grid;
   place-items: center;
+  flex: none;
   width: 44px; height: 44px;
+  color: var(--red-hot);
   font-size: 1.25rem;
   background: rgba(255, 31, 61, 0.1);
   border: 1px solid rgba(255, 31, 61, 0.25);
@@ -1523,4 +1525,79 @@ section[id] { scroll-margin-top: 84px; }
   .cast-tv-screen img, .cast-tv-sweep, .cast-tv-glow { animation: none; }
   .wave { opacity: 0; }
   .cp-video-seek span, .cast-tv-progress span { width: 42%; }
+}
+
+
+/* ============================================================
+   Polish: card spotlight, shimmer, glowing borders
+   (CSS only and a few lines of JS: nothing extra to download)
+   ============================================================ */
+.panel-ic svg { width: 22px; height: 22px; }
+
+/* sections far down the page are laid out only when they come near: a faster first screen */
+#music, #screens, #touch, #install, #faq, .cta {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1200px;
+}
+
+/* a soft light that follows the pointer over cards (set by script.js) */
+.card, .cast-point, .step, .panel {
+  background-image: radial-gradient(260px circle at var(--mx, -300px) var(--my, -300px), rgba(255, 31, 61, 0.11), transparent 65%);
+}
+
+/* the new feature cards: a slowly turning gradient border */
+@property --spin { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.card-new {
+  border-color: transparent;
+  background:
+    radial-gradient(260px circle at var(--mx, -300px) var(--my, -300px), rgba(255, 31, 61, 0.12), transparent 65%) padding-box,
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    conic-gradient(from var(--spin), rgba(255, 31, 61, 0.15), #ff1f3d, #ff7a59, rgba(255, 31, 61, 0.15) 40%, rgba(255, 31, 61, 0.15)) border-box;
+  animation: spinBorder 6s linear infinite;
+}
+@keyframes spinBorder { to { --spin: 360deg; } }
+
+/* the red words in headings: a slow shimmer */
+.grad {
+  background-size: 200% auto;
+  animation: gradShimmer 6s ease-in-out infinite alternate;
+}
+@keyframes gradShimmer { from { background-position: 0% center; } to { background-position: 100% center; } }
+
+/* the install steps, joined by a glowing line */
+.install-steps { position: relative; }
+.install-steps::before {
+  content: "";
+  position: absolute;
+  top: 51px; left: 12%; right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 31, 61, 0.6), rgba(255, 122, 89, 0.6), transparent);
+  background-size: 200% 100%;
+  animation: flowLine 3s linear infinite;
+  z-index: 0;
+}
+.install-steps .step { z-index: 1; }
+@keyframes flowLine { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* the logo in the last call: a turning ring of light */
+.cta-inner { isolation: isolate; }
+.cta-ring {
+  position: absolute;
+  top: -34px; left: 50%;
+  width: 128px; height: 128px;
+  margin-left: -64px;
+  border-radius: 50%;
+  background: conic-gradient(from var(--spin), rgba(255, 31, 61, 0.14) 0 55%, rgba(255, 31, 61, 0.9) 85%, #ffb199 92%, rgba(255, 31, 61, 0.14) 93%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  filter: drop-shadow(0 0 8px rgba(255, 31, 61, 0.8));
+  animation: spinBorder 4s linear infinite;
+  z-index: -1;
+}
+
+@media (max-width: 900px) {
+  .install-steps::before { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-new, .grad, .install-steps::before, .cta-ring { animation: none; }
 }

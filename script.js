@@ -22,6 +22,17 @@
   document.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  /* ---------- a light that follows the pointer over cards ---------- */
+  if (!reduceMotion && window.matchMedia("(hover: hover)").matches) {
+    document.addEventListener("pointermove", (e) => {
+      const card = e.target.closest && e.target.closest(".card, .cast-point, .step, .panel");
+      if (!card) return;
+      const box = card.getBoundingClientRect();
+      card.style.setProperty("--mx", e.clientX - box.left + "px");
+      card.style.setProperty("--my", e.clientY - box.top + "px");
+    }, { passive: true });
+  }
+
   /* ---------- mobile nav ---------- */
   const burger = document.getElementById("burger");
   const navMobile = document.getElementById("navMobile");
