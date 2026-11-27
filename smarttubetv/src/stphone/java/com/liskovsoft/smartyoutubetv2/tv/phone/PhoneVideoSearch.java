@@ -40,8 +40,8 @@ import java.util.Locale;
 /**
  * Search inside a video: find a word or phrase in what's said (the video's captions) and jump to it.
  * A panel under the video lists the transcript (the playing line lit) or, with words typed, the lines holding them,
- * with yellow ticks on the seek bar where each one is. Tap a line to jump there; a bar pinned under the video then
- * steps through the matches ("3 of 7", up and down), and the line shows on the video with the words in yellow.
+ * with yellow ticks on the seek bar where each one is. Tap a line to jump there: the panel closes and the line shows
+ * on the video for a few seconds with the words in yellow.
  */
 final class PhoneVideoSearch {
     interface Host {
@@ -60,8 +60,7 @@ final class PhoneVideoSearch {
         /** Fractions of the video's length to mark on the seek bar, empty for none */
         void setTicks(float[] ticks);
 
-        /** Room at the top of the details for the match bar (0: none), so it covers nothing */
-        void setBarSpace(int px);
+
     }
 
     private static final int YELLOW = 0xFFFFD54A;
@@ -84,9 +83,6 @@ final class PhoneVideoSearch {
     private final Adapter mAdapter = new Adapter();
     private boolean mOpen;
 
-    private LinearLayout mBar;
-    private TextView mBarQuery;
-    private TextView mBarPos;
     private TextView mCaption;
 
     PhoneVideoSearch(Activity activity, Host host) {
@@ -96,10 +92,6 @@ final class PhoneVideoSearch {
 
     boolean isOpen() {
         return mOpen;
-    }
-
-    boolean isBarShown() {
-        return mBar != null && mBar.getVisibility() == View.VISIBLE;
     }
 
     // region Opening and closing
@@ -120,7 +112,6 @@ final class PhoneVideoSearch {
         if (mPanel == null) {
             createPanel();
         }
-        hideBar();
         mOpen = true;
         place();
         mPanel.setVisibility(View.VISIBLE);
@@ -150,37 +141,23 @@ final class PhoneVideoSearch {
         }
     }
 
-    /** Back: the panel closes (the match bar comes back if there are matches), then the bar */
+    /** Back: the panel closes */
     boolean onBack() {
         if (mOpen) {
-            closePanel(!mHits.isEmpty() && mIndex >= 0);
-            return true;
-        }
-        if (isBarShown()) {
             end();
             return true;
         }
         return false;
     }
 
-    private void closePanel(boolean showBar) {
+    /** The panel closes and the ticks on the seek bar go (the search is kept for the next open) */
+    void end() {
         mOpen = false;
         keyboard(false);
         if (mPanel != null) {
             mPanel.animate().cancel();
             mPanel.setVisibility(View.GONE);
         }
-        if (showBar) {
-            showBar();
-        } else {
-            mHost.setTicks(new float[0]);
-        }
-    }
-
-    /** X on the match bar: the search ends, the ticks go */
-    void end() {
-        closePanel(false);
-        hideBar();
         mHost.setTicks(new float[0]);
     }
 
@@ -286,20 +263,11 @@ final class PhoneVideoSearch {
         mIndex = hitIndex;
         mHost.seekTo(Math.max(0, mLines.get(line).startMs - 400)); // a breath before the words
         if (hitIndex >= 0) {
-            closePanel(true);
+            end(); // back to the video; search again for another moment
             showCaption(line);
         } else {
             keyboard(false);
         }
-    }
-
-    private void step(int delta) {
-        if (mHits.isEmpty()) {
-            return;
-        }
-        mIndex = ((mIndex < 0 ? 0 : mIndex + delta) % mHits.size() + mHits.size()) % mHits.size();
-        jumpToLine(mHits.get(mIndex), mIndex);
-        bindBar();
     }
 
     /** The line's text with the words found lit yellow */
@@ -339,7 +307,7 @@ final class PhoneVideoSearch {
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.setPadding(dp(4), dp(10), dp(10), dp(4));
         ImageView close = icon(R.drawable.ic_phone_expand_more, mActivity.getString(R.string.phone_close));
-        close.setOnClickListener(v -> closePanel(false));
+        close.setOnClickListener(v -> end());
         head.addView(close, new LinearLayout.LayoutParams(dp(44), dp(44)));
 
         LinearLayout field = new LinearLayout(mActivity);
@@ -523,79 +491,7 @@ final class PhoneVideoSearch {
 
     // endregion
 
-    // region The bar under the video, and the line on the video
-
-    private void showBar() {
-        if (mHits.isEmpty()) {
-            return;
-        }
-        if (mBar == null) {
-            createBar();
-        }
-        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mBar.getLayoutParams();
-        params.topMargin = videoBottom();
-        mBar.setLayoutParams(params);
-        bindBar();
-        mBar.setVisibility(View.VISIBLE);
-        mHost.setBarSpace(dp(56)); // the details move down under it, as in the YouTube app
-    }
-
-    private void hideBar() {
-        if (mBar != null && mBar.getVisibility() != View.GONE) {
-            mBar.setVisibility(View.GONE);
-            mHost.setBarSpace(0);
-        }
-    }
-
-    private void bindBar() {
-        if (mBar == null) {
-            return;
-        }
-        mBarQuery.setText("“" + mQuery + "”");
-        mBarPos.setText(mActivity.getString(R.string.phone_find_position, Math.max(0, mIndex) + 1, mHits.size()));
-    }
-
-    /** 🔍 “battery”   3 of 7   ⌃ ⌄ ✕ */
-    private void createBar() {
-        ViewGroup content = mActivity.findViewById(android.R.id.content);
-        mBar = new LinearLayout(mActivity);
-        mBar.setGravity(Gravity.CENTER_VERTICAL);
-        mBar.setPadding(dp(14), 0, dp(4), 0);
-        mBar.setBackgroundColor(color(R.color.phone_surface));
-        mBar.setElevation(dp(6));
-        mBar.setClickable(true);
-        ImageView glass = new ImageView(mActivity);
-        glass.setImageResource(R.drawable.ic_phone_search);
-        glass.setImageTintList(ColorStateList.valueOf(color(R.color.phone_text_2)));
-        mBar.addView(glass, new LinearLayout.LayoutParams(dp(18), dp(18)));
-        mBarQuery = new TextView(mActivity);
-        mBarQuery.setTextColor(color(R.color.phone_text));
-        mBarQuery.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(15));
-        mBarQuery.setTypeface(PhoneUi.medium(mActivity));
-        mBarQuery.setSingleLine(true);
-        mBarQuery.setEllipsize(TextUtils.TruncateAt.END);
-        mBarQuery.setPadding(dp(10), dp(8), dp(8), dp(8));
-        mBarQuery.setOnClickListener(v -> open()); // back to the list of matches
-        mBar.addView(mBarQuery, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        mBarPos = new TextView(mActivity);
-        mBarPos.setTextColor(color(R.color.phone_text_2));
-        mBarPos.setTextSize(TypedValue.COMPLEX_UNIT_PX, PhoneSheetLayout.sp(13));
-        mBarPos.setFontFeatureSettings("tnum");
-        mBarPos.setPadding(0, 0, dp(6), 0);
-        mBar.addView(mBarPos);
-        ImageView up = icon(R.drawable.ic_phone_expand_more, mActivity.getString(R.string.phone_find_previous));
-        up.setRotation(180);
-        up.setOnClickListener(v -> step(-1));
-        mBar.addView(up, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        ImageView down = icon(R.drawable.ic_phone_expand_more, mActivity.getString(R.string.phone_find_next));
-        down.setOnClickListener(v -> step(1));
-        mBar.addView(down, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        ImageView close = icon(R.drawable.ic_phone_close, mActivity.getString(R.string.phone_find_end));
-        close.setOnClickListener(v -> end());
-        mBar.addView(close, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        content.addView(mBar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56), Gravity.TOP));
-        mBar.setVisibility(View.GONE);
-    }
+    // region The line on the video
 
     /** The line just jumped to, on the video for a few seconds, the words in yellow */
     private void showCaption(int line) {

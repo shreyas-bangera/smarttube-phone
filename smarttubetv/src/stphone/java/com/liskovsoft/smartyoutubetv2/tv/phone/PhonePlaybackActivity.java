@@ -975,7 +975,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         if (mVideoSearch == null) {
             return;
         }
-        if ((mVideoSearch.isOpen() || mVideoSearch.isBarShown())
+        if (mVideoSearch.isOpen()
                 && (!mPortrait || mShortsMode || mMinimized || mMinimizing || isPip())) {
             mVideoSearch.end();
             return;
@@ -1018,16 +1018,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             @Override
             public int navInset() {
                 return mNavInset;
-            }
-
-            @Override
-            public void setBarSpace(int px) {
-                if (mDetails != null && mDetails.getPaddingTop() != px) {
-                    mDetails.setPadding(mDetails.getPaddingLeft(), px, mDetails.getPaddingRight(), mDetails.getPaddingBottom());
-                    if (px > 0) {
-                        mDetails.scrollToPosition(0); // the title right under the bar
-                    }
-                }
             }
 
             @Override
