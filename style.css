@@ -1185,9 +1185,9 @@ section[id] { scroll-margin-top: 84px; }
 .cast-phone {
   position: relative;
   z-index: 2;
-  width: min(220px, 100%);
+  width: min(240px, 100%);
   justify-self: end;
-  aspect-ratio: 9 / 19;
+  aspect-ratio: 9 / 19.5;
   padding: 9px;
   border-radius: 34px;
   background: linear-gradient(160deg, #26262c, #0d0d10 60%);
@@ -1198,106 +1198,115 @@ section[id] { scroll-margin-top: 84px; }
   animation: castFloat 6s ease-in-out infinite;
 }
 .cast-phone-screen {
+  position: relative;
   height: 100%;
   border-radius: 26px;
-  background: #070709;
+  background: #0b0b0d;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 12px;
 }
-.cast-phone-bar {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.68rem;
-  color: var(--muted);
-  line-height: 1.3;
+
+/* the player's video, with the cast icon lit */
+.cp-video { position: relative; aspect-ratio: 16 / 9; background: #000; margin-top: 18px; }
+.cp-video img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.42); }
+.cp-video-top {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
 }
-.cast-phone-bar b { color: var(--txt); font-weight: 600; }
-.cast-ic-on {
-  flex: none;
-  width: 18px; height: 18px;
-  fill: none;
-  stroke: var(--red);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 6px rgba(255, 31, 61, 0.8));
-  animation: castPulse 2s ease-in-out infinite;
+.cp-top-space { flex: 1; }
+.cp-ic {
+  width: 17px; height: 17px; flex: none;
+  fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-.cast-ic-on circle { fill: var(--red); stroke: none; }
-.cast-phone-art {
+.cp-cast-btn {
   position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  aspect-ratio: 16 / 10;
-}
-.cast-phone-art img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.45) saturate(1.2); }
-.cast-phone-label {
-  position: absolute;
-  inset: auto 0 50% 0;
-  transform: translateY(50%);
-  text-align: center;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #fff;
-}
-.cast-phone-seek { height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
-.cast-phone-seek span {
-  display: block;
-  height: 100%;
-  width: 30%;
-  background: var(--red);
-  border-radius: inherit;
-  animation: castProgress 9s linear infinite;
-}
-.cast-phone-ctl { display: flex; justify-content: center; align-items: center; gap: 18px; padding-top: 4px; }
-.cast-phone-ctl i { display: block; background: var(--txt); }
-.cast-phone-ctl .ctl-prev, .cast-phone-ctl .ctl-next {
-  width: 12px; height: 12px;
-  clip-path: polygon(0 0, 0 100%, 15% 100%, 15% 55%, 100% 100%, 100% 0, 15% 45%, 15% 0);
-}
-.cast-phone-ctl .ctl-prev { transform: none; }
-.cast-phone-ctl .ctl-next { transform: scaleX(-1); }
-.cast-phone-ctl .ctl-play {
-  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
   border-radius: 50%;
-  background: var(--grad);
-  box-shadow: var(--shadow-red);
-  position: relative;
+  background: rgba(255, 31, 61, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 31, 61, 0.6), 0 0 16px rgba(255, 31, 61, 0.55);
 }
-.cast-phone-ctl .ctl-play::after {
+.cp-cast-btn::after {
   content: "";
-  position: absolute;
-  top: 11px; left: 12px;
-  width: 4px; height: 12px;
-  border-radius: 1px;
-  background: #fff;
-  box-shadow: 7px 0 0 #fff;
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 31, 61, 0.8);
+  animation: castWave 2s ease-out infinite;
 }
-.cast-phone-now { display: grid; gap: 2px; text-align: center; padding-top: 4px; }
-.cast-phone-now b { font-size: 0.82rem; color: var(--txt); }
-.cast-phone-now span { font-size: 0.66rem; color: var(--muted); }
-.cast-phone-vol { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
-.cast-phone-vol svg {
-  width: 16px; height: 16px; flex: none;
-  fill: var(--txt); stroke: var(--txt); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+.cp-cast-on {
+  width: 18px; height: 18px;
+  stroke: var(--red-hot);
+  filter: drop-shadow(0 0 5px rgba(255, 31, 61, 0.95));
+  animation: castPulse 1.6s ease-in-out infinite;
 }
-.cast-phone-vol-bar { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); }
-.cast-phone-vol-bar span { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--txt); }
-.cast-phone-stop {
+.cp-cast-on circle { fill: var(--red-hot); stroke: none; }
+.cp-cast-fill { fill: rgba(255, 31, 61, 0.55); stroke: none; }
+.cp-video-cast {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  font-size: 0.62rem; color: #e8e8ea; text-align: center;
+}
+.cp-video-cast b { color: #fff; }
+.cp-video-cast svg {
+  width: 22px; height: 22px;
+  fill: none; stroke: #fff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.cp-video-cast svg circle { fill: #fff; stroke: none; }
+.cp-video-seek { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: rgba(255, 255, 255, 0.25); }
+.cp-video-seek span, .cast-tv-progress span {
+  display: block; height: 100%; width: 30%;
+  background: var(--red);
+  animation: castProgress 12s linear infinite;
+}
+.cp-title { padding: 10px 10px 0; font-size: 0.8rem; font-weight: 500; color: var(--txt); }
+.cp-meta { padding: 2px 10px 0; font-size: 0.6rem; color: var(--muted); }
+
+/* the cast sheet over the lower half */
+.cp-sheet {
   margin-top: auto;
-  padding: 8px 0;
+  padding: 6px 10px 12px;
+  border-radius: 16px 16px 0 0;
+  background: #1c1c21;
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.55);
+  animation: cpSheet 9s ease-in-out infinite;
+}
+.cp-handle { display: block; width: 30px; height: 3px; margin: 0 auto 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.25); }
+.cp-sheet-title { font-size: 0.74rem; font-weight: 700; color: var(--txt); padding: 0 4px 6px; }
+.cp-device {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 6px;
+  border-radius: 10px;
+}
+.cp-device-on {
+  background: rgba(255, 31, 61, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 31, 61, 0.45);
+}
+.cp-dev-ic {
+  width: 18px; height: 18px; flex: none;
+  fill: none; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.cp-device-on .cp-dev-ic { stroke: var(--red-hot); }
+.cp-dev-text { flex: 1; display: grid; line-height: 1.25; min-width: 0; }
+.cp-dev-text b { font-size: 0.68rem; font-weight: 600; color: var(--txt); }
+.cp-dev-text small { font-size: 0.56rem; color: var(--muted); }
+.cp-device-on .cp-dev-text small { color: var(--red-hot); font-weight: 600; }
+.cp-check {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: var(--red-hot); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+}
+.cp-stop {
+  margin-top: 8px;
+  padding: 7px 0;
   text-align: center;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   font-weight: 600;
   color: var(--txt);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
 }
+@keyframes cpSheet { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
 
 /* --- beam --- */
 .cast-beam { position: relative; height: 140px; margin-inline: -14px; z-index: 1; }
@@ -1376,6 +1385,38 @@ section[id] { scroll-margin-top: 84px; }
   width: 16px; height: 16px;
   fill: none; stroke: var(--red-hot); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
+.cast-tv-from {
+  position: absolute;
+  top: 14px; left: 14px;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px 6px 9px;
+  font-size: 0.76rem; font-weight: 600; color: #fff;
+  background: rgba(10, 10, 12, 0.6);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.cast-tv-from svg {
+  width: 16px; height: 16px;
+  fill: none; stroke: var(--red-hot); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.cast-tv-from svg circle { fill: var(--red-hot); stroke: none; }
+.cast-tv-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: grid; gap: 2px;
+  padding: 40px 18px 14px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+}
+.cast-tv-bottom b { font-size: 1rem; color: #fff; font-weight: 600; }
+.cast-tv-bottom > span { font-size: 0.78rem; color: rgba(255, 255, 255, 0.7); }
+.cast-tv-progress {
+  margin-top: 10px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+.cast-tv-progress span { border-radius: inherit; }
 .cast-tv-stand { display: flex; justify-content: center; }
 .cast-tv-stand span {
   width: 26%;
@@ -1470,7 +1511,7 @@ section[id] { scroll-margin-top: 84px; }
     gap: 0;
     margin-top: 40px;
   }
-  .cast-phone { justify-self: center; width: 170px; }
+  .cast-phone { justify-self: center; width: 230px; }
   .cast-beam { width: 140px; height: 90px; margin: 0; transform: rotate(90deg); }
   .cast-tv { width: 100%; max-width: 560px; }
   .cast-points { grid-template-columns: 1fr; }
@@ -1478,8 +1519,8 @@ section[id] { scroll-margin-top: 84px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cast-phone, .cast-ic-on, .cast-phone-seek span, .beam-flow, .wave,
+  .cast-phone, .cp-cast-on, .cp-cast-btn::after, .cp-sheet, .cp-video-seek span, .cast-tv-progress span, .beam-flow, .wave,
   .cast-tv-screen img, .cast-tv-sweep, .cast-tv-glow { animation: none; }
   .wave { opacity: 0; }
-  .cast-phone-seek span { width: 42%; }
+  .cp-video-seek span, .cast-tv-progress span { width: 42%; }
 }

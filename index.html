@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
 </head>
 <body>
 
@@ -303,30 +303,45 @@
       </div>
 
       <div class="cast-stage reveal" aria-label="A phone casting a video to a TV">
-        <!-- the phone: the player, casting -->
+        <!-- the phone: StreamTube's player while casting, the cast sheet open -->
         <div class="cast-phone">
           <div class="cast-phone-screen">
-            <div class="cast-phone-bar">
-              <svg viewBox="0 0 24 24" class="cast-ic-on" aria-hidden="true"><path d="M3 7.5V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" /><path d="M3 11a9 9 0 0 1 9 9M3 15a5 5 0 0 1 5 5" /><circle cx="3.6" cy="19.4" r="1.1" /></svg>
-              <span>Casting to <b>Living room TV</b></span>
+            <div class="cp-video">
+              <img src="assets/cast-video.webp" alt="" loading="lazy" />
+              <div class="cp-video-top" aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="cp-ic cp-collapse"><path d="M6 9.5l6 6 6-6" /></svg>
+                <span class="cp-top-space"></span>
+                <span class="cp-cast-btn"><svg viewBox="0 0 24 24" class="cp-ic cp-cast-on"><path d="M3 7.5V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" /><path d="M3 11a9 9 0 0 1 9 9M3 15a5 5 0 0 1 5 5" /><circle cx="3.6" cy="19.4" r="1.2" /><rect x="7" y="8" width="11" height="8" rx="1" class="cp-cast-fill" /></svg></span>
+                <svg viewBox="0 0 24 24" class="cp-ic"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M10 10.2a2 2 0 1 0 0 3.6M16.5 10.2a2 2 0 1 0 0 3.6" /></svg>
+              </div>
+              <div class="cp-video-cast">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" /><path d="M3 11a9 9 0 0 1 9 9M3 15a5 5 0 0 1 5 5" /><circle cx="3.6" cy="19.4" r="1.2" /></svg>
+                <span>Playing on <b>Living room TV</b></span>
+              </div>
+              <div class="cp-video-seek"><span></span></div>
             </div>
-            <div class="cast-phone-art">
-              <img src="assets/screenshots/30_cover_flow_landscape-480.webp" alt="" loading="lazy" />
-              <span class="cast-phone-label">Playing on TV</span>
+            <div class="cp-title">Hermosísimo Lucero</div>
+            <div class="cp-meta">Raúl Beltran · 2.1M views</div>
+
+            <!-- the cast sheet -->
+            <div class="cp-sheet">
+              <span class="cp-handle"></span>
+              <div class="cp-sheet-title">Cast to</div>
+              <div class="cp-device cp-device-on">
+                <svg viewBox="0 0 24 24" class="cp-dev-ic" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="12.5" rx="2" /><path d="M8 20.5h8" /></svg>
+                <span class="cp-dev-text"><b>Living room TV</b><small>Connected · Google TV</small></span>
+                <svg viewBox="0 0 24 24" class="cp-check" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+              </div>
+              <div class="cp-device">
+                <svg viewBox="0 0 24 24" class="cp-dev-ic" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="12.5" rx="2" /><path d="M8 20.5h8" /></svg>
+                <span class="cp-dev-text"><b>Bedroom TV</b><small>Samsung · DLNA</small></span>
+              </div>
+              <div class="cp-device">
+                <svg viewBox="0 0 24 24" class="cp-dev-ic" aria-hidden="true"><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="2" /></svg>
+                <span class="cp-dev-text"><b>Chromecast</b><small>Google Cast</small></span>
+              </div>
+              <div class="cp-stop">Stop casting</div>
             </div>
-            <div class="cast-phone-seek"><span></span></div>
-            <div class="cast-phone-ctl" aria-hidden="true">
-              <i class="ctl-prev"></i><i class="ctl-play"></i><i class="ctl-next"></i>
-            </div>
-            <div class="cast-phone-now">
-              <b>Sugar &amp; Brownies</b>
-              <span>Dharia · on Living room TV</span>
-            </div>
-            <div class="cast-phone-vol" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none"/></svg>
-              <span class="cast-phone-vol-bar"><span></span></span>
-            </div>
-            <div class="cast-phone-stop">Stop casting</div>
           </div>
         </div>
 
@@ -348,16 +363,25 @@
           <span class="wave w1"></span><span class="wave w2"></span><span class="wave w3"></span>
         </div>
 
-        <!-- the TV -->
+        <!-- the TV: the same video, full screen -->
         <div class="cast-tv">
           <div class="cast-tv-frame">
             <div class="cast-tv-screen">
-              <img src="assets/screenshots/30_cover_flow_landscape.webp" alt="" loading="lazy" />
+              <img src="assets/cast-video.webp" alt="" loading="lazy" />
               <span class="cast-tv-sweep"></span>
+              <span class="cast-tv-from">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" /><path d="M3 11a9 9 0 0 1 9 9M3 15a5 5 0 0 1 5 5" /><circle cx="3.6" cy="19.4" r="1.2" /></svg>
+                Casting from StreamTube
+              </span>
               <span class="cast-tv-badge">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6l7-3z" /><path d="m9.3 11.6 2 2 3.6-3.6" /></svg>
                 No ads
               </span>
+              <div class="cast-tv-bottom">
+                <b>Hermosísimo Lucero</b>
+                <span>Raúl Beltran</span>
+                <div class="cast-tv-progress"><span></span></div>
+              </div>
             </div>
           </div>
           <div class="cast-tv-stand"><span></span></div>
