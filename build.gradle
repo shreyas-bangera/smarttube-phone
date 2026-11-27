@@ -1,6 +1,13 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 apply from: gradle.ext.sharedModulesConstants
 
+// MediaServiceCore needs this repository's patch (.github/patches/mediaservicecore.patch). Without it the build fails
+// with thousands of unrelated-looking errors, so stop here with the fix instead.
+if (!file('MediaServiceCore/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/chat/LiveChatWriter.kt').exists()) {
+    throw new GradleException("MediaServiceCore isn't patched. Run:\n" +
+            "  git -C MediaServiceCore apply --ignore-whitespace ../.github/patches/mediaservicecore.patch")
+}
+
 // NOT working
 // Running 'gradle wrapper' will generate gradlew
 wrapper {
@@ -38,6 +45,15 @@ allprojects {
         //jcenter()
     }
     configurations.all {
+        // Robolectric 4.6.1 (SharedModules/constants.gradle, re-applied by every module, so overriding the version
+        // there doesn't stick) can't run the unit tests: its SDK 28 runtime lacks RoboCookieManager
+        // (NoClassDefFoundError). 4.11.1 runs them; newer versions need minSdk 21. See issue #91.
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'org.robolectric' && details.requested.name == 'robolectric') {
+                details.useVersion '4.11.1'
+                details.because 'Robolectric 4.6.1 cannot run the SDK 28 tests (issue #91)'
+            }
+        }
         // WorkManager conflict resolution (lint exception: old java runtime)
         // resolutionStrategy.force 'androidx.lifecycle:lifecycle-livedata-core:' + liveDataVersion
         // resolutionStrategy.force 'androidx.lifecycle:lifecycle-livedata:' + liveDataVersion
