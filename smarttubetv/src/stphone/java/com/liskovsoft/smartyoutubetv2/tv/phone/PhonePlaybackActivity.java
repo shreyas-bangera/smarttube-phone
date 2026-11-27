@@ -4914,12 +4914,12 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             int size = dp(20);
             android.graphics.drawable.Drawable bell = getResources().getDrawable(
                     PhoneBellSheet.icon(PhoneNewVideos.bell(this, video.channelId))).mutate();
-            android.graphics.drawable.Drawable more = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
+            android.graphics.drawable.Drawable chevron = getResources().getDrawable(R.drawable.ic_phone_expand_more).mutate();
             bell.setTint(getResources().getColor(R.color.phone_text));
-            more.setTint(getResources().getColor(R.color.phone_text));
+            chevron.setTint(getResources().getColor(R.color.phone_text));
             bell.setBounds(0, 0, size, size);
-            more.setBounds(0, 0, size, size);
-            subscribe.setCompoundDrawablesRelative(bell, null, more, null);
+            chevron.setBounds(0, 0, size, size);
+            subscribe.setCompoundDrawablesRelative(bell, null, chevron, null);
             subscribe.setCompoundDrawablePadding(dp(4));
             subscribe.setContentDescription(getString(R.string.phone_bell_title));
         } else {
