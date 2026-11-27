@@ -7,8 +7,8 @@
 
 <p align="center">
   <b>Ad-free YouTube for Android phones.</b><br>
-  A touch app that looks and feels like the official one: portrait player, an in-app mini player, instant swipeable Shorts,<br>
-  a music player with lyrics and Cover Flow, comments you can write and delete, downloads, background play, SponsorBlock, and Dark or Light appearance.
+  A touch app that looks and feels like the official one: casting to your TV with no ads, live chat, a portrait player, an in-app mini player,<br>
+  instant swipeable Shorts, a music player with lyrics and Cover Flow, comments you can write and delete, downloads, background play, SponsorBlock, and Dark or Light appearance.
 </p>
 
 <p align="center">
@@ -56,6 +56,9 @@
 - [How to use](#how-to-use)
   - [Home](#home)
   - [Watching a video](#watching-a-video)
+  - [Cast to your TV](#cast-to-your-tv)
+  - [Live chat](#live-chat)
+  - [Playlists](#playlists)
   - [Comments](#comments)
   - [Mini player and background play](#mini-player-and-background-play)
   - [Full screen gestures](#full-screen-gestures)
@@ -81,11 +84,31 @@
 - Full-width video cards with channel pictures, and horizontal shelves
 - Videos open with a smooth expand-from-thumbnail animation
 
+**Cast to your TV, with no ads**
+- StreamTube's own casting: the video plays on the TV's own player, so there are no ads on the TV either
+- Nothing to install on the TV: Google TV, Android TV and Chromecast (Google Cast), and most smart TVs such as Samsung, LG and Sony (DLNA)
+- Your phone is the remote: play, pause, seek and switch videos from the player
+
+**Live chat**
+- Live streams show their chat like the YouTube app: under the video, beside it in full screen, or over an upright stream
+- Write messages after a one-time sign in, as any of your channels, with YouTube's emoji; delete your own messages
+
 **Player**
 - Portrait player: the video on top, then the title, channel, buttons, comments and recommendations
 - Like, dislike, subscribe, share, download, save to a playlist, captions, quality and playback speed
 - Rotate the phone (or tap the full screen button) for full screen, with gestures for seeking, brightness, volume and zoom
 - Videos start quickly: 1080p by default on phones, and nothing extra is loaded before the first frame
+- Long videos filmed upright play in a tall player, and full screen stays upright
+- Sleep timer in the player's settings: 10 minutes to 2 hours, or the end of the video
+- Share like YouTube: your apps, Copy link, and a link that starts where you are in the video
+
+**Playlists**
+- A playing playlist or mix shows "Next" in a bar at the bottom; tap it for the whole list, with repeat, shuffle and Save
+- Save any playlist to your library; playlists saved from other channels have their own folder on the You tab, where you can remove them
+
+**Channel notifications**
+- A bell on every channel you subscribe to: **All** (Shorts too), **Personalised** (videos and live streams) or **None**, like the YouTube app
+- New uploads arrive as phone notifications and on the Notifications tab; manage every channel in Settings › Notifications
 
 **Mini player**
 - Swipe the video down, or press Back: it shrinks into a small player at the bottom right of the screen and keeps playing while you browse Home, Search or a channel
@@ -102,6 +125,7 @@
 
 **Shorts**
 - Full screen vertical Shorts that start the instant you swipe: the next one is already loaded while you watch
+- Shorts in search results show as tall tiles side by side, like the YouTube app, and open in the Shorts player
 - Swipe up for the next one, down for the previous one; a Short that ends moves on to the next by itself
 - Like, dislike, comments, share and save on the right side, like the official app
 
@@ -228,6 +252,28 @@ To remove the app's access from your Google account, go to [myaccount.google.com
 - **Download**: pick a quality from **1080p** to **360p** (MP4) or **Audio only (M4A)**. It downloads in the background with a progress notification and is saved to **Download/StreamTube**. Live streams can't be downloaded.
 - **Recommendations** are listed under the buttons. Tap one to play it.
 - **Leave the player**: swipe the video down or press Back. It becomes the [mini player](#mini-player-and-background-play) and keeps playing.
+
+### Cast to your TV
+
+StreamTube casts on its own, without the YouTube app on the TV, so there are no ads on the big screen either.
+
+1. Put the phone and the TV on the **same Wi-Fi**.
+2. Tap the **cast** button at the top of the player and pick your TV. Google TV, Android TV and Chromecast are listed through Google Cast, and most other smart TVs (Samsung, LG, Sony and more) through DLNA.
+3. The video plays on the TV. Use the player on your phone to play, pause and seek. Open another video and it plays on the TV.
+
+The video streams to the TV through your phone, so keep StreamTube running while you watch. Tap cast again to stop.
+
+### Live chat
+
+- Live streams show their chat under the video. In full screen it moves beside the video, and on an upright stream it sits over the video. Close it with X and bring it back with the chat button in the player.
+- **To write**, tap the box under the chat and sign in once. YouTube only takes chat messages from a website sign-in, so this is separate from the TV-style sign in. Pick which of your channels you write as, and use the emoji button for YouTube's emoji.
+- **Delete** one of your own messages by tapping it.
+
+### Playlists
+
+- **Playing a playlist or mix**: a bar at the bottom shows what's next. Tap it to open the whole list under the video, with **repeat**, **shuffle** and **Save**. Tap any video in it to play it.
+- **Save a playlist** with the save button on its page (next to Shuffle) or in the list under the video. Saved playlists are kept in your YouTube library.
+- **You › Saved playlists** holds the playlists you saved from other channels. Long press one (or tap its ⋮) to remove it from your library.
 
 ### Comments
 
