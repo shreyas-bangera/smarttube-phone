@@ -1135,3 +1135,351 @@ section[id] { scroll-margin-top: 84px; }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* ============================================================
+   New feature cards
+   ============================================================ */
+.card-new { position: relative; border-color: var(--line-red); }
+.card-tag {
+  position: absolute;
+  top: 16px; right: 16px;
+  padding: 2px 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--grad);
+  border-radius: 999px;
+  box-shadow: var(--shadow-red);
+}
+.card-link { color: var(--red-hot); font-weight: 600; white-space: nowrap; }
+.card-link:hover { text-decoration: underline; }
+
+/* ============================================================
+   Cast
+   ============================================================ */
+.cast { position: relative; overflow: hidden; }
+.cast-glow {
+  position: absolute;
+  inset: 10% -20% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse 40% 50% at 25% 50%, rgba(255, 31, 61, 0.16), transparent 70%),
+    radial-gradient(ellipse 45% 55% at 75% 45%, rgba(255, 122, 89, 0.14), transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.cast-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 0.9fr 1fr 2.1fr;
+  align-items: center;
+  gap: 0;
+  margin: 56px auto 48px;
+  max-width: 1040px;
+}
+
+/* --- phone --- */
+.cast-phone {
+  position: relative;
+  z-index: 2;
+  width: min(220px, 100%);
+  justify-self: end;
+  aspect-ratio: 9 / 19;
+  padding: 9px;
+  border-radius: 34px;
+  background: linear-gradient(160deg, #26262c, #0d0d10 60%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 30px 60px -20px rgba(0, 0, 0, 0.8),
+    0 0 60px -20px rgba(255, 31, 61, 0.45);
+  animation: castFloat 6s ease-in-out infinite;
+}
+.cast-phone-screen {
+  height: 100%;
+  border-radius: 26px;
+  background: #070709;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 12px;
+}
+.cast-phone-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.cast-phone-bar b { color: var(--txt); font-weight: 600; }
+.cast-ic-on {
+  flex: none;
+  width: 18px; height: 18px;
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(255, 31, 61, 0.8));
+  animation: castPulse 2s ease-in-out infinite;
+}
+.cast-ic-on circle { fill: var(--red); stroke: none; }
+.cast-phone-art {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+}
+.cast-phone-art img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.45) saturate(1.2); }
+.cast-phone-label {
+  position: absolute;
+  inset: auto 0 50% 0;
+  transform: translateY(50%);
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.cast-phone-seek { height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
+.cast-phone-seek span {
+  display: block;
+  height: 100%;
+  width: 30%;
+  background: var(--red);
+  border-radius: inherit;
+  animation: castProgress 9s linear infinite;
+}
+.cast-phone-ctl { display: flex; justify-content: center; align-items: center; gap: 18px; padding-top: 4px; }
+.cast-phone-ctl i { display: block; background: var(--txt); }
+.cast-phone-ctl .ctl-prev, .cast-phone-ctl .ctl-next {
+  width: 12px; height: 12px;
+  clip-path: polygon(0 0, 0 100%, 15% 100%, 15% 55%, 100% 100%, 100% 0, 15% 45%, 15% 0);
+}
+.cast-phone-ctl .ctl-prev { transform: none; }
+.cast-phone-ctl .ctl-next { transform: scaleX(-1); }
+.cast-phone-ctl .ctl-play {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--grad);
+  box-shadow: var(--shadow-red);
+  position: relative;
+}
+.cast-phone-ctl .ctl-play::after {
+  content: "";
+  position: absolute;
+  top: 11px; left: 12px;
+  width: 4px; height: 12px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 7px 0 0 #fff;
+}
+.cast-phone-now { display: grid; gap: 2px; text-align: center; padding-top: 4px; }
+.cast-phone-now b { font-size: 0.82rem; color: var(--txt); }
+.cast-phone-now span { font-size: 0.66rem; color: var(--muted); }
+.cast-phone-vol { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.cast-phone-vol svg {
+  width: 16px; height: 16px; flex: none;
+  fill: var(--txt); stroke: var(--txt); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+}
+.cast-phone-vol-bar { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); }
+.cast-phone-vol-bar span { display: block; width: 62%; height: 100%; border-radius: inherit; background: var(--txt); }
+.cast-phone-stop {
+  margin-top: auto;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+/* --- beam --- */
+.cast-beam { position: relative; height: 140px; margin-inline: -14px; z-index: 1; }
+.cast-beam svg { width: 100%; height: 100%; overflow: visible; }
+.beam-path { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 1.5; }
+.beam-flow {
+  fill: none;
+  stroke: url(#beamGrad);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 22 260;
+  filter: drop-shadow(0 0 6px rgba(255, 60, 80, 0.9));
+  animation: beamFlow 2.4s linear infinite;
+}
+.beam-flow-2 { animation-delay: -1.2s; }
+.wave {
+  position: absolute;
+  left: 0; top: 50%;
+  width: 46px; height: 46px;
+  margin: -23px 0 0 -23px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 31, 61, 0.7);
+  animation: castWave 2.4s ease-out infinite;
+}
+.w2 { animation-delay: 0.8s; }
+.w3 { animation-delay: 1.6s; }
+
+/* --- TV --- */
+.cast-tv { position: relative; z-index: 2; }
+.cast-tv-frame {
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(170deg, #202026, #09090b 70%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 40px 80px -30px rgba(0, 0, 0, 0.9);
+}
+.cast-tv-screen {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.cast-tv-screen img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  animation: tvZoom 18s ease-in-out infinite alternate;
+}
+.cast-tv-sweep {
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  transform: skewX(-18deg);
+  animation: tvSweep 6s ease-in-out infinite;
+}
+.cast-tv-badge {
+  position: absolute;
+  top: 14px; right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(10, 10, 12, 0.62);
+  border: 1px solid rgba(255, 31, 61, 0.55);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 24px -4px rgba(255, 31, 61, 0.6);
+}
+.cast-tv-badge svg {
+  width: 16px; height: 16px;
+  fill: none; stroke: var(--red-hot); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.cast-tv-stand { display: flex; justify-content: center; }
+.cast-tv-stand span {
+  width: 26%;
+  height: 12px;
+  margin-top: -1px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(#16161a, #0b0b0d);
+}
+.cast-tv-glow {
+  position: absolute;
+  inset: 8% 6% -14%;
+  z-index: -1;
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 31, 61, 0.35), transparent 65%);
+  filter: blur(30px);
+  animation: castPulse 4s ease-in-out infinite;
+}
+
+/* --- points and steps --- */
+.cast-points {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.cast-point {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  transition: border-color 0.3s, transform 0.3s;
+}
+.cast-point:hover { border-color: var(--line-red); transform: translateY(-3px); }
+.cast-point-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 44px; height: 44px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  color: var(--red-hot);
+  background: rgba(255, 31, 61, 0.1);
+  border: 1px solid rgba(255, 31, 61, 0.25);
+}
+.cast-point-ic svg { width: 22px; height: 22px; }
+.cast-point h3 { font-size: 1.02rem; margin-bottom: 6px; }
+.cast-point p { color: var(--muted); font-size: 0.9rem; }
+
+.cast-steps {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin-top: 36px;
+  color: var(--muted);
+}
+.cast-steps li { display: inline-flex; align-items: center; gap: 10px; }
+.cast-steps b { color: var(--txt); }
+.cast-steps em { font-style: normal; }
+.cast-steps span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: var(--shadow-red);
+}
+.cast-steps li + li::before {
+  content: "";
+  width: 22px; height: 1px;
+  margin-right: 6px;
+  background: var(--line-red);
+}
+
+@keyframes castFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes castPulse { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+@keyframes castProgress { from { width: 8%; } to { width: 96%; } }
+@keyframes beamFlow { from { stroke-dashoffset: 282; } to { stroke-dashoffset: 0; } }
+@keyframes castWave {
+  from { transform: scale(0.4); opacity: 0.9; }
+  to   { transform: scale(2.6); opacity: 0; }
+}
+@keyframes tvSweep { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@keyframes tvZoom { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+@media (max-width: 900px) {
+  .cast-stage {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0;
+    margin-top: 40px;
+  }
+  .cast-phone { justify-self: center; width: 170px; }
+  .cast-beam { width: 140px; height: 90px; margin: 0; transform: rotate(90deg); }
+  .cast-tv { width: 100%; max-width: 560px; }
+  .cast-points { grid-template-columns: 1fr; }
+  .cast-steps li + li::before { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cast-phone, .cast-ic-on, .cast-phone-seek span, .beam-flow, .wave,
+  .cast-tv-screen img, .cast-tv-sweep, .cast-tv-glow { animation: none; }
+  .wave { opacity: 0; }
+  .cast-phone-seek span { width: 42%; }
+}
