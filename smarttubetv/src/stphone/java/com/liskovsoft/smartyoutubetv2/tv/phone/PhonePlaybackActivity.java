@@ -530,6 +530,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
             // no newer player took the comments (and the captions) over
             com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.CommentsController.setCommentsListener(null);
             com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController.setCaptionsListener(null);
+            PhoneTranscript.setOnChange(null);
         }
         RxHelper_dispose();
         mHandler.removeCallbacks(mBackgroundTicker);
@@ -955,6 +956,20 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
     // region Search inside the video (PhoneVideoSearch)
 
     private PhoneVideoSearch mVideoSearch;
+
+    /** Find in video: only for a video whose transcript loaded (captions missing: no button) */
+    private void refreshFindButton() {
+        if (mHeader == null || isDestroyed()) {
+            return;
+        }
+        View find = mHeader.findViewById(R.id.phone_player_actions).findViewWithTag(R.id.phone_action_find);
+        if (find == null) {
+            return;
+        }
+        Video video = currentVideo();
+        boolean show = video != null && !video.isLive && PhoneTranscript.available(video.videoId);
+        find.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
 
     private void openVideoSearch() {
         Video video = currentVideo();
@@ -2929,7 +2944,6 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         findViewById(R.id.phone_ctl_speed).setOnClickListener(v -> openSpeedMenu());
         findViewById(R.id.phone_ctl_autoplay).setOnClickListener(v -> toggleAutoplay());
         findViewById(R.id.phone_ctl_cast).setOnClickListener(v -> openCast());
-        findViewById(R.id.phone_ctl_search).setOnClickListener(v -> openVideoSearch());
         // Same list as SmartTube's playback mode button: play next, pause, repeat, shuffle, play the list, close
         findViewById(R.id.phone_ctl_mode).setOnClickListener(v ->
                 presenter().onButtonLongClicked(R.id.action_repeat, getButtonState(R.id.action_repeat)));
@@ -4686,6 +4700,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         addRating(actions);
         addAction(actions, R.id.action_share, R.drawable.ic_phone_share_arrow, getString(R.string.phone_share));
         addAction(actions, R.id.phone_action_find, R.drawable.ic_phone_search, getString(R.string.phone_find));
+        refreshFindButton(); // hidden until the video's transcript is there
         addAction(actions, R.id.action_playlist_add, R.drawable.ic_phone_save, getString(R.string.phone_save));
         addAction(actions, R.id.phone_action_download, R.drawable.ic_phone_download, getString(R.string.phone_download));
         // Listen: this video (and the next ones) in the music player
@@ -4696,6 +4711,8 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
         // The video's caption tracks: what "Find in video" searches
         com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.VideoLoaderController.setCaptionsListener(
                 (videoId, subtitles) -> runOnUiThread(() -> PhoneTranscript.setTracks(videoId, subtitles)));
+        // Find in video shows once the video's transcript has loaded (none: no Find)
+        PhoneTranscript.setOnChange(() -> runOnUiThread(this::refreshFindButton));
 
         // The comments card under the buttons opens the comments (the live chat for a live stream)
         View comments = mHeader.findViewById(R.id.phone_player_comments);
@@ -5029,6 +5046,7 @@ public class PhonePlaybackActivity extends PlaybackActivity implements PhonePlay
 
         LinearLayout actions = mHeader.findViewById(R.id.phone_player_actions);
         // Liked / disliked: the filled thumb (as the YouTube app). Dislikes come from Return YouTube Dislike.
+        refreshFindButton();
         bindRating(actions.findViewWithTag(R.id.action_thumbs_up), R.drawable.ic_phone_like_on, R.drawable.ic_phone_like_o, shortCount(video.likeCount));
         bindRating(actions.findViewWithTag(R.id.action_thumbs_down), R.drawable.ic_phone_dislike_on, R.drawable.ic_phone_dislike_o, shortCount(video.dislikeCount));
     }

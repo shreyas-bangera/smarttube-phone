@@ -55,17 +55,53 @@ final class PhoneTranscript {
     private PhoneTranscript() {
     }
 
-    /** The video's caption tracks arrived with its streams */
+    /** Told when the playing video's transcript is ready, or known not to be (the player shows or hides Find) */
+    private static Runnable sOnChange;
+
+    static void setOnChange(Runnable onChange) {
+        sOnChange = onChange;
+    }
+
+    /** The playing video's transcript is loaded: there's something to search */
+    static boolean available(String videoId) {
+        return videoId != null && videoId.equals(sVideoId) && sLines != null;
+    }
+
+    /**
+     * The video's caption tracks arrived with its streams: its transcript loads right away (once), so Find shows
+     * only for a video that has one, and opens with it ready
+     */
     static void setTracks(String videoId, List<MediaSubtitle> tracks) {
-        if (TextUtils.equals(videoId, sVideoId) && sTracks != null && tracks != null && !tracks.isEmpty()) {
-            return; // the same video (reloaded): what's loaded stays
+        if (TextUtils.equals(videoId, sVideoId)) {
+            // The same video again (its streams reloaded): what's loaded or loading stays; tracks only fill a gap
+            if ((sTracks == null || sTracks.isEmpty()) && tracks != null && !tracks.isEmpty()) {
+                sTracks = tracks;
+                sFailed = false;
+                load(videoId, lines -> notifyChange());
+            }
+            return;
         }
+        // Another video: anyone waiting on the old one hears "none" (never left loading)
+        List<Callback> waiting = new ArrayList<>(sWaiting);
+        sWaiting.clear();
         sVideoId = videoId;
         sTracks = tracks;
         sLines = null;
         sFailed = false;
-        sWaiting.clear();
         sGeneration++;
+        for (Callback c : waiting) {
+            c.onTranscript(null);
+        }
+        notifyChange();
+        if (tracks != null && !tracks.isEmpty()) {
+            load(videoId, lines -> notifyChange());
+        }
+    }
+
+    private static void notifyChange() {
+        if (sOnChange != null) {
+            sOnChange.run();
+        }
     }
 
     /** false: known to have nothing to search (no captions) */
@@ -147,7 +183,7 @@ final class PhoneTranscript {
             String vtt = download(withFormat(baseUrl, "vtt"));
             lines = vtt != null ? parseVtt(vtt) : null;
         }
-        Log.d(TAG, "transcript: " + (lines != null ? lines.size() + " lines" : "none"));
+        Log.d(TAG, "transcript: " + (lines != null ? lines.size() + " lines" : "none") + " (json3 " + (json != null ? json.length() : -1) + " chars)");
         return lines;
     }
 
@@ -164,9 +200,9 @@ final class PhoneTranscript {
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setConnectTimeout(10_000);
             connection.setReadTimeout(15_000);
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36");
+            // (no browser user agent: the link was made for the app's own player, which fetches it as is)
             if (connection.getResponseCode() != 200) {
-                Log.d(TAG, "captions: HTTP " + connection.getResponseCode());
+                Log.d(TAG, "captions: HTTP " + connection.getResponseCode() + " for " + url.replaceAll("[?&](signature|sig|pot|key)=[^&]*", ""));
                 return null;
             }
             try (InputStream in = connection.getInputStream()) {

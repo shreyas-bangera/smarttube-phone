@@ -1,2 +1,2 @@
-- Search inside a video — Tap the search button on the video (or Find in video under it) and type a word: every moment it's said is listed and marked in yellow on the seek bar. Tap one to jump straight there.
+- Search inside a video — Tap the search button under the video and type a word: every moment it's said is listed and marked in yellow on the seek bar. Tap one to jump straight there. It shows on videos that have captions.
 - Notifications for new uploads, Shorts too — New videos, live streams and Shorts from the channels you follow now arrive even when StreamTube is closed, checked every 30 minutes. Shorts can be switched off in Settings › Notifications, where you can also let the check run past battery saving.
