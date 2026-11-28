@@ -3,7 +3,8 @@ name: Build Phone APK
 on:
   push:
     branches: [ "main" ]
-    paths-ignore: [ "README.md", "images/**", ".github/*.sh", ".github/workflows/smoke.yml", ".github/workflows/pr-check.yml", ".github/workflows/beta.yml" ]
+    # Documents (README, PRIVACY, notices…) and CI files only: no new app release
+    paths-ignore: [ "*.md", "images/**", ".github/*.sh", ".github/workflows/smoke.yml", ".github/workflows/pr-check.yml", ".github/workflows/beta.yml", ".github/workflows/tests.yml" ]
   workflow_dispatch:
 
 # One build at a time: a slower older build must never finish last and become the "latest" release
