@@ -374,7 +374,7 @@
     <string name="phone_open">Open</string>
     <string name="phone_playlist_remove_library">Remove from library</string>
     <string name="phone_bell_all_about">Every new upload, Shorts too</string>
-    <string name="phone_bell_personalized_about">New videos and live streams, no Shorts</string>
+    <string name="phone_bell_personalized_about">New videos and live streams, and Shorts unless they\'re off in Settings</string>
     <string name="phone_bell_none_about">No notifications from this channel</string>
     <string name="phone_find">Find in video</string>
     <string name="phone_find_hint">Search what\'s said in this video</string>
@@ -391,4 +391,14 @@
         <item quantity="one">%d moment in what\'s said</item>
         <item quantity="other">%d moments in what\'s said</item>
     </plurals>
+    <string name="phone_notify_shorts">Shorts</string>
+    <string name="phone_notify_shorts_summary">Also notify about new Shorts</string>
+    <string name="phone_notify_background">Background check</string>
+    <string name="phone_notify_background_on">Allowed</string>
+    <string name="phone_notify_background_off">Limited by battery saver</string>
+    <string name="phone_notify_background_summary">Lets StreamTube check for new uploads while it\'s closed</string>
+    <string name="phone_notify_check_now">Check for new uploads now</string>
+    <string name="phone_notify_checking">Checking your subscriptions…</string>
+    <string name="phone_notify_check_none">No new uploads</string>
+    <string name="phone_notify_check_failed">Couldn\'t check right now. Try again later.</string>
 </resources>

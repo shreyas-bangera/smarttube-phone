@@ -350,7 +350,7 @@
     <string name="phone_open">Abrir</string>
     <string name="phone_playlist_remove_library">Remover da biblioteca</string>
     <string name="phone_bell_all_about">Todo envio novo, Shorts também</string>
-    <string name="phone_bell_personalized_about">Vídeos novos e transmissões ao vivo, sem Shorts</string>
+    <string name="phone_bell_personalized_about">Vídeos novos e transmissões ao vivo, e Shorts se estiverem ativados nas Configurações</string>
     <string name="phone_bell_none_about">Nenhuma notificação deste canal</string>
     <string name="phone_find">Buscar no vídeo</string>
     <string name="phone_find_hint">Buscar o que é dito neste vídeo</string>
@@ -367,4 +367,14 @@
         <item quantity="one">%d momento no que é dito</item>
         <item quantity="other">%d momentos no que é dito</item>
     </plurals>
+    <string name="phone_notify_shorts">Shorts</string>
+    <string name="phone_notify_shorts_summary">Também avisar sobre novos Shorts</string>
+    <string name="phone_notify_background">Verificação em segundo plano</string>
+    <string name="phone_notify_background_on">Permitida</string>
+    <string name="phone_notify_background_off">Limitada pela economia de bateria</string>
+    <string name="phone_notify_background_summary">Deixa o StreamTube procurar novos envios mesmo fechado</string>
+    <string name="phone_notify_check_now">Procurar novos envios agora</string>
+    <string name="phone_notify_checking">Verificando suas inscrições…</string>
+    <string name="phone_notify_check_none">Nenhum envio novo</string>
+    <string name="phone_notify_check_failed">Não foi possível verificar agora. Tente mais tarde.</string>
 </resources>

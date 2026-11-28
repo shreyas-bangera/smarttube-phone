@@ -343,7 +343,7 @@
     <string name="phone_open">Buka</string>
     <string name="phone_playlist_remove_library">Alih keluar daripada pustaka</string>
     <string name="phone_bell_all_about">Setiap muat naik baharu, termasuk Shorts</string>
-    <string name="phone_bell_personalized_about">Video baharu dan siaran langsung, tanpa Shorts</string>
+    <string name="phone_bell_personalized_about">Video baharu dan siaran langsung, serta Shorts melainkan dimatikan dalam Tetapan</string>
     <string name="phone_bell_none_about">Tiada pemberitahuan daripada saluran ini</string>
     <string name="phone_find">Cari dalam video</string>
     <string name="phone_find_hint">Cari apa yang disebut dalam video ini</string>
@@ -360,4 +360,14 @@
         <item quantity="one">%d detik dalam apa yang disebut</item>
         <item quantity="other">%d detik dalam apa yang disebut</item>
     </plurals>
+    <string name="phone_notify_shorts">Shorts</string>
+    <string name="phone_notify_shorts_summary">Juga beritahu tentang Shorts baharu</string>
+    <string name="phone_notify_background">Semakan latar belakang</string>
+    <string name="phone_notify_background_on">Dibenarkan</string>
+    <string name="phone_notify_background_off">Dihadkan oleh penjimat bateri</string>
+    <string name="phone_notify_background_summary">Membolehkan StreamTube menyemak muat naik baharu walaupun ditutup</string>
+    <string name="phone_notify_check_now">Semak muat naik baharu sekarang</string>
+    <string name="phone_notify_checking">Menyemak langganan anda…</string>
+    <string name="phone_notify_check_none">Tiada muat naik baharu</string>
+    <string name="phone_notify_check_failed">Tidak dapat menyemak sekarang. Cuba lagi nanti.</string>
 </resources>

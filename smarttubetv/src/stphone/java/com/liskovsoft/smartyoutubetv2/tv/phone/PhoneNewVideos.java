@@ -58,8 +58,10 @@ final class PhoneNewVideos {
     private static final String CHANNEL = "new_videos";
     private static final String GROUP = "org.smarttube.phone.NEW_VIDEOS";
     private static final int SUMMARY_ID = 5200;
-    private static final long CHECK_EVERY_MINUTES = 60;
+    private static final long CHECK_EVERY_MINUTES = 30;
     private static final String WORK_NAME_V2 = "phone_new_videos_v2";
+    /** Every 30 minutes, the channels' own feeds (Shorts too): a new name, so the hourly v2 is replaced */
+    private static final String WORK_NAME_V3 = "phone_new_videos_v3";
     private static final int MAX_SEEN = 3000;
     private static final String KEY_LAST_CHECK = "last_check";
     private static final String KEY_CHANNELS = "channels";
@@ -109,6 +111,23 @@ final class PhoneNewVideos {
         return set(context, KEY_ALL).contains(channelId) ? BELL_ALL : BELL_PERSONALIZED;
     }
 
+    private static final String KEY_SHORTS = "shorts";
+
+    /** Settings › Notifications › Shorts: Personalised channels' Shorts too (on by default) */
+    static boolean isShortsOn(Context context) {
+        return prefs(context).getBoolean(KEY_SHORTS, true);
+    }
+
+    static void setShortsOn(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_SHORTS, on).apply();
+    }
+
+    /** A Short of this channel is notified: the bell on All, or on Personalised with Shorts on */
+    static boolean wantsShorts(Context context, String channelId) {
+        int bell = bell(context, channelId);
+        return bell == BELL_ALL || (bell == BELL_PERSONALIZED && isShortsOn(context));
+    }
+
     static boolean isBellOn(Context context, String channelId) {
         return bell(context, channelId) != BELL_NONE;
     }
@@ -144,20 +163,51 @@ final class PhoneNewVideos {
         schedule(context);
     }
 
+    /** Android's battery saving lets this app's background check run on time (not delayed or skipped) */
+    static boolean isUnrestricted(Context context) {
+        if (Build.VERSION.SDK_INT < 23) {
+            return true;
+        }
+        android.os.PowerManager power = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        return power == null || power.isIgnoringBatteryOptimizations(context.getPackageName());
+    }
+
+    /** Asks Android to let the check run in the background (its own dialog), else opens its battery settings */
+    static void askUnrestricted(android.app.Activity activity) {
+        if (Build.VERSION.SDK_INT < 23) {
+            return;
+        }
+        try {
+            if (!isUnrestricted(activity)) {
+                activity.startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:" + activity.getPackageName())));
+                return;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "battery dialog: " + e);
+        }
+        try {
+            activity.startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        } catch (Exception e) {
+            Log.e(TAG, "battery settings: " + e);
+        }
+    }
+
     /** Keeps the background check running (or stops it when it's switched off). Safe to call at every start. */
     static void schedule(Context context) {
         try {
             WorkManager manager = WorkManager.getInstance(context.getApplicationContext());
             manager.cancelUniqueWork(WORK_NAME); // the first version (every 2 hours, account feed)
+            manager.cancelUniqueWork(WORK_NAME_V2); // the second (hourly)
             if (!isEnabled(context)) {
-                manager.cancelUniqueWork(WORK_NAME_V2);
+                manager.cancelUniqueWork(WORK_NAME_V3);
                 return;
             }
             Constraints constraints = new Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();
             PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(CheckWorker.class, CHECK_EVERY_MINUTES, TimeUnit.MINUTES)
                     .setConstraints(constraints)
                     .build();
-            manager.enqueueUniquePeriodicWork(WORK_NAME_V2, ExistingPeriodicWorkPolicy.KEEP, request);
+            manager.enqueueUniquePeriodicWork(WORK_NAME_V3, ExistingPeriodicWorkPolicy.KEEP, request);
             // The background check reads the channels' feeds: remember the channels while the account is at hand
             Context app = context.getApplicationContext();
             com.liskovsoft.sharedutils.rx.RxHelper.runAsync(() -> {
@@ -213,7 +263,7 @@ final class PhoneNewVideos {
         if (!isEnabled(app)) {
             return 0;
         }
-        List<MediaItem> items = latestUploads(app);
+        List<Entry2> items = latestUploads(app);
         Log.d(TAG, "latest uploads: " + items.size());
         if (items.isEmpty()) {
             return 0;
@@ -232,20 +282,18 @@ final class PhoneNewVideos {
 
         List<Video> fresh = new ArrayList<>();
         List<String> current = new ArrayList<>();
-        for (MediaItem item : items) {
-            String id = item != null ? item.getVideoId() : null;
+        for (Entry2 item : items) {
+            String id = item.videoId;
             if (id == null) {
                 continue;
             }
             current.add(id);
-            // Videos and live streams; Shorts and not yet started premieres would mostly be noise. Only what came out
-            // since the last look (a channel subscribed to meanwhile doesn't bring its older videos).
-            long published = item.getPublishedDate();
+            // Only what came out since the last look (a channel subscribed to meanwhile doesn't bring its older videos).
+            // Shorts too, unless they're switched off (Settings › Notifications) or the channel's bell says otherwise.
+            long published = item.published;
             boolean recent = published <= 0 || (published > lastCheck - RECENT_MARGIN_MS && published > now - MAX_AGE_MS);
-            // (a channel whose bell is on All brings its Shorts too)
-            boolean shortOk = !item.isShorts() || bell(app, item.getChannelId()) == BELL_ALL;
-            if (!seen.contains(id) && recent && shortOk && !item.isUpcoming()) {
-                fresh.add(Video.from(item));
+            if (!seen.contains(id) && recent && (!item.isShort || wantsShorts(app, item.channelId))) {
+                fresh.add(item.toVideo());
             }
         }
 
@@ -294,12 +342,38 @@ final class PhoneNewVideos {
         return fresh.size();
     }
 
+    /** A new upload as the channel's feed lists it */
+    static final class Entry2 {
+        String videoId;
+        String channelId;
+        String title;
+        String author;
+        long published;
+        boolean isShort;
+
+        Video toVideo() {
+            Video video = new Video();
+            video.videoId = videoId;
+            video.channelId = channelId;
+            video.title = title;
+            video.author = author;
+            video.secondTitle = author; // (what the Notifications tab keeps, and reads the channel's name from)
+            video.cardImageUrl = "https://i.ytimg.com/vi/" + videoId + (isShort ? "/oar2.jpg" : "/hqdefault.jpg");
+            video.isShorts = isShort;
+            if (isShort) {
+                video.badge = "Shorts";
+            }
+            return video;
+        }
+    }
+
     /**
-     * The latest uploads of the subscribed channels, as Flow does it: each channel's public feed (RSS), which needs no
-     * sign-in, so it also works when Android wakes the app in the background. The channel list is taken from the
-     * account while the app is open; without one yet, the account's Subscriptions feed.
+     * The latest uploads of the subscribed channels: each channel's public feed (RSS), read straight from YouTube a
+     * few at a time. It needs no sign-in, so it also works when Android wakes the app in the background, and a Short
+     * is known by its link (/shorts/). The channel list is taken from the account while the app is open; without one
+     * yet, the account's Subscriptions feed.
      */
-    private static List<MediaItem> latestUploads(Context app) {
+    private static List<Entry2> latestUploads(Context app) {
         boolean signedIn = false;
         try {
             signedIn = YouTubeServiceManager.instance().getSignInService().isSigned();
@@ -309,28 +383,118 @@ final class PhoneNewVideos {
         } catch (Throwable e) {
             Log.e(TAG, "channels: " + e);
         }
-        List<MediaItem> items = new ArrayList<>();
+        List<Entry2> items = new ArrayList<>();
         String[] channels = channels(app);
         if (channels.length > 0) {
-            for (int from = 0; from < channels.length; from += RSS_CHUNK) {
-                String[] chunk = java.util.Arrays.copyOfRange(channels, from, Math.min(channels.length, from + RSS_CHUNK));
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(6);
+            List<java.util.concurrent.Future<List<Entry2>>> jobs = new ArrayList<>();
+            for (String channel : channels) {
+                jobs.add(pool.submit(() -> readFeed(channel)));
+            }
+            for (java.util.concurrent.Future<List<Entry2>> job : jobs) {
                 try {
-                    MediaGroup group = YouTubeServiceManager.instance().getContentService().getRssFeed(chunk);
-                    if (group != null && group.getMediaItems() != null) {
-                        items.addAll(group.getMediaItems());
+                    List<Entry2> found = job.get(30, TimeUnit.SECONDS);
+                    if (found != null) {
+                        items.addAll(found);
                     }
-                } catch (Throwable e) {
-                    Log.e(TAG, "rss: " + e); // the other channels still count
+                } catch (Exception e) {
+                    // that channel next time; the others still count
                 }
             }
+            pool.shutdownNow();
         } else if (signedIn) {
-            MediaGroup feed = YouTubeServiceManager.instance().getContentService().getSubscriptions();
-            if (feed != null && feed.getMediaItems() != null) {
-                items.addAll(feed.getMediaItems());
+            try {
+                MediaGroup feed = YouTubeServiceManager.instance().getContentService().getSubscriptions();
+                if (feed != null && feed.getMediaItems() != null) {
+                    for (MediaItem item : feed.getMediaItems()) {
+                        if (item == null || item.getVideoId() == null || item.isUpcoming()) {
+                            continue;
+                        }
+                        Entry2 entry = new Entry2();
+                        entry.videoId = item.getVideoId();
+                        entry.channelId = item.getChannelId();
+                        entry.title = item.getTitle();
+                        entry.author = item.getAuthor();
+                        entry.published = item.getPublishedDate();
+                        entry.isShort = item.isShorts();
+                        items.add(entry);
+                    }
+                }
+            } catch (Throwable e) {
+                Log.e(TAG, "subscriptions: " + e);
             }
         }
-        java.util.Collections.sort(items, (a, b) -> Long.compare(b.getPublishedDate(), a.getPublishedDate()));
+        java.util.Collections.sort(items, (a, b) -> Long.compare(b.published, a.published));
         return items;
+    }
+
+    private static final java.util.regex.Pattern ENTRY = java.util.regex.Pattern.compile("<entry>(.*?)</entry>", java.util.regex.Pattern.DOTALL);
+
+    /** One channel's feed: its latest 15 uploads */
+    private static List<Entry2> readFeed(String channelId) {
+        java.net.HttpURLConnection connection = null;
+        try {
+            connection = (java.net.HttpURLConnection) new java.net.URL("https://www.youtube.com/feeds/videos.xml?channel_id=" + channelId).openConnection();
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(15_000);
+            if (connection.getResponseCode() != 200) {
+                return null;
+            }
+            String xml;
+            try (java.io.InputStream in = connection.getInputStream()) {
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[16 * 1024];
+                int n;
+                while ((n = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, n);
+                }
+                xml = new String(out.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            List<Entry2> entries = new ArrayList<>();
+            java.util.regex.Matcher m = ENTRY.matcher(xml);
+            while (m.find()) {
+                String e = m.group(1);
+                Entry2 entry = new Entry2();
+                entry.videoId = tag(e, "yt:videoId");
+                entry.channelId = tag(e, "yt:channelId");
+                if (entry.channelId == null) {
+                    entry.channelId = channelId;
+                }
+                entry.title = tag(e, "title");
+                entry.author = tag(e, "name");
+                String published = tag(e, "published");
+                try {
+                    entry.published = published != null ? java.time.OffsetDateTime.parse(published).toInstant().toEpochMilli() : 0;
+                } catch (Exception ignored) {
+                    entry.published = 0;
+                }
+                entry.isShort = e.contains("/shorts/" + entry.videoId);
+                if (entry.videoId != null) {
+                    entries.add(entry);
+                }
+            }
+            return entries;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private static String tag(String xml, String name) {
+        int start = xml.indexOf("<" + name + ">");
+        if (start < 0) {
+            return null;
+        }
+        start += name.length() + 2;
+        int end = xml.indexOf("</" + name + ">", start);
+        if (end < 0) {
+            return null;
+        }
+        return xml.substring(start, end).replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
+                .replace("&lt;", "<").replace("&gt;", ">").trim();
     }
 
     /** Remembers the subscribed channels (the account is only at hand in the app): at most twice a day, or now */
@@ -399,7 +563,9 @@ final class PhoneNewVideos {
             for (int i = 0; i < fresh.size() && i < MAX_POSTED; i++) {
                 Video video = fresh.get(i);
                 // Opens like any YouTube link: the launcher screen hands it to the player
-                Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + video.videoId))
+                String link = video.isShorts ? "https://www.youtube.com/shorts/" + video.videoId
+                        : "https://www.youtube.com/watch?v=" + video.videoId;
+                Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(link))
                         .setClass(context, SplashActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL)

@@ -38,6 +38,9 @@
     <permission android:name="${applicationId}.ACCESS_VIDEO_DATA" tools:node="remove" />
     <uses-feature android:name="android.hardware.microphone" tools:node="remove" />
 
+    <!-- New-video notifications: asks Android (with its own dialog) to let the check run while the app is closed -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- The share sheet lists the apps that take a link (Android 11+ shows an app only the ones it asks for) -->
     <queries>
         <intent>

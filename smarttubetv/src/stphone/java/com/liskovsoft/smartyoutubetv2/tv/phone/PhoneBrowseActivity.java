@@ -199,6 +199,9 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
         if (mFeedPreview != null) {
             mFeedPreview.onResume();
         }
+        if (!mIsFirstResume && isSettingsPage()) {
+            refreshSettingsRows(); // back from Android's settings (battery, notifications): the rows show what's now
+        }
         if (mTabStyle != PhoneTweaks.tabStyle(this)) {
             applyTabStyle(); // changed in Customize
         }
@@ -1631,8 +1634,19 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             refreshSettingsRows();
         }));
         if (PhoneNewVideos.isEnabled(this)) {
+            items.add(PhoneSetting.toggle(getString(R.string.phone_notify_shorts), PhoneNewVideos.isShortsOn(this), R.drawable.ic_phone_shorts, () -> {
+                PhoneNewVideos.setShortsOn(this, !PhoneNewVideos.isShortsOn(this));
+                refreshSettingsRows();
+            }).summary(getString(R.string.phone_notify_shorts_summary)));
             items.add(PhoneSetting.row(getString(R.string.phone_channel_notifications), R.drawable.ic_phone_bell_on,
                     () -> PhoneChannelBells.show(this)).summary(getString(R.string.phone_channel_notifications_summary)));
+            // The check runs while the app is closed only if Android's battery saving lets it
+            boolean free = PhoneNewVideos.isUnrestricted(this);
+            items.add(PhoneSetting.value(getString(R.string.phone_notify_background),
+                    getString(free ? R.string.phone_notify_background_on : R.string.phone_notify_background_off),
+                    R.drawable.ic_phone_update, () -> PhoneNewVideos.askUnrestricted(this))
+                    .summary(getString(R.string.phone_notify_background_summary)));
+            items.add(PhoneSetting.row(getString(R.string.phone_notify_check_now), R.drawable.ic_phone_search, this::checkNewVideosNow));
         }
 
         // What's shown: skipping sponsors, better titles, search
@@ -1670,6 +1684,29 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView, Fe
             }
         }
         return items;
+    }
+
+    /** Settings › Notifications › Check now: the background check, right away (and its result) */
+    private void checkNewVideosNow() {
+        android.widget.Toast.makeText(this, R.string.phone_notify_checking, android.widget.Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            int found;
+            try {
+                found = PhoneNewVideos.check(getApplicationContext());
+            } catch (Throwable e) {
+                found = -1;
+            }
+            int result = found;
+            runOnUiThread(() -> {
+                if (isFinishing()) {
+                    return;
+                }
+                String text = result < 0 ? getString(R.string.phone_notify_check_failed)
+                        : result == 0 ? getString(R.string.phone_notify_check_none)
+                        : getResources().getQuantityString(R.plurals.phone_new_videos_count, result, result);
+                android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show();
+            });
+        }, "new-videos-now").start();
     }
 
     /** Theme: a drop-down under the row with the three choices, the current one ticked */
