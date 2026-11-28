@@ -62,14 +62,27 @@ final class PhoneTranscript {
         sOnChange = onChange;
     }
 
-    /** The playing video's transcript is loaded: there's something to search */
+    /** The playing video has captions to search (known from its streams: nothing is downloaded for this) */
     static boolean available(String videoId) {
-        return videoId != null && videoId.equals(sVideoId) && sLines != null;
+        return videoId != null && videoId.equals(sVideoId) && (sLines != null || pick(sTracks) != null);
     }
 
+    /** The captions exist but couldn't be downloaded just now (YouTube busy or limiting): worth trying again */
+    static boolean failedNow(String videoId) {
+        return available(videoId) && sLines == null && sFailed;
+    }
+
+    /** Transcripts already downloaded (the last few videos): opening search again needs no download */
+    private static final java.util.LinkedHashMap<String, List<Line>> sCache = new java.util.LinkedHashMap<String, List<Line>>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, List<Line>> eldest) {
+            return size() > 6;
+        }
+    };
+
     /**
-     * The video's caption tracks arrived with its streams: its transcript loads right away (once), so Find shows
-     * only for a video that has one, and opens with it ready
+     * The video's caption tracks arrived with its streams. Nothing is downloaded until search is opened (YouTube
+     * limits caption downloads: one per opened video was too many)
      */
     static void setTracks(String videoId, List<MediaSubtitle> tracks) {
         if (TextUtils.equals(videoId, sVideoId)) {
@@ -77,7 +90,7 @@ final class PhoneTranscript {
             if ((sTracks == null || sTracks.isEmpty()) && tracks != null && !tracks.isEmpty()) {
                 sTracks = tracks;
                 sFailed = false;
-                load(videoId, lines -> notifyChange());
+                notifyChange();
             }
             return;
         }
@@ -86,16 +99,13 @@ final class PhoneTranscript {
         sWaiting.clear();
         sVideoId = videoId;
         sTracks = tracks;
-        sLines = null;
+        sLines = videoId != null ? sCache.get(videoId) : null;
         sFailed = false;
         sGeneration++;
         for (Callback c : waiting) {
             c.onTranscript(null);
         }
         notifyChange();
-        if (tracks != null && !tracks.isEmpty()) {
-            load(videoId, lines -> notifyChange());
-        }
     }
 
     private static void notifyChange() {
@@ -109,14 +119,15 @@ final class PhoneTranscript {
         if (!TextUtils.equals(videoId, sVideoId)) {
             return true; // not known yet: try
         }
-        return !sFailed && (sLines != null || (sTracks != null && !sTracks.isEmpty()));
+        return sLines != null || (sTracks != null && !sTracks.isEmpty()); // (a failed download is tried again)
     }
 
     static void load(String videoId, Callback callback) {
-        if (!TextUtils.equals(videoId, sVideoId) || sTracks == null || sTracks.isEmpty() || sFailed) {
+        if (!TextUtils.equals(videoId, sVideoId) || sTracks == null || sTracks.isEmpty()) {
             callback.onTranscript(null);
             return;
         }
+        sFailed = false; // a download that failed before is tried again
         if (sLines != null) {
             callback.onTranscript(sLines);
             return;
@@ -136,6 +147,9 @@ final class PhoneTranscript {
                 }
                 sLines = lines != null && !lines.isEmpty() ? lines : null;
                 sFailed = sLines == null;
+                if (sLines != null) {
+                    sCache.put(sVideoId, sLines);
+                }
                 List<Callback> waiting = new ArrayList<>(sWaiting);
                 sWaiting.clear();
                 for (Callback c : waiting) {
@@ -147,6 +161,9 @@ final class PhoneTranscript {
 
     /** The phone's language, its own captions before automatic ones; else English; else the first */
     private static MediaSubtitle pick(List<MediaSubtitle> tracks) {
+        if (tracks == null) {
+            return null;
+        }
         String phone = Locale.getDefault().getLanguage();
         MediaSubtitle best = null;
         int bestScore = -1;
@@ -156,7 +173,9 @@ final class PhoneTranscript {
             }
             String lang = t.getLanguageCode() != null ? t.getLanguageCode().toLowerCase(Locale.ROOT) : "";
             boolean auto = "asr".equals(t.getType());
-            int score = 0;
+            // A machine translation of the captions (tlang=…): YouTube limits those hard, so only as a last resort
+            boolean translated = t.getBaseUrl().contains("tlang=");
+            int score = translated ? -10 : 0;
             if (lang.startsWith(phone)) {
                 score += 4;
             } else if (lang.startsWith("en")) {
@@ -195,12 +214,29 @@ final class PhoneTranscript {
     }
 
     private static String download(String url) {
+        String text = downloadOnce(url);
+        if (text == null && sLastCode == 429) {
+            try {
+                Thread.sleep(2000); // YouTube is limiting: a short pause, then once more
+            } catch (InterruptedException ignored) {
+                return null;
+            }
+            text = downloadOnce(url);
+        }
+        return text;
+    }
+
+    private static volatile int sLastCode;
+
+    private static String downloadOnce(String url) {
+        sLastCode = 0;
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setConnectTimeout(10_000);
             connection.setReadTimeout(15_000);
             // (no browser user agent: the link was made for the app's own player, which fetches it as is)
+            sLastCode = connection.getResponseCode();
             if (connection.getResponseCode() != 200) {
                 Log.d(TAG, "captions: HTTP " + connection.getResponseCode() + " for " + url.replaceAll("[?&](signature|sig|pot|key)=[^&]*", ""));
                 return null;

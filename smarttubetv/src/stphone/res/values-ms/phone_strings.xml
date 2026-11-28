@@ -370,4 +370,5 @@
     <string name="phone_notify_checking">Menyemak langganan anda…</string>
     <string name="phone_notify_check_none">Tiada muat naik baharu</string>
     <string name="phone_notify_check_failed">Tidak dapat menyemak sekarang. Cuba lagi nanti.</string>
+    <string name="phone_find_failed">Tidak dapat memuatkan sari kata sekarang. Cuba lagi sebentar lagi.</string>
 </resources>

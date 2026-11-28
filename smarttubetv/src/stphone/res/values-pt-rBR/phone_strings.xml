@@ -377,4 +377,5 @@
     <string name="phone_notify_checking">Verificando suas inscrições…</string>
     <string name="phone_notify_check_none">Nenhum envio novo</string>
     <string name="phone_notify_check_failed">Não foi possível verificar agora. Tente mais tarde.</string>
+    <string name="phone_find_failed">Não foi possível carregar as legendas agora. Tente de novo em instantes.</string>
 </resources>

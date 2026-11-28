@@ -401,4 +401,5 @@
     <string name="phone_notify_checking">Checking your subscriptions…</string>
     <string name="phone_notify_check_none">No new uploads</string>
     <string name="phone_notify_check_failed">Couldn\'t check right now. Try again later.</string>
+    <string name="phone_find_failed">Couldn\'t load the captions right now. Try again in a moment.</string>
 </resources>

@@ -244,7 +244,7 @@ final class PhoneVideoSearch {
         if (mLoading) {
             mStatus.setText(R.string.phone_find_loading);
         } else if (mLines == null) {
-            mStatus.setText(R.string.phone_find_no_captions);
+            mStatus.setText(PhoneTranscript.failedNow(mVideoId) ? R.string.phone_find_failed : R.string.phone_find_no_captions);
         } else if (TextUtils.isEmpty(mQuery)) {
             mStatus.setText(R.string.phone_find_transcript);
         } else if (mHits.isEmpty()) {
